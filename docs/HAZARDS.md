@@ -28,7 +28,7 @@ Every number lives in `src/shared/Config/HazardConfig.lua`. Damage is the base v
 
 ## Demo mode
 
-`Demo = true` in `src/server/HazardBootstrap.server.lua` (and `DEMO` in the pack's Start script) gives every player a stud Gumball over their head with 3 HP. It cycles Sparrow → Plane → Pinwheel → Nimbo around them at any height. At 0 HP the balloon pops into brick confetti and reinflates after 3 s.
+`Demo = true` in `src/server/HazardBootstrap.server.lua` (and `DEMO` in the pack's Start script) gives every player a stud balloon over their head (HP = its Toughness) and builds the balloon gallery by the spawn, where **Try it** swaps balloons. It cycles Sparrow → Plane → Pinwheel → Nimbo around them at any height. At 0 HP the balloon pops into brick confetti and reinflates after 3 s.
 
 ## Hooking up FlightService (milestone M1)
 

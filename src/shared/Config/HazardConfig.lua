@@ -27,14 +27,15 @@ HazardConfig.Zones = {
 	CloudShelf = { Min = 500, Max = 1500 },
 }
 
--- Demo mode: gives every player a stud Gumball over their head with 3 HP and spawns
--- one of each hazard in turn at any height, so you can see every attack in an empty place.
+-- Demo mode: gives every player a stud balloon over their head (HP = its Toughness), builds
+-- the balloon gallery by the spawn, and spawns one of each hazard in turn at any height,
+-- so every attack and balloon can be seen in an empty place.
 HazardConfig.Demo = {
 	Enabled = false, -- the bootstrap scripts can switch this on
 	Kinds = { "Sparrow", "Plane", "Pinwheel", "Nimbo" },
-	BalloonHP = 3,
+	BalloonHP = 3, -- fallback when a balloon type has no Toughness
 	RespawnDelay = 3,
-	BalloonHeight = 9, -- studs above HumanoidRootPart
+	StringLength = 4.5, -- studs of string between the hand and the balloon's knot
 }
 
 export type HazardType = {

@@ -1,4 +1,1773 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Folder" referent="RBX00000014"><Properties><string name="Name">HazardPack</string></Properties><Item class="Folder" referent="RBX0000000C"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000002"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">HazardConfig</string><ProtectedString name="Source"><![CDATA[--!strict
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Folder" referent="RBX00000019"><Properties><string name="Name">HazardPack</string></Properties><Item class="Folder" referent="RBX00000011"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000004"><Properties><string name="Name">Balloons</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">BalloonBuilder</string><ProtectedString name="Source"><![CDATA[--!strict
+-- BalloonBuilder: turns the generated voxel data in BalloonModels into a real stud Model.
+--
+--   local model = BalloonBuilder.Build("Gumball", { Anchored = false, CFrame = cf, Scale = 1.5 })
+--
+-- The model's PrimaryPart is an invisible "Root" at the balloon's centre; every part is
+-- welded to it (or anchored), so Model:PivotTo and Model:ScaleTo work as the prompt asks.
+-- Root holds a "StringAttachment" at the knot for the string / RopeConstraint.
+
+local BalloonModels = require(script.Parent.BalloonModels)
+
+local BalloonBuilder = {}
+
+local MATERIALS = {
+	P = Enum.Material.Plastic,
+	S = Enum.Material.SmoothPlastic,
+	N = Enum.Material.Neon,
+	G = Enum.Material.Glass,
+}
+
+export type BuildOptions = {
+	Anchored: boolean?, -- default true
+	CFrame: CFrame?,
+	Scale: number?,
+	Name: string?,
+}
+
+type Style = { color: Color3, material: Enum.Material, transparency: number, studs: boolean }
+
+local styleCache: { [string]: { [string]: Style } } = {}
+
+local function styles(kind: string, def: any): { [string]: Style }
+	local cached = styleCache[kind]
+	if cached then
+		return cached
+	end
+	local out = {}
+	for key, entry in def.Palette do
+		local mat = MATERIALS[entry[2]] or Enum.Material.Plastic
+		out[key] = {
+			color = Color3.fromHex(entry[1]),
+			material = mat,
+			transparency = entry[3] or 0,
+			studs = mat == Enum.Material.Plastic,
+		}
+	end
+	styleCache[kind] = out
+	return out
+end
+
+function BalloonBuilder.Has(kind: string): boolean
+	return BalloonModels[kind] ~= nil
+end
+
+function BalloonBuilder.Build(kind: string, opts: BuildOptions?): Model
+	local def = BalloonModels[kind]
+	assert(def, "Unknown balloon: " .. tostring(kind))
+	local o: BuildOptions = opts or {}
+	local anchored = o.Anchored ~= false
+	local palette = styles(kind, def)
+
+	local model = Instance.new("Model")
+	model.Name = o.Name or kind
+	model:SetAttribute("Balloon", kind)
+
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = Vector3.one
+	root.Transparency = 1
+	root.Anchored = anchored
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	root.Massless = true
+	root.CFrame = CFrame.identity
+	root.Parent = model
+
+	for i, rec in def.Parts do
+		local part: BasePart = if rec[1] == "W" then Instance.new("WedgePart") else Instance.new("Part")
+		local style = palette[rec[2]]
+		part.Name = rec[2] .. i
+		part.Size = Vector3.new(rec[3], rec[4], rec[5])
+		part.CFrame = if #rec >= 17
+			then CFrame.new(rec[6], rec[7], rec[8], rec[9], rec[10], rec[11], rec[12], rec[13], rec[14], rec[15], rec[16], rec[17])
+			else CFrame.new(rec[6], rec[7], rec[8])
+		part.Color = style.color
+		part.Material = style.material
+		part.Transparency = style.transparency
+		if style.studs then
+			part.TopSurface = Enum.SurfaceType.Studs
+			part.BottomSurface = Enum.SurfaceType.Inlet
+		else
+			part.TopSurface = Enum.SurfaceType.Smooth
+			part.BottomSurface = Enum.SurfaceType.Smooth
+		end
+		part.Anchored = anchored
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.CastShadow = false
+		part.Massless = true
+		part.Parent = model
+		if not anchored then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = root
+			weld.Part1 = part
+			weld.Parent = part
+		end
+	end
+
+	local knot = Instance.new("Attachment")
+	knot.Name = "StringAttachment"
+	knot.Position = Vector3.new(def.Knot[1], def.Knot[2], def.Knot[3])
+	knot.Parent = root
+
+	if def.Light then
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromHex(def.Light[1])
+		light.Brightness = def.Light[2]
+		light.Range = def.Light[3]
+		light.Shadows = false
+		light.Parent = root
+	end
+
+	model.PrimaryPart = root
+	if o.Scale and o.Scale ~= 1 then
+		model:ScaleTo(o.Scale)
+	end
+	if o.CFrame then
+		model:PivotTo(o.CFrame)
+	end
+	return model
+end
+
+-- Knot offset from the balloon centre (in model space, before scaling).
+function BalloonBuilder.KnotOffset(kind: string): Vector3
+	local def = BalloonModels[kind]
+	return if def then Vector3.new(def.Knot[1], def.Knot[2], def.Knot[3]) else Vector3.new(0, -5, 0)
+end
+
+return BalloonBuilder
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000002"><Properties><string name="Name">BalloonGallery</string><ProtectedString name="Source"><![CDATA[--!strict
+-- BalloonGallery (client, demo mode only): an arc of stud pedestals near the spawn with
+-- every balloon floating, spinning and bobbing above its nameplate. Each pedestal has a
+-- "Try it" prompt that swaps the demo balloon over your head to that type.
+-- Built locally, so it never replicates and costs the server nothing.
+
+local RunService = game:GetService("RunService")
+
+local Shared = script.Parent.Parent
+local BalloonBuilder = require(script.Parent.BalloonBuilder)
+local BalloonConfig = require(Shared.Config.BalloonConfig)
+
+local BalloonGallery = {}
+
+local STONE = Color3.fromHex("A3A2A5")
+local STONE_DARK = Color3.fromHex("7B7A80")
+local GOLD = Color3.fromHex("FFC21A")
+
+local function block(size: Vector3, color: Color3, cf: CFrame, parent: Instance, material: Enum.Material?): Part
+	local p = Instance.new("Part")
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.Plastic
+	p.TopSurface = Enum.SurfaceType.Studs
+	p.BottomSurface = Enum.SurfaceType.Inlet
+	p.Anchored = true
+	p.CFrame = cf
+	p.Parent = parent
+	return p
+end
+
+local function findSpawn(): CFrame
+	for _, d in workspace:GetDescendants() do
+		if d:IsA("SpawnLocation") then
+			return CFrame.new(d.Position - Vector3.new(0, d.Size.Y / 2, 0))
+		end
+	end
+	return CFrame.new(0, 0, 0)
+end
+
+type Exhibit = { model: Model, base: CFrame, phase: number }
+
+function BalloonGallery.Start(equipRemote: RemoteEvent?): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = "BalloonGallery"
+	folder.Parent = workspace
+
+	local origin = findSpawn()
+	local names = BalloonConfig.Ordered()
+	local radius = 62
+	local span = math.rad(150)
+	local exhibits: { Exhibit } = {}
+
+	for i, name in names do
+		local t = (i - 1) / (#names - 1)
+		local a = -span / 2 + span * t
+		local floor = origin * CFrame.new(math.sin(a) * radius, 0, -math.cos(a) * radius)
+		local face = CFrame.lookAt(floor.Position, Vector3.new(origin.X, floor.Y, origin.Z))
+		local cfg = BalloonConfig.Types[name]
+		local tierColor = BalloonConfig.TierColors[cfg.Tier]
+
+		local stand = Instance.new("Model")
+		stand.Name = name
+		stand.Parent = folder
+		block(Vector3.new(6, 1, 6), STONE_DARK, face * CFrame.new(0, 0.5, 0), stand)
+		block(Vector3.new(4, 3, 4), STONE, face * CFrame.new(0, 2.5, 0), stand)
+		local top = block(Vector3.new(5, 0.6, 5), GOLD, face * CFrame.new(0, 4.3, 0), stand)
+		local trim = block(Vector3.new(4.2, 0.4, 0.2), tierColor, face * CFrame.new(0, 1.3, -2.05), stand, Enum.Material.Neon)
+		trim.TopSurface = Enum.SurfaceType.Smooth
+
+		-- nameplate
+		local plate = block(Vector3.new(3.6, 1.6, 0.3), Color3.fromHex("2A2440"), face * CFrame.new(0, 2.6, -2.1), stand, Enum.Material.SmoothPlastic)
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.CanvasSize = Vector2.new(360, 160)
+		gui.LightInfluence = 0
+		gui.Parent = plate
+		local title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.fromScale(1, 0.62)
+		title.Font = Enum.Font.FredokaOne
+		title.TextScaled = true
+		title.Text = name
+		title.TextColor3 = Color3.new(1, 1, 1)
+		title.Parent = gui
+		local sub = Instance.new("TextLabel")
+		sub.BackgroundTransparency = 1
+		sub.Position = UDim2.fromScale(0, 0.6)
+		sub.Size = UDim2.fromScale(1, 0.36)
+		sub.Font = Enum.Font.FredokaOne
+		sub.TextScaled = true
+		sub.Text = string.upper(cfg.Tier) .. "  ·  LIFT x" .. cfg.Lift
+		sub.TextColor3 = tierColor
+		sub.Parent = gui
+		for _, label in { title, sub } do
+			local stroke = Instance.new("UIStroke")
+			stroke.Thickness = 2
+			stroke.Color = Color3.fromRGB(26, 16, 48)
+			stroke.Parent = label
+		end
+
+		-- balloon on a string
+		local base = face * CFrame.new(0, 12.5, 0)
+		local balloon = BalloonBuilder.Build(name, { Anchored = true, CFrame = base, Scale = 0.72 })
+		balloon.Parent = stand
+		local knot = balloon.PrimaryPart and (balloon.PrimaryPart :: BasePart):FindFirstChild("StringAttachment") :: Attachment?
+		if knot then
+			local knotPos = knot.WorldPosition
+			local fromPos = top.Position + Vector3.new(0, 0.3, 0)
+			local len = (knotPos - fromPos).Magnitude
+			local str = Instance.new("Part")
+			str.Size = Vector3.new(0.12, 0.12, len)
+			str.CFrame = CFrame.lookAt((knotPos + fromPos) / 2, knotPos)
+			str.Color = Color3.fromHex("F4F6FF")
+			str.Material = Enum.Material.SmoothPlastic
+			str.Anchored = true
+			str.CanCollide = false
+			str.Parent = stand
+		end
+
+		if equipRemote then
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.ActionText = "Try it"
+			prompt.ObjectText = name
+			prompt.HoldDuration = 0.2
+			prompt.MaxActivationDistance = 12
+			prompt.Parent = top
+			prompt.Triggered:Connect(function()
+				equipRemote:FireServer(name)
+			end)
+		end
+
+		table.insert(exhibits, { model = balloon, base = base, phase = i * 0.7 })
+	end
+
+	local camera = workspace.CurrentCamera
+	RunService.RenderStepped:Connect(function()
+		local t = os.clock()
+		local camPos = if camera then camera.CFrame.Position else Vector3.zero
+		for _, e in exhibits do
+			if (e.base.Position - camPos).Magnitude < 180 then
+				e.model:PivotTo(e.base * CFrame.new(0, math.sin(t * 1.6 + e.phase) * 0.5, 0) * CFrame.Angles(0, t * 0.6 + e.phase, 0))
+			end
+		end
+	end)
+
+	return folder
+end
+
+return BalloonGallery
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000003"><Properties><string name="Name">BalloonModels</string><ProtectedString name="Source"><![CDATA[--!nocheck
+-- GENERATED by tools/balloons/build_balloons.py - do not edit by hand.
+-- Each part: { shape ("B" block | "W" wedge), paletteKey, sx, sy, sz, x, y, z [, r00..r22] }
+-- Palette: key = { hex, material (P plastic, S smooth, N neon, G glass), transparency }
+
+local BalloonModels: { [string]: any } = {}
+
+BalloonModels.Gumball = {
+	Palette = {
+		red = { "FF3B3B", "P", 0 },
+		redDark = { "D9232F", "P", 0 },
+		pink = { "FF9A9A", "P", 0 },
+		white = { "FFFFFF", "S", 0 },
+		silver = { "C9CED6", "P", 0 },
+		silverDark = { "8E96A3", "P", 0 },
+	},
+	Knot = { 0, -8, 0 },
+	Parts = {
+		{ "B", "silverDark", 5, 1, 5, 0, -6, 0 },
+		{ "B", "silver", 3, 1, 3, 0, -5, 0 },
+		{ "B", "redDark", 3, 1, 3, 0, -4, 0 },
+		{ "B", "redDark", 3, 1, 2, 0, -3, -2.5 },
+		{ "B", "redDark", 1, 1, 5, -2, -3, 0 },
+		{ "B", "redDark", 1, 1, 5, 2, -3, 0 },
+		{ "B", "redDark", 1, 1, 3, -3, -3, 0 },
+		{ "B", "red", 3, 8, 3, 0, 0.5, 0 },
+		{ "B", "redDark", 1, 1, 3, 3, -3, 0 },
+		{ "B", "redDark", 3, 1, 2, 0, -3, 2.5 },
+		{ "B", "red", 5, 3, 2, 0, -1, -2.5 },
+		{ "B", "red", 1, 4, 5, -3, -0.5, 0 },
+		{ "B", "red", 1, 5, 5, 3, 0, 0 },
+		{ "B", "red", 1, 5, 5, -2, 0, 1 },
+		{ "B", "red", 1, 5, 5, 2, 0, 1 },
+		{ "B", "red", 3, 6, 2, 0, 0.5, 2.5 },
+		{ "B", "red", 3, 3, 1, 0, 0, -4 },
+		{ "B", "red", 1, 3, 1, -3, 0, -3 },
+		{ "B", "red", 1, 3, 1, 3, 0, -3 },
+		{ "B", "red", 1, 3, 3, -4, 0, 0 },
+		{ "B", "red", 1, 3, 3, 4, 0, 0 },
+		{ "B", "red", 1, 3, 1, -3, 0, 3 },
+		{ "B", "red", 1, 3, 1, 3, 0, 3 },
+		{ "B", "red", 3, 3, 1, 0, 0, 4 },
+		{ "B", "pink", 1, 1, 1, -2, 1, -3 },
+		{ "B", "red", 4, 1, 2, 0.5, 1, -2.5 },
+		{ "B", "red", 1, 2, 1, -2, 1.5, -2 },
+		{ "B", "white", 2, 1, 1, -1.5, 2, -3 },
+		{ "B", "red", 3, 1, 2, 1, 2, -2.5 },
+		{ "B", "pink", 1, 1, 1, -3, 2, -2 },
+		{ "B", "red", 1, 1, 1, -1, 2, -2 },
+		{ "B", "red", 1, 1, 4, -3, 2, 0.5 },
+		{ "B", "pink", 1, 1, 2, -1, 3, -2.5 },
+		{ "B", "red", 2, 1, 2, 0.5, 3, -2.5 },
+		{ "B", "pink", 1, 1, 1, -2, 3, -2 },
+		{ "B", "red", 1, 1, 5, 2, 3, 0 },
+		{ "B", "red", 2, 1, 3, -2.5, 3, 0 },
+		{ "B", "red", 1, 1, 3, 3, 3, 0 },
+		{ "B", "red", 1, 1, 1, -2, 3, 2 },
+		{ "B", "redDark", 1.4, 0.6, 1.4, 0, -6.8, 0 },
+		{ "W", "redDark", 1, 0.9, 0.5, 0, -7.55, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "redDark", 1, 0.9, 0.5, 0, -7.55, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Bubble = {
+	Palette = {
+		glass = { "9BEBFF", "G", 0.45 },
+		glass2 = { "B8F3FF", "G", 0.35 },
+		shine = { "FFFFFF", "N", 0.1 },
+		pinkSheen = { "FFC2F3", "G", 0.35 },
+		gold = { "FFE38A", "G", 0.35 },
+		knot = { "5AC8FA", "P", 0 },
+	},
+	Knot = { 0, -5.9, 0 },
+	Parts = {
+		{ "B", "glass2", 1, 3, 1, 3, -3, -2 },
+		{ "B", "glass2", 1, 1, 1, 3, -3, -3 },
+		{ "B", "glass", 3, 1, 5, 0, -3, 0 },
+		{ "B", "glass2", 1, 1, 1, 2, -3, -2 },
+		{ "B", "glass2", 1, 1, 1, 4, -3, -2 },
+		{ "B", "glass", 1, 2, 3, -2, -2.5, 0 },
+		{ "B", "glass", 1, 2, 3, 2, -2.5, 0 },
+		{ "B", "glass2", 1, 1, 1, 3, -3, -1 },
+		{ "B", "glass2", 1, 3, 1, -4, -2, 1 },
+		{ "B", "glass", 3, 1, 2, 0, -2, -2.5 },
+		{ "B", "glass", 1, 4, 1, -2, -0.5, -2 },
+		{ "B", "glass", 1, 5, 1, 2, 0, -2 },
+		{ "B", "glass", 1, 5, 2, -3, 0, -0.5 },
+		{ "B", "pinkSheen", 1, 2, 1, 3, -1.5, -1 },
+		{ "B", "glass2", 1, 1, 1, -4, -2, 0 },
+		{ "B", "glass", 1, 5, 2, 3, 0, 0.5 },
+		{ "B", "glass2", 1, 1, 1, -5, -2, 1 },
+		{ "B", "glass2", 1, 1, 1, -3, -2, 1 },
+		{ "B", "glass2", 1, 1, 1, -4, -2, 2 },
+		{ "B", "glass", 5, 1, 1, 0, -2, 2 },
+		{ "B", "glass", 3, 5, 1, 0, 0, 3 },
+		{ "B", "glass", 5, 3, 1, 0, 0, -3 },
+		{ "B", "glass", 1, 3, 1, -3, 0, -2 },
+		{ "B", "pinkSheen", 1, 1, 1, 3, -1, -2 },
+		{ "B", "glass", 1, 3, 2, -3, 0, 1.5 },
+		{ "B", "glass", 1, 3, 2, -2, 0, 2.5 },
+		{ "B", "glass", 2, 3, 1, 2.5, 0, 2 },
+		{ "B", "glass", 1, 3, 1, 2, 0, 3 },
+		{ "B", "glass", 1, 2, 2, 3, 0.5, -1.5 },
+		{ "B", "shine", 1, 1, 2, -1, 2, -2.5 },
+		{ "B", "glass", 2, 1, 2, 0.5, 2, -2.5 },
+		{ "B", "shine", 1, 1, 1, -2, 2, -2 },
+		{ "B", "glass2", 1, 3, 3, 4, 3, -1 },
+		{ "B", "glass", 1, 1, 4, -2, 2, 0.5 },
+		{ "B", "glass", 1, 1, 4, 2, 2, 0.5 },
+		{ "B", "glass2", 1, 3, 1, 3, 3, -1 },
+		{ "B", "glass2", 1, 3, 1, 5, 3, -1 },
+		{ "B", "gold", 1, 1, 1, -3, 2, 1 },
+		{ "B", "glass", 3, 2, 1, 0, 2.5, 2 },
+		{ "B", "glass", 3, 1, 4, 0, 3, -0.5 },
+		{ "B", "glass2", 1, 1, 1, 3, 3, -2 },
+		{ "B", "glass2", 1, 1, 1, 5, 3, -2 },
+		{ "B", "glass2", 1, 3, 1, -3, 4, -1 },
+		{ "B", "glass", 1, 1, 3, -2, 3, 0 },
+		{ "B", "glass", 1, 1, 3, 2, 3, 0 },
+		{ "B", "glass2", 1, 1, 1, 3, 3, 0 },
+		{ "B", "glass2", 1, 1, 1, 5, 3, 0 },
+		{ "B", "glass2", 1, 1, 1, -3, 4, -2 },
+		{ "B", "glass2", 1, 1, 1, -4, 4, -1 },
+		{ "B", "glass2", 1, 1, 1, -2, 4, -1 },
+		{ "B", "glass2", 1, 1, 1, -3, 4, 0 },
+		{ "B", "knot", 1.4, 0.6, 1.4, 0, -4.7, 0 },
+		{ "W", "knot", 1, 0.9, 0.5, 0, -5.45, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "knot", 1, 0.9, 0.5, 0, -5.45, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Ember = {
+	Palette = {
+		ember = { "B8350A", "P", 0 },
+		emberDark = { "7A2206", "P", 0 },
+		lava = { "FF8A1F", "N", 0 },
+		flameO = { "FF6A00", "N", 0 },
+		flameY = { "FFD21F", "N", 0 },
+		cap = { "5C1A05", "P", 0 },
+	},
+	Knot = { 0, -6.1, 0 },
+	Light = { "FF8A1F", 1.6, 16 },
+	Parts = {
+		{ "B", "emberDark", 1, 1, 3, 0, -4, 0 },
+		{ "B", "emberDark", 1, 1, 1, -1, -4, 0 },
+		{ "B", "emberDark", 1, 1, 1, 1, -4, 0 },
+		{ "B", "emberDark", 5, 1, 1, 0, -3, -2 },
+		{ "B", "emberDark", 2, 1, 1, -1.5, -3, -1 },
+		{ "B", "ember", 1, 7, 3, 0, 0, 0 },
+		{ "B", "emberDark", 2, 1, 1, 1.5, -3, -1 },
+		{ "B", "emberDark", 1, 1, 3, -2, -3, 1 },
+		{ "B", "ember", 1, 7, 1, -1, 0, 0 },
+		{ "B", "ember", 1, 7, 1, 1, 0, 0 },
+		{ "B", "emberDark", 1, 1, 3, 2, -3, 1 },
+		{ "B", "emberDark", 1, 1, 2, -1, -3, 1.5 },
+		{ "B", "emberDark", 1, 1, 2, 1, -3, 1.5 },
+		{ "B", "emberDark", 1, 1, 1, 0, -3, 2 },
+		{ "B", "ember", 3, 1, 2, -1, -2, -2.5 },
+		{ "B", "lava", 2, 1, 1, 1.5, -2, -3 },
+		{ "B", "ember", 1, 2, 1, -3, -1.5, -2 },
+		{ "B", "ember", 3, 1, 2, 2, -2, -1.5 },
+		{ "B", "lava", 1, 2, 1, -3, -1.5, -1 },
+		{ "B", "ember", 2, 5, 1, -1.5, 0, -1 },
+		{ "B", "ember", 2, 3, 3, -2.5, -1, 1 },
+		{ "B", "ember", 2, 3, 2, 2.5, -1, 0.5 },
+		{ "B", "ember", 1, 3, 3, -1, -1, 2 },
+		{ "B", "ember", 1, 3, 3, 1, -1, 2 },
+		{ "B", "ember", 1, 6, 1, 0, 0.5, 2 },
+		{ "B", "ember", 1, 3, 2, 2, -1, 2.5 },
+		{ "B", "lava", 1, 3, 1, 3, -1, 2 },
+		{ "B", "ember", 1, 4, 1, -2, -0.5, 3 },
+		{ "B", "lava", 1, 1, 1, 0, -2, 3 },
+		{ "B", "ember", 1, 3, 3, 0, 0, -3 },
+		{ "B", "lava", 2, 1, 1, -1.5, -1, -3 },
+		{ "B", "lava", 1, 1, 1, 1, -1, -3 },
+		{ "B", "ember", 1, 4, 3, 2, 0.5, -2 },
+		{ "B", "ember", 2, 4, 1, -1.5, 0.5, -2 },
+		{ "B", "ember", 1, 5, 2, 1, 1, -1.5 },
+		{ "B", "lava", 1, 1, 2, 3, -1, -1.5 },
+		{ "B", "ember", 1, 2, 1, -4, -0.5, 0 },
+		{ "B", "lava", 1, 1, 1, 4, -1, 0 },
+		{ "B", "ember", 1, 3, 2, 0, 0, 3.5 },
+		{ "B", "ember", 1, 1, 2, -1, 0, -3.5 },
+		{ "B", "lava", 1, 1, 1, 1, 0, -4 },
+		{ "B", "ember", 1, 3, 1, -2, 1, -3 },
+		{ "B", "ember", 1, 3, 1, 1, 1, -3 },
+		{ "B", "lava", 1, 3, 1, -3, 1, -2 },
+		{ "B", "ember", 1, 3, 2, 3, 1, -1.5 },
+		{ "B", "lava", 1, 1, 1, -4, 0, -1 },
+		{ "B", "ember", 1, 3, 1, -3, 1, -1 },
+		{ "B", "ember", 1, 1, 2, 4, 0, -0.5 },
+		{ "B", "ember", 1, 1, 1, -4, 0, 1 },
+		{ "B", "lava", 1, 1, 1, 4, 0, 1 },
+		{ "B", "lava", 1, 1, 1, -1, 0, 4 },
+		{ "B", "ember", 1, 1, 1, 1, 0, 4 },
+		{ "B", "ember", 1, 2, 1, -1, 1.5, -3 },
+		{ "B", "lava", 1, 1, 1, -4, 1, 0 },
+		{ "B", "ember", 2, 2, 1, -2.5, 1.5, 0 },
+		{ "B", "ember", 3, 1, 1, 3, 1, 0 },
+		{ "B", "lava", 1, 1, 2, -3, 1, 1.5 },
+		{ "B", "ember", 2, 2, 2, -1.5, 1.5, 1.5 },
+		{ "B", "ember", 2, 3, 2, 1.5, 2, 1.5 },
+		{ "B", "lava", 1, 2, 1, 3, 1.5, 1 },
+		{ "B", "ember", 1, 2, 1, 3, 1.5, 2 },
+		{ "B", "lava", 1, 2, 1, -1, 1.5, 3 },
+		{ "B", "lava", 2, 1, 1, 1.5, 1, 3 },
+		{ "B", "lava", 1, 1, 1, 0, 2, -3 },
+		{ "B", "ember", 1, 2, 1, 0, 2.5, -2 },
+		{ "B", "ember", 2, 1, 1, 2.5, 2, 0 },
+		{ "B", "ember", 1, 1, 2, -3, 2, 1.5 },
+		{ "B", "lava", 1, 1, 1, -2, 2, 3 },
+		{ "B", "ember", 3, 1, 1, 1, 2, 3 },
+		{ "B", "lava", 1, 1, 1, -2, 3, -2 },
+		{ "B", "ember", 1, 1, 1, -1, 3, -2 },
+		{ "B", "ember", 1, 1, 2, 2, 3, -1.5 },
+		{ "B", "ember", 1, 1, 4, -2, 3, 0.5 },
+		{ "B", "lava", 1, 1, 1, -1, 3, -1 },
+		{ "B", "lava", 1, 1, 1, 2, 3, 0 },
+		{ "B", "lava", 1, 1, 2, -1, 3, 1.5 },
+		{ "B", "cap", 3, 1, 1, 0, 4, -1 },
+		{ "B", "cap", 1, 1, 2, -1, 4, 0.5 },
+		{ "B", "flameY", 1, 4, 1, 0, 5.5, 0 },
+		{ "B", "cap", 1, 1, 2, 1, 4, 0.5 },
+		{ "B", "cap", 1, 1, 1, 0, 4, 1 },
+		{ "B", "flameO", 1, 1, 1, 0, 5, -1 },
+		{ "B", "flameO", 1, 1, 1, -1, 5, 0 },
+		{ "B", "flameO", 1, 1, 1, 1, 5, 0 },
+		{ "B", "flameO", 1, 1, 1, 0, 5, 1 },
+		{ "B", "emberDark", 1.4, 0.6, 1.4, 0, -4.9, 0 },
+		{ "W", "emberDark", 1, 0.9, 0.5, 0, -5.65, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "emberDark", 1, 0.9, 0.5, 0, -5.65, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Spike = {
+	Palette = {
+		green = { "6CCB2F", "P", 0 },
+		greenDark = { "3E8E1C", "P", 0 },
+		greenLight = { "A8F07A", "P", 0 },
+		spike = { "E9FFD8", "S", 0 },
+	},
+	Knot = { 0, -5.6, 0 },
+	Parts = {
+		{ "B", "greenDark", 1, 1, 5, 0, -3, 0 },
+		{ "B", "greenDark", 1, 1, 3, -1, -3, 0 },
+		{ "B", "greenDark", 1, 1, 3, 1, -3, 0 },
+		{ "B", "greenDark", 1, 1, 1, -2, -3, 0 },
+		{ "B", "greenDark", 1, 1, 1, 2, -3, 0 },
+		{ "B", "green", 1, 4, 7, 0, -0.5, 0 },
+		{ "B", "green", 2, 3, 5, -1.5, -1, 0 },
+		{ "B", "green", 2, 5, 5, 1.5, 0, 0 },
+		{ "B", "green", 1, 5, 1, -3, 0, 0 },
+		{ "B", "green", 1, 5, 1, 3, 0, 0 },
+		{ "B", "green", 1, 2, 1, -1, -0.5, -3 },
+		{ "B", "green", 1, 3, 1, 1, 0, -3 },
+		{ "B", "green", 1, 3, 1, -3, 0, -1 },
+		{ "B", "green", 1, 3, 1, 3, 0, -1 },
+		{ "B", "green", 1, 3, 1, -3, 0, 1 },
+		{ "B", "green", 1, 3, 1, 3, 0, 1 },
+		{ "B", "green", 1, 3, 1, -1, 0, 3 },
+		{ "B", "green", 1, 3, 1, 1, 0, 3 },
+		{ "B", "green", 1, 1, 1, -2, 0, -3 },
+		{ "B", "green", 1, 1, 1, 2, 0, -3 },
+		{ "B", "green", 1, 1, 1, -3, 0, -2 },
+		{ "B", "green", 1, 1, 1, 3, 0, -2 },
+		{ "B", "green", 1, 1, 1, -3, 0, 2 },
+		{ "B", "green", 1, 1, 1, 3, 0, 2 },
+		{ "B", "green", 1, 1, 1, -2, 0, 3 },
+		{ "B", "green", 1, 1, 1, 2, 0, 3 },
+		{ "B", "greenLight", 1, 1, 1, -1, 1, -3 },
+		{ "B", "greenLight", 1, 2, 1, -2, 1.5, -2 },
+		{ "B", "green", 1, 1, 5, -1, 1, 0 },
+		{ "B", "green", 1, 1, 4, -2, 1, 0.5 },
+		{ "B", "greenLight", 1, 1, 1, 0, 2, -3 },
+		{ "B", "greenLight", 1, 1, 1, -1, 2, -2 },
+		{ "B", "green", 1, 1, 6, 0, 2, 0.5 },
+		{ "B", "greenLight", 1, 1, 1, -2, 2, -1 },
+		{ "B", "green", 1, 1, 4, -1, 2, 0.5 },
+		{ "B", "green", 1, 1, 3, -2, 2, 1 },
+		{ "B", "green", 1, 1, 5, 0, 3, 0 },
+		{ "B", "green", 1, 1, 3, -1, 3, 0 },
+		{ "B", "green", 1, 1, 3, 1, 3, 0 },
+		{ "B", "green", 1, 1, 1, -2, 3, 0 },
+		{ "B", "green", 1, 1, 1, 2, 3, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 4.6, -0.35, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 4.6, 0.35, 0, 0, 1, 0, 0, 0, -1, -1, 0, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -4.6, 0.35, 0, 0, -1, 0, 0, 0, -1, 1, 0, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -4.6, -0.35, 0, 0, -1, 0, 0, 0, 1, -1, 0, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 0, 4.6, -0.35 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 0, 4.6, 0.35, -1, 0, 0, 0, 1, 0, 0, 0, -1 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 0, 0.35, 4.6, 1, 0, 0, 0, 0, -1, 0, 1, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 0, -0.35, 4.6, -1, 0, 0, 0, 0, 1, 0, 1, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 0, -0.35, -4.6, 1, 0, 0, 0, 0, 1, 0, -1, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 0, 0.35, -4.6, -1, 0, 0, 0, 0, -1, 0, -1, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 2.656, 2.903, 2.408, 0.816, 0.577, 0, -0.408, 0.577, -0.707, -0.408, 0.577, 0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 2.656, 2.408, 2.903, -0.816, 0.577, 0, 0.408, 0.577, 0.707, 0.408, 0.577, -0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -2.656, 2.903, 2.408, 0.816, -0.577, 0, 0.408, 0.577, -0.707, 0.408, 0.577, 0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -2.656, 2.408, 2.903, -0.816, -0.577, 0, -0.408, 0.577, 0.707, -0.408, 0.577, -0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 2.656, 2.408, -2.903, 0.816, 0.577, 0, -0.408, 0.577, 0.707, 0.408, -0.577, 0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 2.656, 2.903, -2.408, -0.816, 0.577, 0, 0.408, 0.577, -0.707, -0.408, -0.577, -0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -2.656, 2.408, -2.903, 0.816, -0.577, 0, 0.408, 0.577, 0.707, -0.408, -0.577, 0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -2.656, 2.903, -2.408, -0.816, -0.577, 0, -0.408, 0.577, -0.707, 0.408, -0.577, -0.707 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 3.253, 0.35, 3.253, 0.707, 0.707, 0, 0, 0, -1, -0.707, 0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 3.253, -0.35, 3.253, -0.707, 0.707, 0, 0, 0, 1, 0.707, 0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -3.253, 0.35, 3.253, 0.707, -0.707, 0, 0, 0, -1, 0.707, 0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -3.253, -0.35, 3.253, -0.707, -0.707, 0, 0, 0, 1, -0.707, 0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 3.253, -0.35, -3.253, 0.707, 0.707, 0, 0, 0, 1, 0.707, -0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 3.253, 0.35, -3.253, -0.707, 0.707, 0, 0, 0, -1, -0.707, -0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -3.253, -0.35, -3.253, 0.707, -0.707, 0, 0, 0, 1, -0.707, -0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -3.253, 0.35, -3.253, -0.707, -0.707, 0, 0, 0, -1, 0.707, -0.707, 0 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 3.944, -2.367, 0.35, 0.514, 0.857, 0, 0.857, -0.514, 0, 0, 0, -1 },
+		{ "W", "spike", 1.4, 2.8, 0.7, 3.944, -2.367, -0.35, -0.514, 0.857, 0, -0.857, -0.514, 0, 0, 0, 1 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -3.944, -2.367, 0.35, 0.514, -0.857, 0, -0.857, -0.514, 0, 0, 0, -1 },
+		{ "W", "spike", 1.4, 2.8, 0.7, -3.944, -2.367, -0.35, -0.514, -0.857, 0, 0.857, -0.514, 0, 0, 0, 1 },
+		{ "B", "greenDark", 1.4, 0.6, 1.4, 0, -4.4, 0 },
+		{ "W", "greenDark", 1, 0.9, 0.5, 0, -5.15, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "greenDark", 1, 0.9, 0.5, 0, -5.15, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Popcorn = {
+	Palette = {
+		red = { "E0282E", "P", 0 },
+		white = { "FFF8EE", "P", 0 },
+		rim = { "FFFFFF", "S", 0 },
+		kernel = { "FFF1C9", "P", 0 },
+		butter = { "FFD66B", "P", 0 },
+		kernelW = { "FFFFFF", "P", 0 },
+		gold = { "FFC21A", "P", 0 },
+	},
+	Knot = { 0, -6, 0 },
+	Parts = {
+		{ "B", "red", 1, 3, 1, -2, -3, -2 },
+		{ "B", "white", 1, 7, 5, -1, -1, 0 },
+		{ "B", "red", 1, 3, 1, 0, -3, -2 },
+		{ "B", "white", 1, 7, 5, 1, -1, 0 },
+		{ "B", "red", 1, 3, 1, 2, -3, -2 },
+		{ "B", "white", 1, 7, 1, -2, -1, -1 },
+		{ "B", "white", 1, 7, 3, 0, -1, 0 },
+		{ "B", "white", 1, 7, 1, 2, -1, -1 },
+		{ "B", "red", 1, 3, 1, -2, -3, 0 },
+		{ "B", "red", 1, 3, 1, 2, -3, 0 },
+		{ "B", "white", 1, 7, 1, -2, -1, 1 },
+		{ "B", "white", 1, 7, 1, 2, -1, 1 },
+		{ "B", "red", 1, 3, 1, -2, -3, 2 },
+		{ "B", "red", 1, 3, 1, 0, -3, 2 },
+		{ "B", "red", 1, 3, 1, 2, -3, 2 },
+		{ "B", "white", 1, 4, 1, -3, 0.5, -3 },
+		{ "B", "red", 1, 4, 1, -2, 0.5, -3 },
+		{ "B", "white", 1, 4, 1, -1, 0.5, -3 },
+		{ "B", "red", 1, 4, 1, 0, 0.5, -3 },
+		{ "B", "white", 1, 4, 1, 1, 0.5, -3 },
+		{ "B", "red", 1, 4, 1, 2, 0.5, -3 },
+		{ "B", "white", 1, 4, 1, 3, 0.5, -3 },
+		{ "B", "red", 1, 4, 1, -3, 0.5, -2 },
+		{ "B", "white", 1, 4, 1, -2, 0.5, -2 },
+		{ "B", "white", 1, 4, 1, 0, 0.5, -2 },
+		{ "B", "white", 1, 4, 1, 2, 0.5, -2 },
+		{ "B", "red", 1, 4, 1, 3, 0.5, -2 },
+		{ "B", "white", 1, 4, 1, -3, 0.5, -1 },
+		{ "B", "white", 1, 4, 1, 3, 0.5, -1 },
+		{ "B", "red", 1, 4, 1, -3, 0.5, 0 },
+		{ "B", "white", 1, 4, 1, -2, 0.5, 0 },
+		{ "B", "white", 1, 4, 1, 2, 0.5, 0 },
+		{ "B", "red", 1, 4, 1, 3, 0.5, 0 },
+		{ "B", "white", 1, 4, 1, -3, 0.5, 1 },
+		{ "B", "white", 1, 4, 1, 3, 0.5, 1 },
+		{ "B", "red", 1, 4, 1, -3, 0.5, 2 },
+		{ "B", "white", 1, 4, 1, -2, 0.5, 2 },
+		{ "B", "white", 1, 4, 1, 0, 0.5, 2 },
+		{ "B", "white", 1, 4, 1, 2, 0.5, 2 },
+		{ "B", "red", 1, 4, 1, 3, 0.5, 2 },
+		{ "B", "white", 1, 4, 1, -3, 0.5, 3 },
+		{ "B", "red", 1, 4, 1, -2, 0.5, 3 },
+		{ "B", "white", 1, 4, 1, -1, 0.5, 3 },
+		{ "B", "red", 1, 4, 1, 0, 0.5, 3 },
+		{ "B", "white", 1, 4, 1, 1, 0.5, 3 },
+		{ "B", "red", 1, 4, 1, 2, 0.5, 3 },
+		{ "B", "white", 1, 4, 1, 3, 0.5, 3 },
+		{ "B", "rim", 7, 1, 1, 0, 3, -3 },
+		{ "B", "rim", 1, 1, 6, -3, 3, 0.5 },
+		{ "B", "kernel", 5, 1, 5, 0, 3, 0 },
+		{ "B", "rim", 1, 1, 6, 3, 3, 0.5 },
+		{ "B", "rim", 5, 1, 1, 0, 3, 3 },
+		{ "B", "kernel", 1, 1, 7, 0, 4, 0 },
+		{ "B", "kernel", 1, 1, 5, -2, 4, 0 },
+		{ "B", "butter", 1, 1, 1, -1, 4, -2 },
+		{ "B", "kernel", 1, 2, 5, 1, 4.5, 0 },
+		{ "B", "kernelW", 1, 1, 2, 2, 4, -1.5 },
+		{ "B", "kernel", 1, 3, 3, -1, 5, 0 },
+		{ "B", "kernel", 1, 1, 1, -3, 4, 0 },
+		{ "B", "kernel", 2, 1, 1, 2.5, 4, 0 },
+		{ "B", "kernelW", 1, 1, 2, 2, 4, 1.5 },
+		{ "B", "butter", 1, 1, 1, -1, 4, 2 },
+		{ "B", "kernel", 1, 1, 1, -1, 5, -2 },
+		{ "B", "butter", 1, 1, 1, 0, 5, -2 },
+		{ "B", "kernel", 1, 1, 3, -2, 5, 0 },
+		{ "B", "kernel", 1, 2, 3, 0, 5.5, 0 },
+		{ "B", "kernel", 1, 1, 3, 2, 5, 0 },
+		{ "B", "kernel", 1, 1, 1, -1, 5, 2 },
+		{ "B", "butter", 1, 1, 1, 0, 5, 2 },
+		{ "B", "butter", 1, 1, 3, 1, 6, 0 },
+		{ "B", "kernel", 1, 1, 1, 0, 7, 0 },
+		{ "B", "butter", 0.8, 0.8, 0.8, 2.6, 7.6, -1.4, 0.933, 0.067, 0.354, 0.067, 0.933, -0.354, -0.354, 0.354, 0.866 },
+		{ "B", "butter", 0.8, 0.8, 0.8, -2.4, 7.2, 1.2, 0.933, 0.067, 0.354, 0.067, 0.933, -0.354, -0.354, 0.354, 0.866 },
+		{ "B", "butter", 0.8, 0.8, 0.8, 0.6, 8.6, 0.8, 0.933, 0.067, 0.354, 0.067, 0.933, -0.354, -0.354, 0.354, 0.866 },
+		{ "B", "gold", 2.2, 1.2, 0.2, 0, -1, -3.55 },
+		{ "B", "red", 1.4, 0.6, 1.4, 0, -4.8, 0 },
+		{ "W", "red", 1, 0.9, 0.5, 0, -5.55, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "red", 1, 0.9, 0.5, 0, -5.55, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Jelly = {
+	Palette = {
+		dome = { "5AC8FA", "G", 0.3 },
+		core = { "9FE7FF", "N", 0.2 },
+		rim = { "3FA9FF", "N", 0 },
+		spot = { "FF8AE6", "G", 0.2 },
+		tent = { "7FD8FF", "N", 0.1 },
+		tent2 = { "5AC8FA", "G", 0.2 },
+		arm = { "FFB8F1", "G", 0.25 },
+	},
+	Knot = { 0, -0.8, 0 },
+	Light = { "7FD8FF", 1.2, 14 },
+	Parts = {
+		{ "B", "rim", 3, 1, 1, 0, 0, -4 },
+		{ "B", "rim", 2, 1, 1, -2.5, 0, -3 },
+		{ "B", "dome", 3, 1, 2, 0, 0, -2.5 },
+		{ "B", "rim", 2, 1, 1, 2.5, 0, -3 },
+		{ "B", "rim", 1, 1, 1, -3, 0, -2 },
+		{ "B", "dome", 1, 1, 5, -2, 0, 0 },
+		{ "B", "dome", 1, 1, 5, 2, 0, 0 },
+		{ "B", "rim", 1, 1, 1, 3, 0, -2 },
+		{ "B", "rim", 1, 1, 3, -4, 0, 0 },
+		{ "B", "dome", 1, 1, 3, -3, 0, 0 },
+		{ "B", "dome", 1, 1, 1, -1, 0, -1 },
+		{ "B", "core", 1, 3, 3, 0, 1, 0 },
+		{ "B", "dome", 1, 1, 1, 1, 0, -1 },
+		{ "B", "dome", 1, 1, 3, 3, 0, 0 },
+		{ "B", "rim", 1, 1, 3, 4, 0, 0 },
+		{ "B", "core", 1, 3, 1, -1, 1, 0 },
+		{ "B", "core", 1, 3, 1, 1, 1, 0 },
+		{ "B", "dome", 1, 1, 3, -1, 0, 2 },
+		{ "B", "dome", 1, 1, 3, 1, 0, 2 },
+		{ "B", "rim", 1, 1, 2, -3, 0, 2.5 },
+		{ "B", "dome", 1, 1, 2, 0, 0, 2.5 },
+		{ "B", "rim", 1, 1, 2, 3, 0, 2.5 },
+		{ "B", "rim", 1, 1, 1, -2, 0, 3 },
+		{ "B", "rim", 1, 1, 1, 2, 0, 3 },
+		{ "B", "rim", 3, 1, 1, 0, 0, 4 },
+		{ "B", "dome", 3, 1, 1, 0, 1, -4 },
+		{ "B", "dome", 3, 1, 1, -2, 1, -3 },
+		{ "B", "dome", 3, 1, 1, 2, 1, -3 },
+		{ "B", "dome", 1, 2, 2, -3, 1.5, -1.5 },
+		{ "B", "dome", 1, 2, 2, 3, 1.5, -1.5 },
+		{ "B", "dome", 1, 1, 3, -4, 1, 0 },
+		{ "B", "core", 1, 1, 1, -1, 1, -1 },
+		{ "B", "core", 1, 1, 1, 1, 1, -1 },
+		{ "B", "dome", 1, 1, 3, 4, 1, 0 },
+		{ "B", "dome", 1, 1, 3, -3, 1, 2 },
+		{ "B", "core", 1, 1, 1, -1, 1, 1 },
+		{ "B", "core", 1, 1, 1, 1, 1, 1 },
+		{ "B", "dome", 1, 1, 3, 3, 1, 2 },
+		{ "B", "dome", 2, 1, 1, -1.5, 1, 3 },
+		{ "B", "dome", 2, 2, 1, 1.5, 1.5, 3 },
+		{ "B", "dome", 3, 1, 1, 0, 1, 4 },
+		{ "B", "dome", 1, 1, 2, -2, 2, -2.5 },
+		{ "B", "spot", 1, 1, 1, -1, 2, -3 },
+		{ "B", "dome", 3, 1, 1, 1, 2, -3 },
+		{ "B", "spot", 1, 1, 1, 2, 2, -2 },
+		{ "B", "dome", 1, 1, 3, -3, 2, 1 },
+		{ "B", "dome", 1, 1, 3, 3, 2, 1 },
+		{ "B", "dome", 1, 1, 2, -2, 2, 2.5 },
+		{ "B", "spot", 1, 1, 1, 2, 2, 2 },
+		{ "B", "spot", 1, 1, 1, -1, 2, 3 },
+		{ "B", "dome", 1, 1, 1, 0, 2, 3 },
+		{ "B", "dome", 3, 1, 1, 0, 3, -2 },
+		{ "B", "dome", 2, 1, 3, -1.5, 3, 0 },
+		{ "B", "spot", 1, 1, 1, 0, 3, -1 },
+		{ "B", "dome", 2, 1, 3, 1.5, 3, 0 },
+		{ "B", "dome", 1, 1, 1, 0, 3, 0 },
+		{ "B", "spot", 1, 1, 1, 0, 3, 1 },
+		{ "B", "dome", 3, 1, 1, 0, 3, 2 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 3.1, -0.9, 0 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 3.501, -2.05, 0 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 3.464, -3.2, 0 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 3.029, -4.35, 0 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 2.672, -5.5, 0 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 2.46, -0.9, 2.46 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 2.467, -2.05, 2.467 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 2.173, -3.2, 2.173 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 1.901, -4.35, 1.901 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 1.946, -5.5, 1.946 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 0, -0.9, 3.509 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 0, -2.05, 3.119 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 0, -3.2, 2.708 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 0, -4.35, 2.725 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 0, -5.5, 3.152 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -2.237, -0.9, 2.237 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -1.932, -2.05, 1.932 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -1.911, -3.2, 1.911 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -2.197, -4.35, 2.197 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -2.478, -5.5, 2.478 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -2.759, -0.9, 0 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -2.683, -2.05, 0 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -3.063, -3.2, 0 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -3.483, -4.35, 0 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -3.485, -5.5, 0 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -1.887, -0.9, -1.887 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -2.134, -2.05, -2.134 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -2.445, -3.2, -2.445 },
+		{ "B", "tent", 0.55, 1.2, 0.55, -2.479, -4.35, -2.479 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, -2.2, -5.5, -2.2 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 0, -0.9, -2.974 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 0, -2.05, -3.428 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 0, -3.2, -3.523 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 0, -4.35, -3.156 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 0, -5.5, -2.727 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 2.401, -0.9, -2.401 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 2.501, -2.05, -2.501 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 2.263, -3.2, -2.263 },
+		{ "B", "tent", 0.55, 1.2, 0.55, 1.948, -4.35, -1.948 },
+		{ "B", "tent2", 0.55, 1.2, 0.55, 1.9, -5.5, -1.9 },
+		{ "B", "arm", 0.9, 1.1, 0.9, 1.105, -1, 0.467, 0.707, 0, 0.707, 0, 1, 0, -0.707, 0, 0.707 },
+		{ "B", "arm", 0.9, 1.1, 0.9, 1.105, -2.1, 0.467, 0.423, 0, 0.906, 0, 1, 0, -0.906, 0, 0.423 },
+		{ "B", "arm", 0.9, 1.1, 0.9, 1.105, -3.2, 0.467, 0.087, 0, 0.996, 0, 1, 0, -0.996, 0, 0.087 },
+		{ "B", "arm", 0.9, 1.1, 0.9, -0.467, -1, 1.105, 0.707, 0, 0.707, 0, 1, 0, -0.707, 0, 0.707 },
+		{ "B", "arm", 0.9, 1.1, 0.9, -0.467, -2.1, 1.105, 0.423, 0, 0.906, 0, 1, 0, -0.906, 0, 0.423 },
+		{ "B", "arm", 0.9, 1.1, 0.9, -0.467, -3.2, 1.105, 0.087, 0, 0.996, 0, 1, 0, -0.996, 0, 0.087 },
+		{ "B", "arm", 0.9, 1.1, 0.9, -1.105, -1, -0.467, 0.707, 0, 0.707, 0, 1, 0, -0.707, 0, 0.707 },
+		{ "B", "arm", 0.9, 1.1, 0.9, -1.105, -2.1, -0.467, 0.423, 0, 0.906, 0, 1, 0, -0.906, 0, 0.423 },
+		{ "B", "arm", 0.9, 1.1, 0.9, -1.105, -3.2, -0.467, 0.087, 0, 0.996, 0, 1, 0, -0.996, 0, 0.087 },
+		{ "B", "arm", 0.9, 1.1, 0.9, 0.467, -1, -1.105, 0.707, 0, 0.707, 0, 1, 0, -0.707, 0, 0.707 },
+		{ "B", "arm", 0.9, 1.1, 0.9, 0.467, -2.1, -1.105, 0.423, 0, 0.906, 0, 1, 0, -0.906, 0, 0.423 },
+		{ "B", "arm", 0.9, 1.1, 0.9, 0.467, -3.2, -1.105, 0.087, 0, 0.996, 0, 1, 0, -0.996, 0, 0.087 },
+	},
+}
+
+BalloonModels.Buzz = {
+	Palette = {
+		yellow = { "FFD21F", "P", 0 },
+		black = { "2A2A2A", "P", 0 },
+		eye = { "141414", "S", 0 },
+		shine = { "FFFFFF", "S", 0 },
+		cheek = { "FF9AB8", "P", 0 },
+		wing = { "F4FBFF", "G", 0.4 },
+		tip = { "FFD21F", "N", 0 },
+	},
+	Knot = { 0, -5.8, 0 },
+	Parts = {
+		{ "B", "yellow", 3, 1, 5, 0, -3, 0 },
+		{ "B", "yellow", 1, 1, 3, -2, -3, 0 },
+		{ "B", "yellow", 1, 1, 3, 2, -3, 0 },
+		{ "B", "black", 1, 1, 7, 0, -2, 0 },
+		{ "B", "black", 2, 1, 5, -1.5, -2, 0 },
+		{ "B", "black", 2, 1, 5, 1.5, -2, 0 },
+		{ "B", "black", 1, 1, 1, -3, -2, 0 },
+		{ "B", "black", 1, 1, 1, 3, -2, 0 },
+		{ "B", "yellow", 3, 1, 7, 0, -1, 0 },
+		{ "B", "yellow", 1, 1, 5, -2, -1, 0 },
+		{ "B", "yellow", 1, 1, 5, 2, -1, 0 },
+		{ "B", "yellow", 1, 1, 3, -3, -1, 0 },
+		{ "B", "yellow", 1, 1, 3, 3, -1, 0 },
+		{ "B", "black", 3, 1, 7, 0, 0, 0 },
+		{ "B", "black", 1, 1, 5, -2, 0, 0 },
+		{ "B", "black", 1, 1, 5, 2, 0, 0 },
+		{ "B", "black", 1, 1, 3, -3, 0, 0 },
+		{ "B", "black", 1, 1, 3, 3, 0, 0 },
+		{ "B", "yellow", 3, 1, 7, 0, 1, 0 },
+		{ "B", "cheek", 1, 1, 1, -2, 1, -2 },
+		{ "B", "cheek", 1, 1, 1, 2, 1, -2 },
+		{ "B", "yellow", 2, 1, 3, -2.5, 1, 0 },
+		{ "B", "yellow", 2, 1, 3, 2.5, 1, 0 },
+		{ "B", "yellow", 1, 2, 1, -2, 1.5, 2 },
+		{ "B", "yellow", 1, 2, 1, 2, 1.5, 2 },
+		{ "B", "yellow", 1, 1, 7, 0, 2, 0 },
+		{ "B", "yellow", 1, 1, 4, -2, 2, -0.5 },
+		{ "B", "eye", 1, 1, 1, -1, 2, -2 },
+		{ "B", "eye", 1, 1, 1, 1, 2, -2 },
+		{ "B", "yellow", 1, 1, 4, 2, 2, -0.5 },
+		{ "B", "yellow", 1, 2, 4, -1, 2.5, 0.5 },
+		{ "B", "yellow", 1, 2, 4, 1, 2.5, 0.5 },
+		{ "B", "yellow", 1, 1, 1, -3, 2, 0 },
+		{ "B", "yellow", 1, 1, 1, 3, 2, 0 },
+		{ "B", "shine", 1, 1, 1, -1, 3, -2 },
+		{ "B", "yellow", 1, 1, 5, 0, 3, 0 },
+		{ "B", "shine", 1, 1, 1, 1, 3, -2 },
+		{ "B", "yellow", 1, 1, 3, -2, 3, 0 },
+		{ "B", "yellow", 1, 1, 3, 2, 3, 0 },
+		{ "B", "wing", 0.2, 3.4, 2.4, -2.3, 4.3, 0.9, 0.848, -0.53, 0, 0.53, 0.848, 0, 0, 0, 1 },
+		{ "B", "black", 0.3, 2.4, 0.3, -1, 4.7, -1.5, 0.927, -0.356, -0.116, 0.375, 0.882, 0.287, 0, -0.309, 0.951 },
+		{ "B", "tip", 0.7, 0.7, 0.7, -1.5, 5.9, -1.9 },
+		{ "B", "wing", 0.2, 3.4, 2.4, 2.3, 4.3, 0.9, 0.848, 0.53, 0, -0.53, 0.848, 0, 0, 0, 1 },
+		{ "B", "black", 0.3, 2.4, 0.3, 1, 4.7, -1.5, 0.927, 0.356, 0.116, -0.375, 0.882, 0.287, 0, -0.309, 0.951 },
+		{ "B", "tip", 0.7, 0.7, 0.7, 1.5, 5.9, -1.9 },
+		{ "W", "black", 1, 1.6, 0.5, 0, -0.75, 4.4, 1, 0, 0, 0, 0, -1, 0, 1, 0 },
+		{ "W", "black", 1, 1.6, 0.5, 0, -1.25, 4.4, -1, 0, 0, 0, 0, 1, 0, 1, 0 },
+		{ "B", "black", 1.4, 0.6, 1.4, 0, -4.6, 0 },
+		{ "W", "black", 1, 0.9, 0.5, 0, -5.35, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "black", 1, 0.9, 0.5, 0, -5.35, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Frost = {
+	Palette = {
+		ice = { "6FCBFF", "P", 0 },
+		iceDark = { "3A9FE0", "P", 0 },
+		iceLight = { "B8EAFF", "P", 0 },
+		snow = { "FFFFFF", "N", 0 },
+		icicle = { "C8F4FF", "G", 0.2 },
+		crystal = { "DDF6FF", "N", 0.1 },
+	},
+	Knot = { 0, -6.1, 0 },
+	Light = { "A5E4FF", 0.8, 12 },
+	Parts = {
+		{ "B", "iceDark", 3, 1, 3, 0, -4, 0 },
+		{ "B", "iceDark", 1, 1, 2, 0, -3, -2.5 },
+		{ "B", "iceDark", 2, 1, 1, -1.5, -3, -2 },
+		{ "B", "iceDark", 2, 1, 1, 1.5, -3, -2 },
+		{ "B", "iceDark", 1, 1, 4, -2, -3, 0.5 },
+		{ "B", "ice", 3, 8, 3, 0, 0.5, 0 },
+		{ "B", "iceDark", 1, 1, 4, 2, -3, 0.5 },
+		{ "B", "iceDark", 1, 1, 1, -3, -3, 0 },
+		{ "B", "iceDark", 1, 1, 1, 3, -3, 0 },
+		{ "B", "iceDark", 3, 1, 1, 0, -3, 2 },
+		{ "B", "iceDark", 1, 1, 1, 0, -3, 3 },
+		{ "B", "ice", 5, 4, 2, 0, -0.5, -2.5 },
+		{ "B", "ice", 1, 5, 5, -3, 0, 0 },
+		{ "B", "ice", 1, 5, 5, 3, 0, 0 },
+		{ "B", "ice", 1, 5, 5, -2, 0, 1 },
+		{ "B", "ice", 1, 5, 5, 2, 0, 1 },
+		{ "B", "ice", 3, 5, 2, 0, 0, 2.5 },
+		{ "B", "ice", 3, 3, 1, 0, 0, -4 },
+		{ "B", "ice", 1, 3, 3, -4, 0, 0 },
+		{ "B", "ice", 1, 3, 3, 4, 0, 0 },
+		{ "B", "ice", 3, 3, 1, 0, 0, 4 },
+		{ "B", "ice", 1, 1, 1, -3, 0, -3 },
+		{ "B", "ice", 1, 1, 1, 3, 0, -3 },
+		{ "B", "ice", 1, 1, 1, -3, 0, 3 },
+		{ "B", "ice", 1, 1, 1, 3, 0, 3 },
+		{ "B", "iceLight", 2, 1, 1, -1.5, 2, -3 },
+		{ "B", "ice", 3, 1, 2, 1, 2, -2.5 },
+		{ "B", "ice", 2, 1, 1, -1.5, 2, -2 },
+		{ "B", "ice", 1, 1, 2, 0, 3, -2.5 },
+		{ "B", "iceLight", 1, 1, 1, -2, 3, -2 },
+		{ "B", "ice", 1, 1, 1, -1, 3, -2 },
+		{ "B", "ice", 2, 1, 1, 1.5, 3, -2 },
+		{ "B", "ice", 1, 1, 4, -2, 3, 0.5 },
+		{ "B", "ice", 1, 1, 4, 2, 3, 0.5 },
+		{ "B", "ice", 1, 1, 1, -3, 3, 0 },
+		{ "B", "ice", 1, 1, 1, 3, 3, 0 },
+		{ "B", "ice", 3, 1, 1, 0, 3, 2 },
+		{ "B", "ice", 1, 1, 1, 0, 3, 3 },
+		{ "B", "snow", 0.45, 5.4, 0.3, 0, 0.6, -4.55 },
+		{ "B", "snow", 0.35, 1.2, 0.3, -0.318, 2.718, -4.55, 0.707, -0.707, 0, 0.707, 0.707, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, 0.318, 2.718, -4.55, 0.707, 0.707, 0, -0.707, 0.707, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, -0.318, -1.518, -4.55, 0.707, 0.707, 0, -0.707, 0.707, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, 0.318, -1.518, -4.55, 0.707, -0.707, 0, 0.707, 0.707, 0, 0, 0, 1 },
+		{ "B", "snow", 0.45, 5.4, 0.3, 0, 0.6, -4.55, 0.5, -0.866, 0, 0.866, 0.5, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, -1.994, 1.384, -4.55, -0.259, -0.966, 0, 0.966, -0.259, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, -1.675, 1.935, -4.55, 0.966, -0.259, 0, 0.259, 0.966, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, 1.675, -0.735, -4.55, 0.966, -0.259, 0, 0.259, 0.966, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, 1.994, -0.184, -4.55, -0.259, -0.966, 0, 0.966, -0.259, 0, 0, 0, 1 },
+		{ "B", "snow", 0.45, 5.4, 0.3, 0, 0.6, -4.55, -0.5, -0.866, 0, 0.866, -0.5, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, -1.675, -0.735, -4.55, -0.966, -0.259, 0, 0.259, -0.966, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, -1.994, -0.184, -4.55, 0.259, -0.966, 0, 0.966, 0.259, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, 1.994, 1.384, -4.55, 0.259, -0.966, 0, 0.966, 0.259, 0, 0, 0, 1 },
+		{ "B", "snow", 0.35, 1.2, 0.3, 1.675, 1.935, -4.55, -0.966, -0.259, 0, 0.259, -0.966, 0, 0, 0, 1 },
+		{ "B", "icicle", 0.8, 2.2, 0.8, 2.6, -4.3, 0 },
+		{ "B", "icicle", 0.45, 1, 0.45, 2.6, -5.9, 0 },
+		{ "B", "icicle", 0.8, 1.5, 0.8, 1.621, -3.95, 2.033 },
+		{ "B", "icicle", 0.45, 1, 0.45, 1.621, -5.2, 2.033 },
+		{ "B", "icicle", 0.8, 2.2, 0.8, -0.579, -4.3, 2.535 },
+		{ "B", "icicle", 0.45, 1, 0.45, -0.579, -5.9, 2.535 },
+		{ "B", "icicle", 0.8, 1.5, 0.8, -2.343, -3.95, 1.128 },
+		{ "B", "icicle", 0.45, 1, 0.45, -2.343, -5.2, 1.128 },
+		{ "B", "icicle", 0.8, 2.2, 0.8, -2.343, -4.3, -1.128 },
+		{ "B", "icicle", 0.45, 1, 0.45, -2.343, -5.9, -1.128 },
+		{ "B", "icicle", 0.8, 1.5, 0.8, -0.579, -3.95, -2.535 },
+		{ "B", "icicle", 0.45, 1, 0.45, -0.579, -5.2, -2.535 },
+		{ "B", "icicle", 0.8, 2.2, 0.8, 1.621, -4.3, -2.033 },
+		{ "B", "icicle", 0.45, 1, 0.45, 1.621, -5.9, -2.033 },
+		{ "B", "crystal", 0.9, 1.6, 0.9, 0, 5.2, 0, 0.707, 0, 0.707, 0, 1, 0, -0.707, 0, 0.707 },
+		{ "B", "crystal", 0.9, 1.6, 0.9, 1.6, 4.7, 0.4, 0.641, -0.423, 0.641, 0.299, 0.906, 0.299, -0.707, 0, 0.707 },
+		{ "B", "crystal", 0.9, 1.6, 0.9, -1.5, 4.8, -0.3, 0.664, 0.342, 0.664, -0.242, 0.94, -0.242, -0.707, 0, 0.707 },
+		{ "B", "iceDark", 1.4, 0.6, 1.4, 0, -4.9, 0 },
+		{ "W", "iceDark", 1, 0.9, 0.5, 0, -5.65, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "iceDark", 1, 0.9, 0.5, 0, -5.65, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Volt = {
+	Palette = {
+		blue = { "1F6BFF", "P", 0 },
+		blueDark = { "1440B8", "P", 0 },
+		blueLight = { "7FB2FF", "P", 0 },
+		bolt = { "FFD21F", "N", 0 },
+		spark = { "FFF3A0", "N", 0 },
+	},
+	Knot = { 0, -6.1, 0 },
+	Light = { "FFD21F", 1, 12 },
+	Parts = {
+		{ "B", "blueDark", 3, 1, 3, 0, -4, 0 },
+		{ "B", "blueDark", 1, 1, 2, 0, -3, -2.5 },
+		{ "B", "bolt", 1, 1, 1, -2, -3, -2 },
+		{ "B", "blueDark", 1, 1, 1, -1, -3, -2 },
+		{ "B", "blueDark", 2, 1, 1, 1.5, -3, -2 },
+		{ "B", "blueDark", 1, 1, 4, -2, -3, 0.5 },
+		{ "B", "blue", 3, 7, 3, 0, 0, 0 },
+		{ "B", "blueDark", 1, 1, 4, 2, -3, 0.5 },
+		{ "B", "blueDark", 1, 1, 1, -3, -3, 0 },
+		{ "B", "blueDark", 1, 1, 1, 3, -3, 0 },
+		{ "B", "blueDark", 3, 1, 1, 0, -3, 2 },
+		{ "B", "blueDark", 1, 1, 1, 0, -3, 3 },
+		{ "B", "bolt", 2, 1, 1, -1.5, -2, -3 },
+		{ "B", "blue", 3, 3, 2, 1, -1, -2.5 },
+		{ "B", "blue", 3, 5, 1, -2, 0, -2 },
+		{ "B", "blue", 1, 5, 5, 3, 0, 0 },
+		{ "B", "blue", 2, 5, 4, -2.5, 0, 0.5 },
+		{ "B", "blue", 1, 5, 5, 2, 0, 1 },
+		{ "B", "blue", 3, 5, 2, 0, 0, 2.5 },
+		{ "B", "blue", 1, 5, 1, -2, 0, 3 },
+		{ "B", "bolt", 2, 1, 1, -0.5, -1, -4 },
+		{ "B", "blue", 1, 1, 1, 1, -1, -4 },
+		{ "B", "blue", 2, 2, 1, -1.5, -0.5, -3 },
+		{ "B", "blue", 1, 3, 3, -4, 0, 0 },
+		{ "B", "blue", 1, 3, 3, 4, 0, 0 },
+		{ "B", "blue", 3, 3, 1, 0, 0, 4 },
+		{ "B", "blue", 1, 1, 1, -1, 0, -4 },
+		{ "B", "bolt", 2, 2, 1, 0.5, 0.5, -4 },
+		{ "B", "blue", 1, 1, 1, -3, 0, -3 },
+		{ "B", "blue", 1, 1, 1, 3, 0, -3 },
+		{ "B", "blue", 1, 1, 1, -3, 0, 3 },
+		{ "B", "blue", 1, 1, 1, 3, 0, 3 },
+		{ "B", "bolt", 1, 1, 1, -1, 1, -4 },
+		{ "B", "bolt", 1, 1, 1, -2, 1, -3 },
+		{ "B", "blue", 3, 1, 1, 0, 1, -3 },
+		{ "B", "bolt", 1, 1, 1, 2, 1, -3 },
+		{ "B", "blue", 3, 2, 1, 1, 1.5, -2 },
+		{ "B", "blueLight", 1, 1, 1, -2, 2, -3 },
+		{ "B", "bolt", 2, 1, 1, -0.5, 2, -3 },
+		{ "B", "blue", 2, 1, 1, 1.5, 2, -3 },
+		{ "B", "bolt", 1, 1, 1, 0, 3, -3 },
+		{ "B", "blueLight", 1, 1, 1, -2, 3, -2 },
+		{ "B", "blue", 2, 1, 1, -0.5, 3, -2 },
+		{ "B", "bolt", 1, 1, 1, 1, 3, -2 },
+		{ "B", "blue", 1, 1, 5, 2, 3, 0 },
+		{ "B", "blue", 1, 1, 4, -2, 3, 0.5 },
+		{ "B", "blue", 1, 1, 1, -3, 3, 0 },
+		{ "B", "blue", 1, 1, 1, 3, 3, 0 },
+		{ "B", "blue", 3, 1, 1, 0, 3, 2 },
+		{ "B", "blue", 1, 1, 1, 0, 3, 3 },
+		{ "B", "blue", 2, 1, 3, -0.5, 4, 0 },
+		{ "B", "bolt", 1, 1, 1, 1, 4, -1 },
+		{ "B", "blue", 1, 1, 2, 1, 4, 0.5 },
+		{ "B", "spark", 0.45, 0.9, 0.45, 0.45, 5.1, 0, 0.857, 0.514, 0, -0.514, 0.857, 0, 0, 0, 1 },
+		{ "B", "spark", 0.45, 0.9, 0.45, 0, 5.8, 0, 0.857, -0.514, 0, 0.514, 0.857, 0, 0, 0, 1 },
+		{ "B", "spark", 0.45, 0.9, 0.45, 0.45, 6.5, 0, 0.857, 0.514, 0, -0.514, 0.857, 0, 0, 0, 1 },
+		{ "B", "spark", 0.45, 0.9, 0.45, 4.113, 3.177, 0.5, 0, 0.97, -0.243, 0, 0.243, 0.97, 1, 0, 0 },
+		{ "B", "spark", 0.45, 0.9, 0.45, 4.29, 3.99, 0.5, 0.97, 0.243, 0, -0.243, 0.97, 0, 0, 0, 1 },
+		{ "B", "spark", 0.45, 0.9, 0.45, 5.103, 4.167, 0.5, 0, 0.97, -0.243, 0, 0.243, 0.97, 1, 0, 0 },
+		{ "B", "spark", 0.45, 0.9, 0.45, -3.372, 3.408, -0.502, 0.972, -0.237, 0, 0.235, 0.964, -0.124, 0.029, 0.12, 0.992 },
+		{ "B", "spark", 0.45, 0.9, 0.45, -4.18, 3.58, -0.404, 0.117, -0.964, -0.238, -0.029, 0.237, -0.971, 0.993, 0.12, 0 },
+		{ "B", "spark", 0.45, 0.9, 0.45, -4.352, 4.388, -0.306, 0.972, -0.237, 0, 0.235, 0.964, -0.124, 0.029, 0.12, 0.992 },
+		{ "B", "blueDark", 1.4, 0.6, 1.4, 0, -4.9, 0 },
+		{ "W", "blueDark", 1, 0.9, 0.5, 0, -5.65, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "blueDark", 1, 0.9, 0.5, 0, -5.65, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Thorn = {
+	Palette = {
+		thorn = { "2E7D32", "P", 0 },
+		vine = { "1B5E20", "P", 0 },
+		tip = { "8A5A2E", "P", 0 },
+		rose = { "D6204A", "P", 0 },
+		roseDark = { "A3122F", "P", 0 },
+		leaf = { "43A047", "P", 0 },
+	},
+	Knot = { 0, -5.9, 0 },
+	Parts = {
+		{ "B", "thorn", 3, 6, 2, 0, -0.5, -1.5 },
+		{ "B", "thorn", 1, 7, 2, -2, 0, -0.5 },
+		{ "B", "vine", 1, 1, 1, 2, -3, -1 },
+		{ "B", "thorn", 2, 6, 1, -0.5, -0.5, 0 },
+		{ "B", "vine", 1, 1, 3, 1, -3, 1 },
+		{ "B", "thorn", 1, 7, 2, 2, 0, 0.5 },
+		{ "B", "vine", 2, 1, 1, -1.5, -3, 1 },
+		{ "B", "thorn", 1, 7, 1, 0, 0, 1 },
+		{ "B", "thorn", 1, 7, 1, -1, 0, 2 },
+		{ "B", "vine", 1, 1, 1, 0, -3, 2 },
+		{ "B", "thorn", 3, 1, 1, 0, -2, -3 },
+		{ "B", "thorn", 1, 4, 1, -2, -0.5, -2 },
+		{ "B", "thorn", 1, 5, 2, 2, 0, -1.5 },
+		{ "B", "thorn", 1, 2, 1, -3, -1.5, -1 },
+		{ "B", "thorn", 1, 1, 3, 3, -2, 0 },
+		{ "B", "vine", 1, 2, 1, -3, -1.5, 0 },
+		{ "B", "thorn", 1, 5, 4, 1, 0, 1.5 },
+		{ "B", "thorn", 3, 5, 1, -2, 0, 1 },
+		{ "B", "thorn", 1, 5, 1, -2, 0, 2 },
+		{ "B", "thorn", 1, 6, 1, 0, 0.5, 2 },
+		{ "B", "vine", 1, 1, 1, 2, -2, 2 },
+		{ "B", "thorn", 1, 2, 1, -1, -1.5, 3 },
+		{ "B", "vine", 1, 1, 1, 0, -2, 3 },
+		{ "B", "thorn", 3, 3, 1, -1, 0, -3 },
+		{ "B", "vine", 1, 2, 1, 1, -0.5, -3 },
+		{ "B", "thorn", 1, 3, 1, 2, 0, -3 },
+		{ "B", "thorn", 1, 3, 1, -3, 0, -2 },
+		{ "B", "thorn", 1, 2, 3, 3, -0.5, -1 },
+		{ "B", "vine", 1, 2, 1, 3, -0.5, 1 },
+		{ "B", "thorn", 1, 3, 1, -3, 0, 2 },
+		{ "B", "thorn", 2, 3, 1, 2.5, 0, 2 },
+		{ "B", "thorn", 1, 3, 1, -2, 0, 3 },
+		{ "B", "thorn", 1, 4, 1, 0, 0.5, 3 },
+		{ "B", "thorn", 1, 3, 1, 2, 0, 3 },
+		{ "B", "vine", 1, 2, 1, -3, 0.5, -1 },
+		{ "B", "thorn", 1, 3, 1, -3, 1, 0 },
+		{ "B", "vine", 1, 2, 1, -1, 0.5, 3 },
+		{ "B", "thorn", 1, 2, 1, 1, 1.5, -3 },
+		{ "B", "thorn", 1, 1, 2, 3, 1, -1.5 },
+		{ "B", "vine", 1, 2, 1, 3, 1.5, 0 },
+		{ "B", "thorn", 1, 2, 1, 3, 1.5, 1 },
+		{ "B", "thorn", 1, 1, 1, -1, 2, -3 },
+		{ "B", "vine", 1, 1, 1, 0, 2, -3 },
+		{ "B", "vine", 1, 1, 1, -2, 2, -2 },
+		{ "B", "thorn", 1, 1, 1, -3, 2, -1 },
+		{ "B", "thorn", 1, 1, 1, 3, 2, -1 },
+		{ "B", "thorn", 1, 1, 1, 2, 2, 2 },
+		{ "B", "thorn", 1, 1, 1, -1, 2, 3 },
+		{ "B", "vine", 2, 1, 1, -0.5, 3, -2 },
+		{ "B", "thorn", 1, 1, 1, 1, 3, -2 },
+		{ "B", "vine", 1, 1, 2, -1, 3, -0.5 },
+		{ "B", "thorn", 1, 1, 2, 0, 3, -0.5 },
+		{ "B", "vine", 2, 1, 1, 1.5, 3, -1 },
+		{ "B", "thorn", 1, 1, 3, 1, 3, 1 },
+		{ "B", "vine", 1, 1, 1, -2, 3, 1 },
+		{ "B", "thorn", 1, 1, 1, -1, 3, 1 },
+		{ "B", "rose", 3, 1, 3, 0, 4, 0 },
+		{ "B", "roseDark", 1, 1, 1, -2, 4, 0 },
+		{ "B", "roseDark", 1, 1, 1, 2, 4, 0 },
+		{ "B", "roseDark", 3, 1, 1, 0, 5, -1 },
+		{ "B", "roseDark", 1, 1, 2, -1, 5, 0.5 },
+		{ "B", "rose", 1, 2, 1, 0, 5.5, 0 },
+		{ "B", "roseDark", 1, 1, 2, 1, 5, 0.5 },
+		{ "B", "roseDark", 1, 1, 1, 0, 5, 1 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 3.634, 0.513, -2.252, 0.535, 0.845, 0, -0.267, 0.169, 0.949, 0.802, -0.507, 0.316 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 3.634, 0.94, -2.109, -0.535, 0.845, 0, 0.267, 0.169, -0.949, -0.802, -0.507, -0.316 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -3.715, 0.921, -1.973, 0.504, -0.864, 0, 0.444, 0.259, 0.857, -0.741, -0.432, 0.514 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -3.715, 1.307, -1.742, -0.504, -0.864, 0, -0.444, 0.259, -0.857, 0.741, -0.432, -0.514 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 2.114, 2.635, 2.67, 0.871, 0.492, 0, -0.324, 0.573, -0.753, -0.37, 0.655, 0.659 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 2.114, 2.297, 2.966, -0.871, 0.492, 0, 0.324, 0.573, 0.753, 0.37, 0.655, -0.659 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -2.336, 2.19, 2.879, 0.84, -0.543, 0, 0.301, 0.466, -0.832, 0.452, 0.699, 0.555 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -2.336, 1.815, 3.129, -0.84, -0.543, 0, -0.301, 0.466, 0.832, -0.452, 0.699, -0.555 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 0.809, 0.998, -4.11, 0.982, 0.188, 0, -0.054, 0.282, 0.958, 0.18, -0.941, 0.287 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 0.809, 1.429, -3.98, -0.982, 0.188, 0, 0.054, 0.282, -0.958, -0.18, -0.941, -0.287 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 3.743, -1.338, 1.656, 0.492, 0.87, 0, 0.615, -0.348, -0.707, -0.615, 0.348, -0.707 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 3.743, -1.656, 1.338, -0.492, 0.87, 0, -0.615, -0.348, 0.707, 0.615, 0.348, 0.707 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -4.11, -0.998, 0.809, 0.18, -0.941, 0.287, 0.054, -0.282, -0.958, 0.982, 0.188, 0 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -3.98, -1.429, 0.809, -0.18, -0.941, -0.287, -0.054, -0.282, 0.958, -0.982, 0.188, 0 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 1.188, 3.894, -1.403, 0.961, 0.276, 0, -0.265, 0.921, 0.287, 0.079, -0.276, 0.958 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 1.188, 4.023, -0.972, -0.961, 0.276, 0, 0.265, 0.921, -0.287, -0.079, -0.276, -0.958 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -1.449, -2.012, -3.521, 0.942, -0.337, 0, -0.151, -0.421, 0.894, -0.301, -0.842, -0.447 },
+		{ "W", "tip", 0.9, 1.8, 0.45, -1.449, -1.609, -3.722, -0.942, -0.337, 0, 0.151, -0.421, -0.894, 0.301, -0.842, 0.447 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 2.638, -1.846, -2.859, 0.79, 0.614, 0, 0.298, -0.383, 0.874, 0.536, -0.69, -0.486 },
+		{ "W", "tip", 0.9, 1.8, 0.45, 2.638, -1.452, -3.077, -0.79, 0.614, 0, -0.298, -0.383, -0.874, -0.536, -0.69, 0.486 },
+		{ "B", "leaf", 2.2, 0.3, 1.2, -1.9, 3.8, 0.8, 0.94, 0.342, 0, -0.342, 0.94, 0, 0, 0, 1 },
+		{ "B", "leaf", 2.2, 0.3, 1.2, 1.9, 3.8, 0.8, 0.94, -0.342, 0, 0.342, 0.94, 0, 0, 0, 1 },
+		{ "B", "vine", 1.4, 0.6, 1.4, 0, -4.7, 0 },
+		{ "W", "vine", 1, 0.9, 0.5, 0, -5.45, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "vine", 1, 0.9, 0.5, 0, -5.45, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Clock = {
+	Palette = {
+		gold = { "FFC21A", "P", 0 },
+		goldDark = { "D99A00", "P", 0 },
+		glass = { "DDF6FF", "G", 0.45 },
+		sand = { "E8C27A", "P", 0 },
+		sandDark = { "C99A4A", "P", 0 },
+		face = { "FFFFFF", "S", 0 },
+		hand = { "2A2A2A", "S", 0 },
+	},
+	Knot = { 0, -8, 0 },
+	Parts = {
+		{ "B", "goldDark", 5, 1, 5, 0, -6, 0 },
+		{ "B", "gold", 7, 1, 7, 0, -5, 0 },
+		{ "B", "goldDark", 1, 9, 1, -3, 0, -3 },
+		{ "B", "goldDark", 1, 9, 1, 3, 0, -3 },
+		{ "B", "sand", 5, 1, 5, 0, -4, 0 },
+		{ "B", "goldDark", 1, 9, 1, -3, 0, 3 },
+		{ "B", "goldDark", 1, 9, 1, 3, 0, 3 },
+		{ "B", "glass", 5, 1, 1, 0, -3, -2 },
+		{ "B", "glass", 1, 1, 4, -2, -3, 0.5 },
+		{ "B", "sandDark", 3, 1, 3, 0, -3, 0 },
+		{ "B", "glass", 1, 1, 4, 2, -3, 0.5 },
+		{ "B", "glass", 3, 1, 1, 0, -3, 2 },
+		{ "B", "glass", 3, 2, 1, 0, -1.5, -1 },
+		{ "B", "glass", 1, 2, 2, -1, -1.5, 0.5 },
+		{ "B", "sand", 1, 6, 1, 0, 0.5, 0 },
+		{ "B", "glass", 1, 2, 2, 1, -1.5, 0.5 },
+		{ "B", "glass", 1, 2, 1, 0, -1.5, 1 },
+		{ "B", "glass", 3, 2, 1, 0, 1.5, -1 },
+		{ "B", "glass", 1, 2, 2, -1, 1.5, 0.5 },
+		{ "B", "glass", 1, 2, 2, 1, 1.5, 0.5 },
+		{ "B", "glass", 1, 2, 1, 0, 1.5, 1 },
+		{ "B", "glass", 5, 2, 1, 0, 3.5, -2 },
+		{ "B", "glass", 1, 2, 4, -2, 3.5, 0.5 },
+		{ "B", "sand", 3, 1, 1, 0, 3, -1 },
+		{ "B", "glass", 1, 2, 4, 2, 3.5, 0.5 },
+		{ "B", "sand", 1, 1, 2, -1, 3, 0.5 },
+		{ "B", "sand", 1, 1, 2, 1, 3, 0.5 },
+		{ "B", "sand", 1, 1, 1, 0, 3, 1 },
+		{ "B", "glass", 3, 2, 1, 0, 3.5, 2 },
+		{ "B", "glass", 3, 1, 3, 0, 4, 0 },
+		{ "B", "gold", 7, 1, 7, 0, 5, 0 },
+		{ "B", "goldDark", 5, 1, 5, 0, 6, 0 },
+		{ "B", "gold", 1, 1, 1, 0, 7, 0 },
+		{ "B", "face", 2.6, 2.6, 0.2, 0, 5, -3.6 },
+		{ "B", "hand", 0.25, 1.1, 0.1, 0, 5.45, -3.75 },
+		{ "B", "hand", 0.8, 0.25, 0.1, 0.35, 5, -3.75 },
+		{ "B", "goldDark", 1.4, 0.6, 1.4, 0, -6.8, 0 },
+		{ "W", "goldDark", 1, 0.9, 0.5, 0, -7.55, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "goldDark", 1, 0.9, 0.5, 0, -7.55, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Flame = {
+	Palette = {
+		red = { "E0301E", "P", 0 },
+		orange = { "FF6A00", "P", 0 },
+		amber = { "FF9A1F", "N", 0 },
+		yellow = { "FFD21F", "N", 0 },
+		core = { "FFF3A0", "N", 0 },
+		dark = { "8A1A0A", "P", 0 },
+	},
+	Knot = { 0, -6.1, 0 },
+	Light = { "FF8A1F", 2.2, 20 },
+	Parts = {
+		{ "B", "dark", 3, 1, 3, 0, -4, 0 },
+		{ "B", "red", 1, 1, 7, 0, -3, 0 },
+		{ "B", "red", 2, 2, 5, -1.5, -2.5, 0 },
+		{ "B", "red", 2, 2, 5, 1.5, -2.5, 0 },
+		{ "B", "red", 1, 2, 1, -3, -2.5, 0 },
+		{ "B", "red", 1, 2, 1, 3, -2.5, 0 },
+		{ "B", "red", 1, 1, 1, -2, -2, -3 },
+		{ "B", "core", 3, 2, 1, 0, -1.5, -3 },
+		{ "B", "red", 1, 1, 1, 2, -2, -3 },
+		{ "B", "red", 1, 1, 2, -3, -2, -1.5 },
+		{ "B", "red", 1, 1, 6, 0, -2, 0.5 },
+		{ "B", "red", 1, 1, 2, 3, -2, -1.5 },
+		{ "B", "red", 1, 1, 2, -3, -2, 1.5 },
+		{ "B", "red", 1, 1, 2, 3, -2, 1.5 },
+		{ "B", "red", 2, 1, 1, -1.5, -2, 3 },
+		{ "B", "red", 2, 1, 1, 1.5, -2, 3 },
+		{ "B", "orange", 1, 3, 7, -2, 0, 0 },
+		{ "B", "orange", 1, 3, 7, 2, 0, 0 },
+		{ "B", "orange", 1, 3, 5, -3, 0, 0 },
+		{ "B", "orange", 3, 3, 6, 0, 0, 0.5 },
+		{ "B", "orange", 1, 3, 5, 3, 0, 0 },
+		{ "B", "orange", 1, 2, 1, -1, 0.5, -3 },
+		{ "B", "core", 2, 1, 1, 0.5, 0, -3 },
+		{ "B", "core", 1, 1, 1, 0, 1, -3 },
+		{ "B", "orange", 1, 1, 1, 1, 1, -3 },
+		{ "B", "amber", 3, 1, 7, 1, 2, 0 },
+		{ "B", "amber", 1, 1, 5, -1, 2, 0 },
+		{ "B", "amber", 1, 1, 5, 3, 2, 0 },
+		{ "B", "amber", 1, 1, 3, -2, 2, 0 },
+		{ "B", "amber", 1, 1, 3, 4, 2, 0 },
+		{ "B", "amber", 3, 1, 5, 1, 3, 0 },
+		{ "B", "amber", 1, 2, 3, -1, 3.5, 0 },
+		{ "B", "amber", 1, 1, 3, 3, 3, 0 },
+		{ "B", "amber", 3, 1, 1, 0, 4, -2 },
+		{ "B", "amber", 1, 1, 3, -2, 4, 0 },
+		{ "B", "amber", 3, 1, 3, 1, 4, 0 },
+		{ "B", "amber", 3, 1, 1, 0, 4, 2 },
+		{ "B", "yellow", 3, 1, 3, -1, 5, 0 },
+		{ "B", "yellow", 1, 1, 3, -1, 6, 0 },
+		{ "B", "yellow", 1, 1, 1, -2, 6, 0 },
+		{ "B", "yellow", 1, 1, 1, 0, 6, 0 },
+		{ "B", "yellow", 1, 1, 1, -1, 7, 0 },
+		{ "B", "yellow", 1, 1.6, 1, 3.6, 3.5, 0.5, 0.966, 0.259, 0, -0.259, 0.966, 0, 0, 0, 1 },
+		{ "B", "yellow", 0.9, 1.44, 0.9, -3.4, 2.4, -0.4, 0.966, -0.259, 0, 0.259, 0.966, 0, 0, 0, 1 },
+		{ "B", "yellow", 0.7, 1.12, 0.7, 2.2, 6.4, -0.6, 0.966, 0.259, 0, -0.259, 0.966, 0, 0, 0, 1 },
+		{ "B", "yellow", 0.6, 0.96, 0.6, -1.8, 7.2, 0.4, 0.966, -0.259, 0, 0.259, 0.966, 0, 0, 0, 1 },
+		{ "B", "dark", 1.4, 0.6, 1.4, 0, -4.9, 0 },
+		{ "W", "dark", 1, 0.9, 0.5, 0, -5.65, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "dark", 1, 0.9, 0.5, 0, -5.65, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Whale = {
+	Palette = {
+		whale = { "2C5FD9", "P", 0 },
+		whaleDark = { "1E3F9E", "P", 0 },
+		belly = { "D8E6FF", "P", 0 },
+		groove = { "B9CFF5", "P", 0 },
+		eyeW = { "FFFFFF", "S", 0 },
+		eyeB = { "141414", "S", 0 },
+		mouth = { "1E3A8A", "P", 0 },
+		spout = { "8FE9FF", "N", 0.2 },
+	},
+	Knot = { 0, -5.1, 0 },
+	Parts = {
+		{ "B", "groove", 1, 1, 8, 0, -2, -0.5 },
+		{ "B", "belly", 1, 2, 7, -1, -1.5, 0 },
+		{ "B", "belly", 1, 2, 7, 1, -1.5, 0 },
+		{ "B", "groove", 1, 1, 5, -2, -2, 0 },
+		{ "B", "groove", 1, 1, 5, 2, -2, 0 },
+		{ "B", "whale", 1, 4, 1, 0, -0.5, 4 },
+		{ "B", "mouth", 1, 1, 1, 0, -1, -5 },
+		{ "B", "mouth", 2, 1, 1, -1.5, -1, -4 },
+		{ "B", "belly", 1, 1, 8, 0, -1, -0.5 },
+		{ "B", "mouth", 2, 1, 1, 1.5, -1, -4 },
+		{ "B", "belly", 1, 1, 7, -2, -1, 0 },
+		{ "B", "belly", 1, 1, 7, 2, -1, 0 },
+		{ "B", "belly", 1, 1, 3, -3, -1, 0 },
+		{ "B", "belly", 1, 1, 3, 3, -1, 0 },
+		{ "B", "whale", 2, 3, 1, -1.5, 0, 4 },
+		{ "B", "whale", 2, 3, 1, 1.5, 0, 4 },
+		{ "B", "whale", 1, 3, 2, 0, 0, 5.5 },
+		{ "B", "whale", 3, 1, 9, 0, 0, -1 },
+		{ "B", "whale", 1, 2, 8, -2, 0.5, -0.5 },
+		{ "B", "whale", 1, 2, 8, 2, 0.5, -0.5 },
+		{ "B", "whale", 1, 1, 5, -3, 0, 0 },
+		{ "B", "whale", 1, 1, 5, 3, 0, 0 },
+		{ "B", "whale", 1, 1, 2, -1, 0, 5.5 },
+		{ "B", "whale", 1, 1, 2, 1, 0, 5.5 },
+		{ "B", "whale", 1, 2, 2, 0, 0.5, 7.5 },
+		{ "B", "whale", 1, 1, 9, 0, 1, -1 },
+		{ "B", "whale", 1, 1, 8, -1, 1, -0.5 },
+		{ "B", "whale", 1, 1, 8, 1, 1, -0.5 },
+		{ "B", "whale", 1, 1, 3, -3, 1, 0 },
+		{ "B", "whale", 1, 1, 3, 3, 1, 0 },
+		{ "B", "whale", 1, 1, 1, -1, 1, 6 },
+		{ "B", "whale", 1, 1, 1, 1, 1, 6 },
+		{ "B", "whaleDark", 7, 1, 1, 0, 1, 9 },
+		{ "B", "whaleDark", 4, 1, 1, -2.5, 1, 10 },
+		{ "B", "whaleDark", 4, 1, 1, 2.5, 1, 10 },
+		{ "B", "whaleDark", 1, 1, 9, 0, 2, 0 },
+		{ "B", "whaleDark", 1, 1, 7, -1, 2, 0 },
+		{ "B", "whaleDark", 1, 1, 7, 1, 2, 0 },
+		{ "B", "whaleDark", 1, 1, 5, -2, 2, 0 },
+		{ "B", "whaleDark", 1, 1, 5, 2, 2, 0 },
+		{ "B", "whaleDark", 1, 1, 1, 0, 2, 6 },
+		{ "B", "eyeW", 0.3, 1.2, 1.2, -3.3, 0.2, -3.2 },
+		{ "B", "eyeB", 0.3, 0.7, 0.7, -3.45, 0.1, -3.4 },
+		{ "W", "whaleDark", 0.4, 1.4, 2.8, -3.6, -1.4, -0.6, -0.819, 0.574, 0, 0.574, 0.819, 0, 0, 0, -1 },
+		{ "B", "eyeW", 0.3, 1.2, 1.2, 3.3, 0.2, -3.2 },
+		{ "B", "eyeB", 0.3, 0.7, 0.7, 3.45, 0.1, -3.4 },
+		{ "W", "whaleDark", 0.4, 1.4, 2.8, 3.6, -1.4, -0.6, -0.819, -0.574, 0, -0.574, 0.819, 0, 0, 0, -1 },
+		{ "B", "spout", 0.6, 0.8, 0.6, 0, 3.4, -2.6 },
+		{ "B", "spout", 0.6, 0.8, 0.6, 0, 4.3, -2.6 },
+		{ "B", "spout", 0.6, 0.8, 0.6, -0.6, 5, -2.6 },
+		{ "B", "spout", 0.6, 0.8, 0.6, 0.6, 5, -2.6 },
+		{ "B", "spout", 0.6, 0.8, 0.6, -1.1, 5.5, -2.6 },
+		{ "B", "spout", 0.6, 0.8, 0.6, 1.1, 5.5, -2.6 },
+		{ "B", "whaleDark", 1.4, 0.6, 1.4, 0, -3.9, 0 },
+		{ "W", "whaleDark", 1, 0.9, 0.5, 0, -4.65, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "whaleDark", 1, 0.9, 0.5, 0, -4.65, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Iron = {
+	Palette = {
+		iron = { "7A808A", "P", 0 },
+		ironDark = { "5A606A", "P", 0 },
+		ironLight = { "A5ABB5", "P", 0 },
+		bolt = { "3A3F47", "P", 0 },
+		hot = { "FF6A1F", "N", 0 },
+	},
+	Knot = { 0, -5, 0 },
+	Parts = {
+		{ "B", "iron", 7, 1, 9, 0, -3, 0 },
+		{ "B", "ironDark", 7, 1, 9, 0, -2, 0 },
+		{ "B", "ironDark", 3, 3, 5, 0, 0, 0 },
+		{ "B", "ironDark", 5, 1, 1, 0, 1, -3 },
+		{ "B", "ironDark", 1, 1, 6, -2, 1, 0.5 },
+		{ "B", "ironDark", 1, 1, 6, 2, 1, 0.5 },
+		{ "B", "ironDark", 3, 1, 1, 0, 1, 3 },
+		{ "B", "iron", 1, 1, 13, 0, 2, -2 },
+		{ "B", "iron", 1, 1, 12, -1, 2, -1.5 },
+		{ "B", "iron", 1, 1, 12, 1, 2, -1.5 },
+		{ "B", "iron", 1, 1, 10, -2, 2, -0.5 },
+		{ "B", "iron", 1, 1, 10, 2, 2, -0.5 },
+		{ "B", "iron", 1, 1, 3, 0, 3, -7 },
+		{ "B", "iron", 1, 1, 2, -1, 3, -6.5 },
+		{ "B", "iron", 1, 1, 2, 1, 3, -6.5 },
+		{ "B", "ironLight", 5, 1, 7, 0, 3, -2 },
+		{ "B", "ironLight", 2, 1, 3, -1.5, 3, 3 },
+		{ "B", "bolt", 1, 1, 1, 0, 3, 2 },
+		{ "B", "ironLight", 2, 1, 3, 1.5, 3, 3 },
+		{ "B", "ironLight", 1, 1, 2, 0, 3, 3.5 },
+		{ "W", "iron", 1, 2, 1.6, 0, 2.5, -9.3, -1, 0, 0, 0, 1, 0, 0, 0, -1 },
+		{ "B", "bolt", 0.3, 0.6, 0.6, -3.55, -2.5, -3 },
+		{ "B", "bolt", 0.3, 0.6, 0.6, -3.55, -2.5, 3 },
+		{ "B", "bolt", 0.3, 0.6, 0.6, 3.55, -2.5, -3 },
+		{ "B", "bolt", 0.3, 0.6, 0.6, 3.55, -2.5, 3 },
+		{ "B", "hot", 0.4, 0.2, 3.5, 0, 3.6, -2 },
+		{ "B", "bolt", 1.4, 0.6, 1.4, 0, -3.8, 0 },
+		{ "W", "bolt", 1, 0.9, 0.5, 0, -4.55, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "bolt", 1, 0.9, 0.5, 0, -4.55, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Void = {
+	Palette = {
+		void = { "120E1A", "P", 0 },
+		voidDark = { "0A070F", "P", 0 },
+		eye = { "B266FF", "N", 0 },
+		fleck = { "6A2BD9", "N", 0.2 },
+		ring = { "8A3FFF", "N", 0 },
+	},
+	Knot = { 0, -6.1, 0 },
+	Light = { "8A3FFF", 1.4, 16 },
+	Parts = {
+		{ "B", "voidDark", 3, 1, 3, 0, -4, 0 },
+		{ "B", "voidDark", 1, 1, 2, 0, -3, -2.5 },
+		{ "B", "voidDark", 2, 1, 1, -1.5, -3, -2 },
+		{ "B", "voidDark", 2, 1, 1, 1.5, -3, -2 },
+		{ "B", "voidDark", 1, 1, 4, -2, -3, 0.5 },
+		{ "B", "void", 3, 8, 3, 0, 0.5, 0 },
+		{ "B", "voidDark", 1, 1, 4, 2, -3, 0.5 },
+		{ "B", "voidDark", 1, 1, 1, -3, -3, 0 },
+		{ "B", "voidDark", 1, 1, 1, 3, -3, 0 },
+		{ "B", "voidDark", 2, 1, 1, -0.5, -3, 2 },
+		{ "B", "fleck", 1, 1, 1, 1, -3, 2 },
+		{ "B", "voidDark", 1, 1, 1, 0, -3, 3 },
+		{ "B", "fleck", 1, 1, 1, -2, -2, -3 },
+		{ "B", "void", 4, 4, 2, 0.5, -0.5, -2.5 },
+		{ "B", "void", 2, 1, 5, -2.5, -2, 0 },
+		{ "B", "void", 1, 2, 3, 3, -1.5, -1 },
+		{ "B", "void", 1, 4, 5, 2, -0.5, 1 },
+		{ "B", "fleck", 1, 1, 1, 3, -2, 1 },
+		{ "B", "void", 3, 6, 1, 0, 0.5, 2 },
+		{ "B", "void", 1, 3, 1, 3, -1, 2 },
+		{ "B", "void", 2, 5, 1, -1.5, 0, 3 },
+		{ "B", "fleck", 1, 1, 1, 0, -2, 3 },
+		{ "B", "void", 1, 5, 1, 1, 0, 3 },
+		{ "B", "void", 1, 3, 1, -1, 0, -4 },
+		{ "B", "eye", 1, 3, 1, 0, 0, -4 },
+		{ "B", "void", 1, 2, 1, 1, -0.5, -4 },
+		{ "B", "void", 1, 4, 6, -2, 0.5, -0.5 },
+		{ "B", "fleck", 1, 1, 1, -3, -1, -2 },
+		{ "B", "void", 2, 1, 3, -3.5, -1, 0 },
+		{ "B", "void", 1, 1, 3, 4, -1, 0 },
+		{ "B", "void", 1, 4, 1, 3, 0.5, 1 },
+		{ "B", "void", 1, 1, 1, -3, -1, 2 },
+		{ "B", "void", 1, 2, 2, 0, -0.5, 3.5 },
+		{ "B", "fleck", 1, 1, 1, -1, -1, 4 },
+		{ "B", "void", 1, 3, 1, 1, 0, 4 },
+		{ "B", "void", 1, 1, 5, -3, 0, -1 },
+		{ "B", "void", 1, 1, 1, 3, 0, -3 },
+		{ "B", "fleck", 1, 1, 1, 3, 0, -2 },
+		{ "B", "fleck", 1, 1, 1, -4, 0, -1 },
+		{ "B", "void", 2, 2, 2, 3.5, 0.5, -0.5 },
+		{ "B", "void", 1, 2, 2, -4, 0.5, 0.5 },
+		{ "B", "fleck", 1, 1, 1, 4, 0, 1 },
+		{ "B", "fleck", 1, 1, 1, -3, 0, 2 },
+		{ "B", "void", 1, 1, 1, -3, 0, 3 },
+		{ "B", "void", 1, 1, 1, 3, 0, 3 },
+		{ "B", "void", 1, 2, 1, -1, 0.5, 4 },
+		{ "B", "fleck", 1, 1, 1, 1, 1, -4 },
+		{ "B", "void", 1, 1, 5, -3, 1, 0 },
+		{ "B", "void", 1, 2, 1, 3, 1.5, -2 },
+		{ "B", "void", 1, 1, 1, -4, 1, -1 },
+		{ "B", "void", 1, 1, 1, 4, 1, 1 },
+		{ "B", "fleck", 1, 1, 1, 3, 1, 2 },
+		{ "B", "void", 1, 3, 1, 0, 2, 3 },
+		{ "B", "fleck", 1, 1, 1, 0, 1, 4 },
+		{ "B", "void", 1, 1, 2, -1, 2, -2.5 },
+		{ "B", "eye", 1, 1, 1, 0, 2, -3 },
+		{ "B", "void", 2, 1, 2, 1.5, 2, -2.5 },
+		{ "B", "void", 1, 1, 1, -3, 2, -2 },
+		{ "B", "void", 1, 2, 1, 0, 2.5, -2 },
+		{ "B", "fleck", 1, 1, 1, -3, 2, -1 },
+		{ "B", "void", 2, 1, 2, 2.5, 2, -0.5 },
+		{ "B", "void", 1, 1, 3, -3, 2, 1 },
+		{ "B", "void", 1, 2, 2, 2, 2.5, 1.5 },
+		{ "B", "void", 1, 1, 1, 3, 2, 2 },
+		{ "B", "fleck", 1, 1, 1, 2, 2, 3 },
+		{ "B", "void", 1, 1, 1, 0, 3, -3 },
+		{ "B", "void", 1, 1, 5, -2, 3, 0 },
+		{ "B", "fleck", 1, 1, 1, -1, 3, -2 },
+		{ "B", "void", 2, 1, 1, 1.5, 3, -2 },
+		{ "B", "void", 1, 1, 2, 2, 3, -0.5 },
+		{ "B", "void", 1, 1, 1, -3, 3, 0 },
+		{ "B", "void", 1, 1, 1, 3, 3, 0 },
+		{ "B", "ring", 0.8, 0.8, 0.8, 6.2, 0, 0, 1, 0, 0, 0, 0.927, -0.375, 0, 0.375, 0.927 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, 5.897, -0.718, 1.776, 0.951, 0, -0.309, -0.116, 0.927, -0.356, 0.287, 0.375, 0.882 },
+		{ "B", "ring", 0.8, 0.8, 0.8, 5.016, -1.365, 3.379, 0.809, 0, -0.588, -0.22, 0.927, -0.303, 0.545, 0.375, 0.75 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, 3.644, -1.879, 4.651, 0.588, 0, -0.809, -0.303, 0.927, -0.22, 0.75, 0.375, 0.545 },
+		{ "B", "ring", 0.8, 0.8, 0.8, 1.916, -2.209, 5.467, 0.309, 0, -0.951, -0.356, 0.927, -0.116, 0.882, 0.375, 0.287 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, 0, -2.323, 5.749, 0, 0, -1, -0.375, 0.927, 0, 0.927, 0.375, 0 },
+		{ "B", "ring", 0.8, 0.8, 0.8, -1.916, -2.209, 5.467, -0.309, 0, -0.951, -0.356, 0.927, 0.116, 0.882, 0.375, -0.287 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, -3.644, -1.879, 4.651, -0.588, 0, -0.809, -0.303, 0.927, 0.22, 0.75, 0.375, -0.545 },
+		{ "B", "ring", 0.8, 0.8, 0.8, -5.016, -1.365, 3.379, -0.809, 0, -0.588, -0.22, 0.927, 0.303, 0.545, 0.375, -0.75 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, -5.897, -0.718, 1.776, -0.951, 0, -0.309, -0.116, 0.927, 0.356, 0.287, 0.375, -0.882 },
+		{ "B", "ring", 0.8, 0.8, 0.8, -6.2, 0, 0, -1, 0, 0, 0, 0.927, 0.375, 0, 0.375, -0.927 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, -5.897, 0.718, -1.776, -0.951, 0, 0.309, 0.116, 0.927, 0.356, -0.287, 0.375, -0.882 },
+		{ "B", "ring", 0.8, 0.8, 0.8, -5.016, 1.365, -3.379, -0.809, 0, 0.588, 0.22, 0.927, 0.303, -0.545, 0.375, -0.75 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, -3.644, 1.879, -4.651, -0.588, 0, 0.809, 0.303, 0.927, 0.22, -0.75, 0.375, -0.545 },
+		{ "B", "ring", 0.8, 0.8, 0.8, -1.916, 2.209, -5.467, -0.309, 0, 0.951, 0.356, 0.927, 0.116, -0.882, 0.375, -0.287 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, 0, 2.323, -5.749, 0, 0, 1, 0.375, 0.927, 0, -0.927, 0.375, 0 },
+		{ "B", "ring", 0.8, 0.8, 0.8, 1.916, 2.209, -5.467, 0.309, 0, 0.951, 0.356, 0.927, -0.116, -0.882, 0.375, 0.287 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, 3.644, 1.879, -4.651, 0.588, 0, 0.809, 0.303, 0.927, -0.22, -0.75, 0.375, 0.545 },
+		{ "B", "ring", 0.8, 0.8, 0.8, 5.016, 1.365, -3.379, 0.809, 0, 0.588, 0.22, 0.927, -0.303, -0.545, 0.375, 0.75 },
+		{ "B", "fleck", 0.8, 0.8, 0.8, 5.897, 0.718, -1.776, 0.951, 0, 0.309, 0.116, 0.927, -0.356, -0.287, 0.375, 0.882 },
+		{ "B", "voidDark", 1.4, 0.6, 1.4, 0, -4.9, 0 },
+		{ "W", "voidDark", 1, 0.9, 0.5, 0, -5.65, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "voidDark", 1, 0.9, 0.5, 0, -5.65, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Sun = {
+	Palette = {
+		sun = { "FFC21A", "P", 0 },
+		sunDark = { "F29A00", "P", 0 },
+		sunLight = { "FFE36B", "P", 0 },
+		ray = { "FFB000", "P", 0 },
+		rayLight = { "FFD84A", "P", 0 },
+		core = { "FFF3A0", "N", 0.1 },
+	},
+	Knot = { 0, -5.7, 0 },
+	Light = { "FFC21A", 1.8, 18 },
+	Parts = {
+		{ "B", "sunDark", 3, 1, 5, 0, -3, 0 },
+		{ "B", "sunDark", 1, 1, 3, -2, -3, 0 },
+		{ "B", "sunDark", 1, 1, 3, 2, -3, 0 },
+		{ "B", "sunDark", 3, 1, 1, 0, -2, -3 },
+		{ "B", "sunDark", 1, 1, 1, -2, -2, -2 },
+		{ "B", "sun", 3, 5, 5, 0, 0, 0 },
+		{ "B", "sunDark", 1, 1, 1, 2, -2, -2 },
+		{ "B", "sunDark", 1, 1, 3, -3, -2, 0 },
+		{ "B", "sun", 1, 5, 3, -2, 0, 0 },
+		{ "B", "sun", 1, 6, 3, 2, 0.5, 0 },
+		{ "B", "sunDark", 1, 1, 3, 3, -2, 0 },
+		{ "B", "sunDark", 1, 1, 1, -2, -2, 2 },
+		{ "B", "sunDark", 1, 1, 1, 2, -2, 2 },
+		{ "B", "sunDark", 3, 1, 1, 0, -2, 3 },
+		{ "B", "sun", 5, 1, 1, 0, -1, -3 },
+		{ "B", "sun", 2, 2, 1, -2.5, -0.5, -2 },
+		{ "B", "sun", 2, 3, 1, 2.5, 0, -2 },
+		{ "B", "sun", 1, 3, 4, -3, 0, 0.5 },
+		{ "B", "sun", 1, 3, 4, 3, 0, 0.5 },
+		{ "B", "sun", 1, 3, 2, -2, 0, 2.5 },
+		{ "B", "sun", 1, 3, 2, 2, 0, 2.5 },
+		{ "B", "sun", 3, 4, 1, 0, 0.5, 3 },
+		{ "B", "sun", 1, 1, 1, -2, 0, -3 },
+		{ "B", "core", 3, 3, 1, 0, 1, -3 },
+		{ "B", "sun", 1, 2, 1, 2, 0.5, -3 },
+		{ "B", "sunLight", 1, 1, 1, -2, 1, -3 },
+		{ "B", "sunLight", 1, 1, 1, -3, 1, -2 },
+		{ "B", "sun", 1, 1, 1, -2, 1, -2 },
+		{ "B", "sunLight", 1, 1, 1, -2, 2, -2 },
+		{ "B", "sun", 1, 1, 1, 2, 2, -2 },
+		{ "B", "sun", 1, 1, 3, -3, 2, 0 },
+		{ "B", "sun", 1, 1, 3, 3, 2, 0 },
+		{ "B", "sun", 1, 1, 1, -2, 2, 2 },
+		{ "B", "sun", 1, 1, 1, 2, 2, 2 },
+		{ "B", "sunLight", 1, 1, 1, -1, 3, -2 },
+		{ "B", "sun", 2, 1, 5, 0.5, 3, 0 },
+		{ "B", "sunLight", 1, 1, 1, -2, 3, -1 },
+		{ "B", "sun", 1, 1, 4, -1, 3, 0.5 },
+		{ "B", "sun", 1, 1, 2, -2, 3, 0.5 },
+		{ "W", "ray", 1.6, 2.8, 0.8, 4.8, -0.4, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, 4.8, 0.4, 0, 0, 1, 0, 0, 0, -1, -1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, 4.011, 1.854, 0, 0, 0.866, -0.5, 0, 0.5, 0.866, 1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, 3.611, 2.546, 0, 0, 0.866, 0.5, 0, 0.5, -0.866, -1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, 2.746, 3.957, 0, 0, 0.5, -0.866, 0, 0.866, 0.5, 1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, 2.054, 4.357, 0, 0, 0.5, 0.866, 0, 0.866, -0.5, -1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, 0.4, 4.4, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, -0.4, 4.4, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, -2.054, 4.357, 0, 0, -0.5, -0.866, 0, 0.866, -0.5, 1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, -2.746, 3.957, 0, 0, -0.5, 0.866, 0, 0.866, 0.5, -1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, -3.611, 2.546, 0, 0, -0.866, -0.5, 0, 0.5, -0.866, 1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, -4.011, 1.854, 0, 0, -0.866, 0.5, 0, 0.5, 0.866, -1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, -4.8, 0.4, 0, 0, -1, 0, 0, 0, -1, 1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, -4.8, -0.4, 0, 0, -1, 0, 0, 0, 1, -1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, -4.011, -1.854, 0, 0, -0.866, 0.5, 0, -0.5, -0.866, 1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, -3.611, -2.546, 0, 0, -0.866, -0.5, 0, -0.5, 0.866, -1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, -2.746, -3.957, 0, 0, -0.5, 0.866, 0, -0.866, -0.5, 1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, -2.054, -4.357, 0, 0, -0.5, -0.866, 0, -0.866, 0.5, -1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, 2.054, -4.357, 0, 0, 0.5, 0.866, 0, -0.866, 0.5, 1, 0, 0 },
+		{ "W", "ray", 1.6, 2.8, 0.8, 2.746, -3.957, 0, 0, 0.5, -0.866, 0, -0.866, -0.5, -1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, 3.611, -2.546, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 1, 0, 0 },
+		{ "W", "rayLight", 1.6, 2, 0.8, 4.011, -1.854, 0, 0, 0.866, -0.5, 0, -0.5, -0.866, -1, 0, 0 },
+		{ "B", "sunDark", 1.4, 0.6, 1.4, 0, -4.5, 0 },
+		{ "W", "sunDark", 1, 0.9, 0.5, 0, -5.25, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "sunDark", 1, 0.9, 0.5, 0, -5.25, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Crown = {
+	Palette = {
+		gold = { "FFC21A", "P", 0 },
+		goldDark = { "D99A00", "P", 0 },
+		velvet = { "7A1FB8", "P", 0 },
+		pearl = { "FFFFFF", "N", 0.1 },
+		ruby = { "D6204A", "N", 0 },
+		sapphire = { "1F6BFF", "N", 0 },
+		emerald = { "2EBE5A", "N", 0 },
+	},
+	Knot = { 0, -5, 0 },
+	Parts = {
+		{ "B", "goldDark", 5, 1, 2, 0, -3, -3.5 },
+		{ "B", "goldDark", 1, 1, 7, -3, -3, 0 },
+		{ "B", "goldDark", 1, 1, 7, 3, -3, 0 },
+		{ "B", "goldDark", 1, 1, 5, -4, -3, 0 },
+		{ "B", "goldDark", 1, 1, 1, -2, -3, -2 },
+		{ "B", "goldDark", 1, 1, 1, 2, -3, -2 },
+		{ "B", "goldDark", 1, 1, 5, 4, -3, 0 },
+		{ "B", "goldDark", 1, 1, 3, -2, -3, 3 },
+		{ "B", "goldDark", 1, 1, 3, 2, -3, 3 },
+		{ "B", "goldDark", 3, 1, 2, 0, -3, 3.5 },
+		{ "B", "gold", 3, 4, 2, 0, -0.5, -3.5 },
+		{ "B", "gold", 2, 4, 1, -2.5, -0.5, -3 },
+		{ "B", "gold", 2, 4, 1, 2.5, -0.5, -3 },
+		{ "B", "gold", 1, 4, 6, -3, -0.5, 0.5 },
+		{ "B", "velvet", 5, 5, 5, 0, 0, 0 },
+		{ "B", "gold", 1, 4, 6, 3, -0.5, 0.5 },
+		{ "B", "gold", 1, 4, 3, -4, -0.5, 0 },
+		{ "B", "gold", 1, 4, 3, 4, -0.5, 0 },
+		{ "B", "gold", 5, 4, 1, 0, -0.5, 3 },
+		{ "B", "gold", 3, 4, 1, 0, -0.5, 4 },
+		{ "B", "gold", 1, 2, 1, 0, 2.5, -4 },
+		{ "B", "gold", 1, 2, 1, -3, 2.5, -3 },
+		{ "B", "gold", 1, 2, 1, 3, 2.5, -3 },
+		{ "B", "gold", 1, 2, 1, -4, 2.5, 0 },
+		{ "B", "gold", 1, 2, 1, 4, 2.5, 0 },
+		{ "B", "gold", 1, 2, 1, -3, 2.5, 3 },
+		{ "B", "gold", 1, 2, 1, 3, 2.5, 3 },
+		{ "B", "gold", 1, 2, 1, 0, 2.5, 4 },
+		{ "B", "velvet", 3, 1, 3, 0, 3, 0 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, 4, 4.1, 0, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, 3, 4.1, 3, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, 0, 4.1, 4, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, -3, 4.1, 3, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, -4, 4.1, 0, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, -3, 4.1, -3, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, 0, 4.1, -4, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "pearl", 0.8, 0.8, 0.8, 3, 4.1, -3, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "ruby", 0.9, 1.3, 0.3, -4.414, -0.5, -0.875, 0.195, 0, 0.981, 0, 1, 0, -0.981, 0, 0.195 },
+		{ "B", "sapphire", 0.9, 1.3, 0.3, -3.305, -0.5, -3.054, 0.679, 0, 0.735, 0, 1, 0, -0.735, 0, 0.679 },
+		{ "B", "emerald", 0.9, 1.3, 0.3, -1.222, -0.5, -4.331, 0.962, 0, 0.272, 0, 1, 0, -0.272, 0, 0.962 },
+		{ "B", "ruby", 0.9, 1.3, 0.3, 1.222, -0.5, -4.331, 0.962, 0, -0.272, 0, 1, 0, 0.272, 0, 0.962 },
+		{ "B", "sapphire", 0.9, 1.3, 0.3, 3.305, -0.5, -3.054, 0.679, 0, -0.735, 0, 1, 0, 0.735, 0, 0.679 },
+		{ "B", "emerald", 0.9, 1.3, 0.3, 4.414, -0.5, -0.875, 0.195, 0, -0.981, 0, 1, 0, 0.981, 0, 0.195 },
+		{ "B", "ruby", 1.1, 1.1, 1.1, 0, 5, 0, 0.854, -0.5, 0.146, 0.5, 0.707, -0.5, 0.146, 0.5, 0.854 },
+		{ "B", "goldDark", 1.4, 0.6, 1.4, 0, -3.8, 0 },
+		{ "W", "goldDark", 1, 0.9, 0.5, 0, -4.55, 0.25, 1, 0, 0, 0, -1, 0, 0, 0, -1 },
+		{ "W", "goldDark", 1, 0.9, 0.5, 0, -4.55, -0.25, -1, 0, 0, 0, -1, 0, 0, 0, 1 },
+	},
+}
+
+BalloonModels.Cluck = {
+	Palette = {
+		white = { "FFFFFF", "P", 0 },
+		shade = { "E4E6EA", "P", 0 },
+		red = { "D6204A", "P", 0 },
+		beak = { "FFA51F", "P", 0 },
+		eye = { "141414", "S", 0 },
+		leg = { "FF9A1F", "P", 0 },
+	},
+	Knot = { 0, -2.6, 1.5 },
+	Parts = {
+		{ "B", "shade", 3, 1, 6, 0, -2, 0.5 },
+		{ "B", "shade", 1, 1, 4, -2, -2, 0.5 },
+		{ "B", "shade", 1, 1, 4, 2, -2, 0.5 },
+		{ "B", "white", 5, 3, 6, 0, 0, 0.5 },
+		{ "B", "white", 3, 3, 1, 0, 2, 4 },
+		{ "B", "white", 5, 1, 5, 0, 2, 0 },
+		{ "B", "white", 3, 1, 1, 0, 2, 3 },
+		{ "B", "red", 1, 1, 1, 0, 3, -4 },
+		{ "B", "white", 3, 4, 3, 0, 4.5, -2 },
+		{ "B", "shade", 3, 1, 1, 0, 4, 4 },
+		{ "B", "shade", 1, 1, 1, 0, 5, 4 },
+		{ "B", "red", 1, 1, 3, 0, 7, -2 },
+		{ "B", "red", 1, 1, 1, 0, 8, -2 },
+		{ "W", "beak", 1, 1.4, 0.5, 0, 4.35, -4.2, 1, 0, 0, 0, 0, 1, 0, -1, 0 },
+		{ "W", "beak", 1, 1.4, 0.5, 0, 4.85, -4.2, -1, 0, 0, 0, 0, -1, 0, -1, 0 },
+		{ "B", "eye", 0.2, 0.7, 0.7, -1.6, 5.2, -2.2 },
+		{ "B", "shade", 0.6, 3, 4, -2.8, 0.2, 0.5, 0.985, 0.174, 0, -0.174, 0.985, 0, 0, 0, 1 },
+		{ "B", "leg", 0.4, 1.8, 0.4, -1, -3.4, 0.5 },
+		{ "B", "leg", 1.3, 0.3, 1.6, -1, -4.4, 0.1 },
+		{ "B", "eye", 0.2, 0.7, 0.7, 1.6, 5.2, -2.2 },
+		{ "B", "shade", 0.6, 3, 4, 2.8, 0.2, 0.5, 0.985, -0.174, 0, 0.174, 0.985, 0, 0, 0, 1 },
+		{ "B", "leg", 0.4, 1.8, 0.4, 1, -3.4, 0.5 },
+		{ "B", "leg", 1.3, 0.3, 1.6, 1, -4.4, 0.1 },
+		{ "B", "shade", 1.2, 0.5, 1.2, 0, -2.8, 1.5 },
+	},
+}
+
+return BalloonModels
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000007"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">BalloonConfig</string><ProtectedString name="Source"><![CDATA[--!strict
+-- BalloonConfig: every balloon type from section 3.2 of the game prompt.
+--
+-- Height uses decision A (2026-09-30): height target = 40 * size^0.6 * Lift.
+-- Lift is tuned so each balloon at max size (level 1) reaches the zone where the
+-- next tier is sold, which fixes the unreachable Phase 3-4 zones in the original formula:
+--   Gumball 100 -> ~630 studs (Cloud Shelf), Popcorn -> ~1,900 (Kite Fields),
+--   Frost -> ~10,200 (Thunderhead), Volt -> ~18,300 (Hail Belt), Flame -> ~36,600
+--   (Stratosphere), Whale -> ~63,600 (Orbit), Void -> ~87,500.
+-- Riders: the prompt's "+1 rider per 2 Lift" no longer fits these numbers, so riders
+-- are set per balloon below (open question for Gustav).
+
+local BalloonConfig = {}
+
+BalloonConfig.HeightBase = 40
+BalloonConfig.HeightExponent = 0.6
+
+export type Tier = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Secret"
+
+export type BalloonType = {
+	Tier: Tier,
+	Sold: string,
+	MaxSize: number,
+	Growth: number,
+	Toughness: number,
+	Earn: number,
+	Slots: number,
+	Lift: number,
+	Riders: number,
+	Special: string,
+	Order: number,
+}
+
+BalloonConfig.TierColors = {
+	Common = Color3.fromHex("A0A7B8"),
+	Uncommon = Color3.fromHex("5BD15B"),
+	Rare = Color3.fromHex("3FA9FF"),
+	Epic = Color3.fromHex("B266FF"),
+	Legendary = Color3.fromHex("FFC21A"),
+	Mythic = Color3.fromHex("FF3F7F"),
+	Secret = Color3.fromHex("FFFFFF"),
+}
+
+-- stylua: ignore
+BalloonConfig.Types = {
+	Gumball = { Order = 1,  Tier = "Common",    Sold = "Ground",       MaxSize = 100,  Growth = 1.0, Toughness = 3,  Earn = 1,   Slots = 1, Lift = 1,  Riders = 1, Special = "None (the starter)" },
+	Bubble  = { Order = 2,  Tier = "Common",    Sold = "Ground",       MaxSize = 90,   Growth = 0.8, Toughness = 6,  Earn = 1,   Slots = 1, Lift = 1,  Riders = 1, Special = "Every hit pops one bubble with a satisfying crackle" },
+	Ember   = { Order = 3,  Tier = "Common",    Sold = "Ground",       MaxSize = 120,  Growth = 1.1, Toughness = 3,  Earn = 1.1, Slots = 1, Lift = 1,  Riders = 1, Special = "Glows at night (+10% coins at night)" },
+	Spike   = { Order = 4,  Tier = "Uncommon",  Sold = "Cloud Shelf",  MaxSize = 180,  Growth = 1.2, Toughness = 4,  Earn = 1.3, Slots = 1, Lift = 2,  Riders = 1, Special = "After a hit, puffs out spikes for 3 s that pop birds" },
+	Popcorn = { Order = 5,  Tier = "Uncommon",  Sold = "Cloud Shelf",  MaxSize = 200,  Growth = 1.3, Toughness = 3,  Earn = 1.3, Slots = 1, Lift = 2,  Riders = 1, Special = "Every 25 size a kernel pops out and drops coins for riders" },
+	Jelly   = { Order = 6,  Tier = "Uncommon",  Sold = "Kite Fields",  MaxSize = 220,  Growth = 1.2, Toughness = 4,  Earn = 1.4, Slots = 2, Lift = 5,  Riders = 2, Special = "Tentacles slow any hazard coming from below" },
+	Buzz    = { Order = 7,  Tier = "Rare",      Sold = "Kite Fields",  MaxSize = 350,  Growth = 1.5, Toughness = 5,  Earn = 1.8, Slots = 2, Lift = 5,  Riders = 2, Special = "3 bees orbit you and chase off one bird every 15 s" },
+	Frost   = { Order = 8,  Tier = "Rare",      Sold = "Windways",     MaxSize = 400,  Growth = 1.4, Toughness = 6,  Earn = 2,   Slots = 2, Lift = 7,  Riders = 2, Special = "First hit each flight freezes nearby hazards for 4 s" },
+	Volt    = { Order = 9,  Tier = "Epic",      Sold = "Thunderhead",  MaxSize = 700,  Growth = 1.8, Toughness = 7,  Earn = 3,   Slots = 2, Lift = 9,  Riders = 3, Special = "Absorbs lightning and stores it as bonus coins" },
+	Thorn   = { Order = 10, Tier = "Epic",      Sold = "Thunderhead",  MaxSize = 750,  Growth = 1.6, Toughness = 12, Earn = 3,   Slots = 2, Lift = 9,  Riders = 0, Special = "Half damage from everything, but no riders" },
+	Clock   = { Order = 11, Tier = "Epic",      Sold = "Hail Belt",    MaxSize = 800,  Growth = 1.6, Toughness = 8,  Earn = 3.2, Slots = 2, Lift = 14, Riders = 3, Special = "Every 20 s, slows nearby hazards by 50% for 5 s" },
+	Flame   = { Order = 12, Tier = "Legendary", Sold = "Hail Belt",    MaxSize = 1200, Growth = 2.2, Toughness = 9,  Earn = 5,   Slots = 3, Lift = 13, Riders = 3, Special = "Lava blobs float up and burn hazards above you" },
+	Whale   = { Order = 13, Tier = "Legendary", Sold = "Stratosphere", MaxSize = 1600, Growth = 1.8, Toughness = 12, Earn = 5.5, Slots = 3, Lift = 19, Riders = 6, Special = "Carries 6 riders; its song calms birds for 10 s" },
+	Iron    = { Order = 14, Tier = "Legendary", Sold = "Stratosphere", MaxSize = 1300, Growth = 2.0, Toughness = 14, Earn = 6,   Slots = 3, Lift = 17, Riders = 3, Special = "Letting out air slams you down, crushing hazards below" },
+	Void    = { Order = 15, Tier = "Mythic",    Sold = "Moon Hub",     MaxSize = 2500, Growth = 2.5, Toughness = 12, Earn = 10,  Slots = 3, Lift = 20, Riders = 4, Special = "Eats hazards that get too close (+5 size each)" },
+	Sun     = { Order = 16, Tier = "Mythic",    Sold = "Moon Hub",     MaxSize = 2200, Growth = 2.6, Toughness = 11, Earn = 10,  Slots = 3, Lift = 20, Riders = 4, Special = "Melts hail and meteors; the Vacuum can't shrink it" },
+	Crown   = { Order = 17, Tier = "Mythic",    Sold = "Sky Boss",     MaxSize = 2000, Growth = 2.5, Toughness = 13, Earn = 9,   Slots = 3, Lift = 20, Riders = 4, Special = "Immune to pins and bounces them back" },
+	Cluck   = { Order = 18, Tier = "Secret",    Sold = "Balloon Rain", MaxSize = 3000, Growth = 3.0, Toughness = 10, Earn = 12,  Slots = 3, Lift = 20, Riders = 4, Special = "Squawks every 30 s and triggers a random effect" },
+} :: { [string]: BalloonType }
+
+-- Height target in studs above the grass for a balloon of `size` (decision A).
+function BalloonConfig.HeightFor(size: number, lift: number): number
+	return BalloonConfig.HeightBase * math.max(size, 0) ^ BalloonConfig.HeightExponent * lift
+end
+
+-- Balloon names sorted by their order in the Index.
+function BalloonConfig.Ordered(): { string }
+	local names = {}
+	for name in BalloonConfig.Types do
+		table.insert(names, name)
+	end
+	table.sort(names, function(a, b)
+		return BalloonConfig.Types[a].Order < BalloonConfig.Types[b].Order
+	end)
+	return names
+end
+
+return BalloonConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000006"><Properties><string name="Name">HazardConfig</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HazardConfig: every tunable number for the first-island hazards
 -- (Meadow Sky + Cloud Shelf). Starting values, tune freely.
 --
@@ -27,14 +1796,15 @@ HazardConfig.Zones = {
 	CloudShelf = { Min = 500, Max = 1500 },
 }
 
--- Demo mode: gives every player a stud Gumball over their head with 3 HP and spawns
--- one of each hazard in turn at any height, so you can see every attack in an empty place.
+-- Demo mode: gives every player a stud balloon over their head (HP = its Toughness), builds
+-- the balloon gallery by the spawn, and spawns one of each hazard in turn at any height,
+-- so every attack and balloon can be seen in an empty place.
 HazardConfig.Demo = {
 	Enabled = false, -- the bootstrap scripts can switch this on
 	Kinds = { "Sparrow", "Plane", "Pinwheel", "Nimbo" },
-	BalloonHP = 3,
+	BalloonHP = 3, -- fallback when a balloon type has no Toughness
 	RespawnDelay = 3,
-	BalloonHeight = 9, -- studs above HumanoidRootPart
+	StringLength = 4.5, -- studs of string between the hand and the balloon's knot
 }
 
 export type HazardType = {
@@ -168,7 +1938,7 @@ HazardConfig.Types = {
 } :: { [string]: HazardType }
 
 return HazardConfig
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000000B"><Properties><string name="Name">Hazards</string></Properties><Item class="ModuleScript" referent="RBX00000003"><Properties><string name="Name">StudKit</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000010"><Properties><string name="Name">Hazards</string></Properties><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">StudKit</string><ProtectedString name="Source"><![CDATA[--!strict
 -- StudKit: builds classic stud-style Parts and a light "rig" for procedurally
 -- animated hazards. Rigs are anchored Parts moved together with BulkMoveTo, so
 -- animation is smooth and never touches physics.
@@ -388,7 +2158,7 @@ end
 StudKit.RigClass = Rig
 
 return StudKit
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000004"><Properties><string name="Name">Target</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">Target</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Target: where is a player's balloon? Server and client both use this, so hit
 -- checks and visuals agree. When FlightService exists, point Target.Resolver at it.
 
@@ -439,7 +2209,7 @@ function Target.GetBalloon(player: Player?): (Vector3?, number?)
 end
 
 return Target
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">VFX</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">VFX</string><ProtectedString name="Source"><![CDATA[--!strict
 -- VFX: client-side effect toolkit for hazards, in the game's stud style.
 -- Everything is built from Neon/Plastic Parts, Trails and PointLights, so it needs
 -- no uploaded textures and imports into any place 1:1. Particles are real little
@@ -1164,7 +2934,7 @@ function VFX.BindCamera()
 end
 
 return VFX
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000000A"><Properties><string name="Name">Visuals</string></Properties><Item class="ModuleScript" referent="RBX00000006"><Properties><string name="Name">Nimbo</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000000F"><Properties><string name="Name">Visuals</string></Properties><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">Nimbo</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Nimbo (Cloud Shelf) - signature attack: PIN DRIZZLE
 -- Drift over -> soak (swell up, darken, suck in water cubes) -> mark a danger column
 -- and three shrinking target squares -> rain Neon pins through the column -> wring out.
@@ -1390,7 +3160,7 @@ function Nimbo.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Nimbo
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000007"><Properties><string name="Name">Pinwheel</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">Pinwheel</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Pinwheel (Cloud Shelf) - signature attack: SAW BLOOM
 -- Spin-up with flung cube sparks -> 4 vanes detach and bloom out in a spiral around the
 -- balloon -> clamp at 4 points with a flashing square frame -> snap shut through the
@@ -1686,7 +3456,7 @@ function Pinwheel.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Pinwheel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">Plane</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">Plane</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Plane (Meadow Sky) - signature attack: CREASE CUTTER
 -- Glide -> unfold into a spinning sheet while a lime crease grid draws itself ->
 -- refold into a razor dart -> square sonic rings + speed lines -> the cut splits in two.
@@ -1928,7 +3698,7 @@ function Plane.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Plane
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">Sparrow</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Sparrow</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Sparrow (Meadow Sky) - signature attack: CORKSCREW DIVE
 -- Lock-on reticle -> beak glint -> wings tuck -> barrel-roll dive through the balloon,
 -- drilling a helix of yellow Neon cubes and three square drill rings -> hit burst -> pull-through.
@@ -2129,9 +3899,10 @@ function Sparrow.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Sparrow
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="Folder" referent="RBX0000000F"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">DemoBalloon</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="Folder" referent="RBX00000014"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">DemoBalloon</string><ProtectedString name="Source"><![CDATA[--!strict
 -- DemoBalloon: only used when HazardConfig.Demo.Enabled is true.
--- Gives every character a stud Gumball over their head with 3 HP, applies hazard hits,
+-- Gives every character a stud balloon over their head (Gumball to start; the gallery's
+-- "Try it" prompts swap it), with HP from the balloon's Toughness. Applies hazard hits,
 -- pops it into brick confetti at 0 HP and reinflates it after a few seconds.
 -- The real game replaces all of this with FlightService (section 2 of the prompt).
 
@@ -2139,52 +3910,35 @@ local Players = game:GetService("Players")
 
 local DemoBalloon = {}
 
-local RED = Color3.fromHex("FF3B3B")
-local RED_DARK = Color3.fromHex("D9232F")
-local RED_LIGHT = Color3.fromHex("FF9A9A")
+local FALLBACK_COLOR = Color3.fromHex("FF3B3B")
 
-local LAYERS = { 2, 4, 5, 5, 5, 4, 2 } -- stepped "voxel sphere" widths, bottom to top
+local BalloonBuilder: any
+local BalloonConfig: any
+local kinds: { [Player]: string } = {}
+local lastEquip: { [Player]: number } = {}
 
-local function newPart(size: Vector3, color: Color3, name: string): Part
-	local p = Instance.new("Part")
-	p.Name = name
-	p.Size = size
-	p.Color = color
-	p.Material = Enum.Material.Plastic
-	p.TopSurface = Enum.SurfaceType.Studs
-	p.BottomSurface = Enum.SurfaceType.Inlet
-	p.CanCollide = false
-	p.CanTouch = false
-	p.CanQuery = false
-	p.Massless = true
-	p.CastShadow = false
-	return p
+local function maxHP(player: Player, cfg: any): number
+	local t = BalloonConfig.Types[kinds[player] or "Gumball"]
+	return if t then t.Toughness else cfg.Demo.BalloonHP
 end
 
-local function weld(a: BasePart, b: BasePart)
-	local w = Instance.new("WeldConstraint")
-	w.Part0 = a
-	w.Part1 = b
-	w.Parent = b
-end
-
-local function buildHP(body: BasePart, maxHP: number): BillboardGui
+local function buildHP(root: BasePart, hp: number, top: number): BillboardGui
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HP"
-	gui.Size = UDim2.fromOffset(34 * maxHP, 30)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 5.5, 0)
+	gui.Size = UDim2.fromOffset(math.min(28 * hp, 300), 26)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, top + 1.5, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.Padding = UDim.new(0, 6)
+	layout.Padding = UDim.new(0, 5)
 	layout.Parent = gui
-	for i = 1, maxHP do
+	for i = 1, hp do
 		local pip = Instance.new("Frame")
 		pip.Name = "Pip" .. i
-		pip.Size = UDim2.fromOffset(24, 24)
-		pip.BackgroundColor3 = RED
+		pip.Size = UDim2.fromOffset(20, 20)
+		pip.BackgroundColor3 = FALLBACK_COLOR
 		pip.LayoutOrder = i
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 5)
@@ -2195,99 +3949,111 @@ local function buildHP(body: BasePart, maxHP: number): BillboardGui
 		stroke.Parent = pip
 		pip.Parent = gui
 	end
-	gui.Parent = body
+	gui.Parent = root
 	return gui
 end
 
 local function refreshHP(player: Player)
 	local character = player.Character
 	local balloon = character and character:FindFirstChild("Balloon")
-	local body = balloon and balloon:FindFirstChild("Body")
-	local gui = body and body:FindFirstChild("HP")
+	local root = balloon and balloon:FindFirstChild("Root")
+	local gui = root and root:FindFirstChild("HP")
 	if not gui then
 		return
 	end
 	local hp = (player:GetAttribute("BalloonHP") :: number?) or 0
 	for _, child in gui:GetChildren() do
 		if child:IsA("Frame") then
-			child.BackgroundColor3 = if child.LayoutOrder <= hp then RED else Color3.fromRGB(42, 36, 64)
+			child.BackgroundColor3 = if child.LayoutOrder <= hp then FALLBACK_COLOR else Color3.fromRGB(42, 36, 64)
 		end
 	end
 end
 
-local function build(character: Model, cfg: any)
+local function clear(character: Model)
+	for _, name in { "Balloon", "BalloonString" } do
+		local old = character:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
+	end
+end
+
+-- the colour of the biggest part, for the pop confetti
+local function mainColor(model: Model): Color3
+	local best, bestVol = FALLBACK_COLOR, 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 0.5 then
+			local v = d.Size.X * d.Size.Y * d.Size.Z
+			if v > bestVol then
+				best, bestVol = d.Color, v
+			end
+		end
+	end
+	return best
+end
+
+local function build(player: Player, character: Model, cfg: any)
 	local hrp = character:WaitForChild("HumanoidRootPart", 10) :: BasePart?
 	if not hrp then
 		return
 	end
-	local old = character:FindFirstChild("Balloon")
-	if old then
-		old:Destroy()
-	end
-	local oldString = character:FindFirstChild("BalloonString")
-	if oldString then
-		oldString:Destroy()
-	end
+	clear(character)
+	local kind = kinds[player] or "Gumball"
+	local knot: Vector3 = BalloonBuilder.KnotOffset(kind)
+	local hand = hrp.CFrame * CFrame.new(0, 1, 0)
+	local knotWorld = hand * CFrame.new(0, cfg.Demo.StringLength, 0)
+	local center = knotWorld * CFrame.new(-knot)
 
-	local model = Instance.new("Model")
-	model.Name = "Balloon"
-	local center = hrp.CFrame * CFrame.new(0, cfg.Demo.BalloonHeight, 0)
-	local mid = (#LAYERS + 1) / 2
-	local body: Part? = nil
-	for i, w in LAYERS do
-		local color = if i == 1 or i == #LAYERS then RED_DARK else RED
-		local layer = newPart(Vector3.new(w, 1, w), color, if i == mid then "Body" else "Layer" .. i)
-		layer.CFrame = center * CFrame.new(0, i - mid, 0)
-		layer.Parent = model
-		weld(hrp, layer)
-		if layer.Name == "Body" then
-			body = layer
-		end
-	end
-	local shine = newPart(Vector3.new(1, 2, 1), RED_LIGHT, "Shine")
-	shine.CFrame = center * CFrame.new(-1.6, 1, -1.6)
-	shine.Parent = model
-	weld(hrp, shine)
-	local knot = Instance.new("WedgePart")
-	knot.Name = "Knot"
-	knot.Size = Vector3.new(0.8, 0.8, 0.8)
-	knot.Color = RED_DARK
-	knot.CanCollide = false
-	knot.CanTouch = false
-	knot.CanQuery = false
-	knot.Massless = true
-	knot.CFrame = center * CFrame.new(0, -mid - 0.1, 0) * CFrame.Angles(math.pi, 0, 0)
-	knot.Parent = model
-	weld(hrp, knot)
-	model.PrimaryPart = body
+	local model: Model = BalloonBuilder.Build(kind, { Anchored = false, CFrame = center, Name = "Balloon" })
+	local root = model.PrimaryPart :: BasePart
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = hrp
+	weld.Part1 = root
+	weld.Parent = root
+	model:SetAttribute("PopColor", mainColor(model))
 	model.Parent = character
 
-	local stringLen = cfg.Demo.BalloonHeight - mid - 1
-	local str = newPart(Vector3.new(0.1, stringLen, 0.1), Color3.fromHex("F4F6FF"), "BalloonString")
-	str.TopSurface = Enum.SurfaceType.Smooth
-	str.BottomSurface = Enum.SurfaceType.Smooth
-	str.CFrame = hrp.CFrame * CFrame.new(0, 1 + stringLen / 2, 0)
+	local str = Instance.new("Part")
+	str.Name = "BalloonString"
+	str.Size = Vector3.new(0.1, 0.1, cfg.Demo.StringLength)
+	str.CFrame = CFrame.lookAt((hand.Position + knotWorld.Position) / 2, knotWorld.Position)
+	str.Color = Color3.fromHex("F4F6FF")
+	str.Material = Enum.Material.SmoothPlastic
+	str.CanCollide = false
+	str.CanTouch = false
+	str.CanQuery = false
+	str.Massless = true
+	local sw = Instance.new("WeldConstraint")
+	sw.Part0 = hrp
+	sw.Part1 = str
+	sw.Parent = str
 	str.Parent = character
-	weld(hrp, str)
 
-	if body then
-		buildHP(body, cfg.Demo.BalloonHP)
-	end
+	local extent = model:GetExtentsSize()
+	buildHP(root, maxHP(player, cfg), extent.Y / 2)
 end
 
-function DemoBalloon.Start(cfg: any, _target: any, service: any, remote: RemoteEvent)
+function DemoBalloon.Start(cfg: any, _target: any, service: any, remote: RemoteEvent, shared: Instance)
+	BalloonBuilder = require((shared :: any).Balloons.BalloonBuilder) :: any
+	BalloonConfig = require((shared :: any).Config.BalloonConfig) :: any
 	local popping: { [Player]: boolean } = {}
 
-	local function setup(player: Player)
-		player:SetAttribute("BalloonHP", cfg.Demo.BalloonHP)
-		player.CharacterAdded:Connect(function(character)
-			popping[player] = nil
-			player:SetAttribute("BalloonHP", cfg.Demo.BalloonHP)
-			build(character, cfg)
+	local function reset(player: Player)
+		popping[player] = nil
+		player:SetAttribute("BalloonHP", maxHP(player, cfg))
+		if player.Character then
+			build(player, player.Character, cfg)
 			refreshHP(player)
+		end
+	end
+
+	local function setup(player: Player)
+		player:SetAttribute("BalloonHP", maxHP(player, cfg))
+		player.CharacterAdded:Connect(function()
+			reset(player)
 		end)
 		if player.Character then
-			build(player.Character, cfg)
+			reset(player)
 		end
 	end
 	for _, player in Players:GetPlayers() do
@@ -2296,6 +4062,25 @@ function DemoBalloon.Start(cfg: any, _target: any, service: any, remote: RemoteE
 	Players.PlayerAdded:Connect(setup)
 	Players.PlayerRemoving:Connect(function(player)
 		popping[player] = nil
+		kinds[player] = nil
+		lastEquip[player] = nil
+	end)
+
+	-- "Try it" from the gallery: validated and rate limited
+	local equip = Instance.new("RemoteEvent")
+	equip.Name = "DemoEquip"
+	equip.Parent = remote.Parent
+	equip.OnServerEvent:Connect(function(player: Player, kind: unknown)
+		if type(kind) ~= "string" or not BalloonConfig.Types[kind] or not BalloonBuilder.Has(kind) then
+			return
+		end
+		local now = os.clock()
+		if lastEquip[player] and now - lastEquip[player] < 0.5 then
+			return
+		end
+		lastEquip[player] = now
+		kinds[player] = kind
+		reset(player)
 	end)
 
 	service.Hit.Event:Connect(function(player: Player, damage: number)
@@ -2312,30 +4097,21 @@ function DemoBalloon.Start(cfg: any, _target: any, service: any, remote: RemoteE
 		popping[player] = true
 		local character = player.Character
 		local balloon = character and character:FindFirstChild("Balloon") :: Model?
-		if balloon and balloon.PrimaryPart then
-			remote:FireAllClients("Pop", player.UserId, balloon.PrimaryPart.Position, RED)
-			balloon:Destroy()
-			local str = character and character:FindFirstChild("BalloonString")
-			if str then
-				str:Destroy()
-			end
+		if character and balloon and balloon.PrimaryPart then
+			local color = balloon:GetAttribute("PopColor")
+			remote:FireAllClients("Pop", player.UserId, balloon.PrimaryPart.Position, if typeof(color) == "Color3" then color else FALLBACK_COLOR)
+			clear(character)
 		end
 		task.delay(cfg.Demo.RespawnDelay, function()
-			if player.Parent ~= Players then
-				return
-			end
-			popping[player] = nil
-			player:SetAttribute("BalloonHP", cfg.Demo.BalloonHP)
-			if player.Character then
-				build(player.Character, cfg)
-				refreshHP(player)
+			if player.Parent == Players and popping[player] then
+				reset(player)
 			end
 		end)
 	end)
 end
 
 return DemoBalloon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HazardService: server-authoritative hazards for Meadow Sky and Cloud Shelf.
 --
 -- The server owns each hazard as an invisible anchored root Part in workspace.Hazards
@@ -2729,6 +4505,7 @@ function HazardService.Start(opts: StartOptions)
 	if opts.Demo ~= nil then
 		Config.Demo.Enabled = opts.Demo
 	end
+	opts.Shared:SetAttribute("Demo", Config.Demo.Enabled == true)
 
 	local remote = opts.RemoteParent:FindFirstChild("HazardFX") :: RemoteEvent?
 	if not remote then
@@ -2750,7 +4527,7 @@ function HazardService.Start(opts: StartOptions)
 
 	if Config.Demo.Enabled then
 		local DemoBalloon = require(script.Parent.DemoBalloon)
-		DemoBalloon.Start(Config, Target, HazardService, Remote)
+		DemoBalloon.Start(Config, Target, HazardService, Remote, opts.Shared)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
@@ -2785,7 +4562,7 @@ function HazardService.Start(opts: StartOptions)
 end
 
 return HazardService
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000012"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">HazardFXController</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000017"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">HazardFXController</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HazardFXController: builds a stud model for every hazard root the server creates,
 -- animates it every frame, and plays attacks in sync with the server's messages:
 --   "Begin"(id, targetUserId, serverTime)   attack starts (all clients, synced by server time)
@@ -3069,6 +4846,24 @@ function HazardFXController.Start(opts: StartOptions)
 	local remote = opts.RemoteParent:WaitForChild("HazardFX") :: RemoteEvent
 	remote.OnClientEvent:Connect(onMessage)
 
+	-- demo mode: the balloon gallery by the spawn, with "Try it" prompts
+	local function startGallery()
+		local gallery = require(shared:WaitForChild("Balloons"):WaitForChild("BalloonGallery") :: ModuleScript) :: any
+		local equip = opts.RemoteParent:WaitForChild("DemoEquip", 10) :: RemoteEvent?
+		gallery.Start(equip)
+	end
+	if shared:GetAttribute("Demo") then
+		task.spawn(startGallery)
+	else
+		local conn
+		conn = shared:GetAttributeChangedSignal("Demo"):Connect(function()
+			if shared:GetAttribute("Demo") then
+				conn:Disconnect()
+				task.spawn(startGallery)
+			end
+		end)
+	end
+
 	local hazards = workspace:WaitForChild("Hazards")
 	for _, child in hazards:GetChildren() do
 		addRig(child)
@@ -3102,14 +4897,14 @@ function HazardFXController.Start(opts: StartOptions)
 end
 
 return HazardFXController
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000011"><Properties><string name="Name">Run</string><bool name="Disabled">true</bool><token name="RunContext">2</token><ProtectedString name="Source"><![CDATA[-- Client runner for the hazard pack (enabled by the pack's Start script).
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000016"><Properties><string name="Name">Run</string><bool name="Disabled">true</bool><token name="RunContext">2</token><ProtectedString name="Source"><![CDATA[-- Client runner for the hazard pack (enabled by the pack's Start script).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 require(script.Parent:WaitForChild("HazardFXController")).Start({
 	Shared = ReplicatedStorage:WaitForChild("HazardShared"),
 	RemoteParent = ReplicatedStorage,
 })
-]]></ProtectedString></Properties></Item></Item><Item class="Script" referent="RBX00000013"><Properties><string name="Name">Start</string><bool name="Disabled">false</bool><token name="RunContext">1</token><ProtectedString name="Source"><![CDATA[-- 1+ Ballon Pop hazard pack: installs itself on Play and starts the hazards.
+]]></ProtectedString></Properties></Item></Item><Item class="Script" referent="RBX00000018"><Properties><string name="Name">Start</string><bool name="Disabled">false</bool><token name="RunContext">1</token><ProtectedString name="Source"><![CDATA[-- 1+ Ballon Pop hazard pack: installs itself on Play and starts the hazards.
 -- Set DEMO = false once FlightService gives players real balloons.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")

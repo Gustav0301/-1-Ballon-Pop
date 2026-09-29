@@ -282,6 +282,24 @@ function HazardFXController.Start(opts: StartOptions)
 	local remote = opts.RemoteParent:WaitForChild("HazardFX") :: RemoteEvent
 	remote.OnClientEvent:Connect(onMessage)
 
+	-- demo mode: the balloon gallery by the spawn, with "Try it" prompts
+	local function startGallery()
+		local gallery = require(shared:WaitForChild("Balloons"):WaitForChild("BalloonGallery") :: ModuleScript) :: any
+		local equip = opts.RemoteParent:WaitForChild("DemoEquip", 10) :: RemoteEvent?
+		gallery.Start(equip)
+	end
+	if shared:GetAttribute("Demo") then
+		task.spawn(startGallery)
+	else
+		local conn
+		conn = shared:GetAttributeChangedSignal("Demo"):Connect(function()
+			if shared:GetAttribute("Demo") then
+				conn:Disconnect()
+				task.spawn(startGallery)
+			end
+		end)
+	end
+
 	local hazards = workspace:WaitForChild("Hazards")
 	for _, child in hazards:GetChildren() do
 		addRig(child)

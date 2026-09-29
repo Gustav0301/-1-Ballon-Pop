@@ -392,6 +392,7 @@ function HazardService.Start(opts: StartOptions)
 	if opts.Demo ~= nil then
 		Config.Demo.Enabled = opts.Demo
 	end
+	opts.Shared:SetAttribute("Demo", Config.Demo.Enabled == true)
 
 	local remote = opts.RemoteParent:FindFirstChild("HazardFX") :: RemoteEvent?
 	if not remote then
@@ -413,7 +414,7 @@ function HazardService.Start(opts: StartOptions)
 
 	if Config.Demo.Enabled then
 		local DemoBalloon = require(script.Parent.DemoBalloon)
-		DemoBalloon.Start(Config, Target, HazardService, Remote)
+		DemoBalloon.Start(Config, Target, HazardService, Remote, opts.Shared)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
