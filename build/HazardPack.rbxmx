@@ -1,0 +1,3139 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Folder" referent="RBX00000014"><Properties><string name="Name">HazardPack</string></Properties><Item class="Folder" referent="RBX0000000C"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000002"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">HazardConfig</string><ProtectedString name="Source"><![CDATA[--!strict
+-- HazardConfig: every tunable number for the first-island hazards
+-- (Meadow Sky + Cloud Shelf). Starting values, tune freely.
+--
+-- Timing fields are seconds from the start of an attack:
+--   LockTime  when the server locks the aim point (dodge window starts)
+--   HitTime   when the server checks for a hit and fires HazardService.Hit
+--   Recover   how long the hazard keeps moving after the hit before it resumes
+
+local HazardConfig = {}
+
+HazardConfig.GroundY = 0 -- world Y of the grass start map; zone heights are measured from here
+
+HazardConfig.Global = {
+	TickRate = 1 / 20, -- server AI tick
+	SpawnInterval = 3, -- seconds between spawn checks per player
+	MaxPerPlayer = 3, -- hazards hunting one balloon at once
+	SpawnRadius = 90, -- studs from the balloon where hazards appear
+	DespawnDistance = 260, -- hazards give up past this distance
+	SwatRange = 12, -- riders' swatter range for HazardService.Swat
+	VisibleDistance = 450, -- clients skip animating rigs further than this
+	ShakeDistance = 70, -- camera shake falls off to zero at this distance
+}
+
+HazardConfig.Zones = {
+	MeadowSky = { Min = 0, Max = 500 },
+	CloudShelf = { Min = 500, Max = 1500 },
+}
+
+-- Demo mode: gives every player a stud Gumball over their head with 3 HP and spawns
+-- one of each hazard in turn at any height, so you can see every attack in an empty place.
+HazardConfig.Demo = {
+	Enabled = false, -- the bootstrap scripts can switch this on
+	Kinds = { "Sparrow", "Plane", "Pinwheel", "Nimbo" },
+	BalloonHP = 3,
+	RespawnDelay = 3,
+	BalloonHeight = 9, -- studs above HumanoidRootPart
+}
+
+export type HazardType = {
+	Zone: string,
+	MinHeight: number,
+	MaxHeight: number,
+	Weight: number,
+	Damage: number,
+	Cooldown: number,
+	LockTime: number,
+	HitTime: number,
+	Recover: number,
+	HitRadius: number,
+	HitShape: string, -- "Point" | "Line" | "Column"
+	AttackRange: number,
+	MoveSpeed: number,
+	OrbitRadius: number,
+	OrbitHeight: number,
+	OrbitSpeed: number,
+	ExitDistance: number,
+	Color: Color3,
+	Hot: Color3,
+	Deep: Color3,
+	[string]: any,
+}
+
+HazardConfig.Types = {
+	Sparrow = {
+		Zone = "MeadowSky",
+		MinHeight = 20,
+		MaxHeight = 500,
+		Weight = 5,
+		Damage = 1,
+		Cooldown = 4,
+		LockTime = 0.70,
+		DiveStart = 0.85,
+		HitTime = 1.00,
+		Recover = 0.30,
+		HitRadius = 4,
+		HitShape = "Point",
+		AttackRange = 55,
+		MoveSpeed = 24,
+		OrbitRadius = 22,
+		OrbitHeight = 10,
+		OrbitSpeed = 0.8,
+		ExitDistance = 16,
+		Color = Color3.fromHex("FFD21F"),
+		Hot = Color3.fromHex("FFF6B0"),
+		Deep = Color3.fromHex("B36B00"),
+	},
+
+	Plane = {
+		Zone = "MeadowSky",
+		MinHeight = 150,
+		MaxHeight = 500,
+		Weight = 3,
+		Damage = 1,
+		Cooldown = 5,
+		UnfoldAt = 0.40,
+		LockTime = 0.90,
+		LaunchAt = 1.10,
+		HitTime = 1.20,
+		Recover = 0.30,
+		HitRadius = 3.5,
+		HitShape = "Line",
+		AttackRange = 70,
+		MoveSpeed = 18,
+		OrbitRadius = 34,
+		OrbitHeight = 4,
+		OrbitSpeed = 0.5,
+		ExitDistance = 22,
+		Color = Color3.fromHex("7CFF3A"),
+		Hot = Color3.fromHex("E6FFD0"),
+		Deep = Color3.fromHex("2C7A0E"),
+	},
+
+	Pinwheel = {
+		Zone = "CloudShelf",
+		MinHeight = 500,
+		MaxHeight = 1500,
+		Weight = 4,
+		Damage = 1,
+		Cooldown = 6,
+		BloomAt = 0.60,
+		LockTime = 1.10,
+		SnapAt = 1.40,
+		HitTime = 1.45,
+		ReturnAt = 1.60,
+		Recover = 0.70,
+		HitRadius = 5,
+		ClampRadius = 11,
+		HitShape = "Point",
+		AttackRange = 45,
+		MoveSpeed = 16,
+		OrbitRadius = 24,
+		OrbitHeight = 3,
+		OrbitSpeed = 0.6,
+		ExitDistance = 0,
+		Color = Color3.fromHex("FF3FD0"),
+		Hot = Color3.fromHex("FFD0F5"),
+		Deep = Color3.fromHex("7A0B63"),
+	},
+
+	Nimbo = {
+		Zone = "CloudShelf",
+		MinHeight = 800,
+		MaxHeight = 1500,
+		Weight = 2,
+		Damage = 2,
+		Cooldown = 7,
+		SoakAt = 0.30,
+		LockTime = 0.80,
+		DrizzleAt = 1.50,
+		HitTime = 1.60,
+		WringAt = 1.90,
+		Recover = 0.80,
+		HitRadius = 8,
+		HitShape = "Column",
+		ColumnDepth = 45,
+		AttackRange = 30,
+		MoveSpeed = 12,
+		OrbitRadius = 3,
+		OrbitHeight = 18, -- hovers this high above the balloon
+		OrbitSpeed = 0.4,
+		ExitDistance = 0,
+		PinCount = 26,
+		Color = Color3.fromHex("38C8FF"),
+		Hot = Color3.fromHex("DDF6FF"),
+		Deep = Color3.fromHex("0B4F8A"),
+	},
+} :: { [string]: HazardType }
+
+return HazardConfig
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000000B"><Properties><string name="Name">Hazards</string></Properties><Item class="ModuleScript" referent="RBX00000003"><Properties><string name="Name">StudKit</string><ProtectedString name="Source"><![CDATA[--!strict
+-- StudKit: builds classic stud-style Parts and a light "rig" for procedurally
+-- animated hazards. Rigs are anchored Parts moved together with BulkMoveTo, so
+-- animation is smooth and never touches physics.
+
+local StudKit = {}
+
+export type PartOpts = {
+	Shape: string?, -- "Block" | "Wedge" | "Ball" | "Cylinder"
+	Material: Enum.Material?,
+	Transparency: number?,
+	Studs: boolean?, -- Studs on top, Inlet underneath (default true for Plastic)
+	Name: string?,
+}
+
+function StudKit.Part(size: Vector3, color: Color3, opts: PartOpts?): BasePart
+	local o: PartOpts = opts or {}
+	local part: BasePart
+	if o.Shape == "Wedge" then
+		part = Instance.new("WedgePart")
+	else
+		local p = Instance.new("Part")
+		if o.Shape == "Ball" then
+			p.Shape = Enum.PartType.Ball
+		elseif o.Shape == "Cylinder" then
+			p.Shape = Enum.PartType.Cylinder
+		end
+		part = p
+	end
+	part.Name = o.Name or "Stud"
+	part.Size = size
+	part.Color = color
+	part.Material = o.Material or Enum.Material.Plastic
+	part.Transparency = o.Transparency or 0
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Massless = true
+	local studs = o.Studs
+	if studs == nil then
+		studs = part.Material == Enum.Material.Plastic
+	end
+	if studs then
+		part.TopSurface = Enum.SurfaceType.Studs
+		part.BottomSurface = Enum.SurfaceType.Inlet
+	else
+		part.TopSurface = Enum.SurfaceType.Smooth
+		part.BottomSurface = Enum.SurfaceType.Smooth
+	end
+	return part
+end
+
+function StudKit.Neon(size: Vector3, color: Color3, name: string?): BasePart
+	return StudKit.Part(size, color, { Material = Enum.Material.Neon, Studs = false, Name = name })
+end
+
+--------------------------------------------------------------------------------
+-- Rig
+
+export type RigPart = {
+	part: BasePart,
+	offset: CFrame,
+	size: Vector3,
+	transparency: number,
+	color: Color3,
+}
+
+local Rig = {}
+Rig.__index = Rig
+
+export type Rig = typeof(setmetatable(
+	{} :: {
+		model: Model,
+		parts: { [string]: RigPart },
+		groups: { [string]: { string } },
+		pose: { [string]: number },
+		cf: CFrame,
+		t: number,
+		scale: number,
+		follow: boolean,
+		visible: boolean,
+		root: BasePart?,
+		ctx: any,
+		kind: string,
+		cfg: any,
+		data: { [string]: any },
+		_p: { BasePart },
+		_c: { CFrame },
+		_scaleApplied: number,
+	},
+	Rig
+))
+
+function StudKit.Rig(kind: string, cfg: any): Rig
+	local model = Instance.new("Model")
+	model.Name = kind
+	local self = setmetatable({
+		model = model,
+		parts = {},
+		groups = {},
+		pose = {},
+		cf = CFrame.identity,
+		t = 0,
+		scale = 1,
+		follow = true,
+		visible = true,
+		root = nil,
+		ctx = nil,
+		kind = kind,
+		cfg = cfg,
+		data = {},
+		_p = {},
+		_c = {},
+		_scaleApplied = 1,
+	}, Rig)
+	return self
+end
+
+-- Adds a part at a rest offset (relative to the rig's pivot, facing -Z).
+function Rig.Add(self: Rig, key: string, part: BasePart, offset: CFrame?, group: string?): BasePart
+	part.Name = key
+	part.Parent = self.model
+	self.parts[key] = {
+		part = part,
+		offset = offset or CFrame.identity,
+		size = part.Size,
+		transparency = part.Transparency,
+		color = part.Color,
+	}
+	if group then
+		local g = self.groups[group]
+		if not g then
+			g = {}
+			self.groups[group] = g
+		end
+		table.insert(g, key)
+	end
+	return part
+end
+
+function Rig.Set(self: Rig, key: string, cf: CFrame)
+	local rp = self.parts[key]
+	if rp then
+		local n = #self._p + 1
+		self._p[n] = rp.part
+		self._c[n] = cf
+	end
+end
+
+-- Places a part at base * (its rest offset scaled by the rig scale).
+function Rig.Rest(self: Rig, key: string, base: CFrame)
+	local rp = self.parts[key]
+	if rp then
+		local o = rp.offset
+		local s = self.scale
+		self:Set(key, base * (if s == 1 then o else (o - o.Position + o.Position * s)))
+	end
+end
+
+function Rig.Flush(self: Rig)
+	if #self._p > 0 then
+		workspace:BulkMoveTo(self._p, self._c, Enum.BulkMoveMode.FireCFrameChanged)
+		table.clear(self._p)
+		table.clear(self._c)
+	end
+end
+
+function Rig.ApplyScale(self: Rig)
+	if math.abs(self.scale - self._scaleApplied) < 0.004 then
+		return
+	end
+	self._scaleApplied = self.scale
+	for _, rp in self.parts do
+		rp.part.Size = rp.size * self.scale
+	end
+end
+
+function Rig.Keys(self: Rig, group: string?): { string }
+	if group then
+		return self.groups[group] or {}
+	end
+	local all = {}
+	for key in self.parts do
+		table.insert(all, key)
+	end
+	return all
+end
+
+-- alpha 0 = rest transparency, alpha 1 = invisible
+function Rig.Fade(self: Rig, alpha: number, group: string?)
+	for _, key in self:Keys(group) do
+		local rp = self.parts[key]
+		rp.part.Transparency = rp.transparency + (1 - rp.transparency) * alpha
+	end
+end
+
+function Rig.Tint(self: Rig, color: Color3, alpha: number, group: string?)
+	for _, key in self:Keys(group) do
+		local rp = self.parts[key]
+		rp.part.Color = rp.color:Lerp(color, alpha)
+	end
+end
+
+function Rig.Show(self: Rig, visible: boolean)
+	if self.visible == visible then
+		return
+	end
+	self.visible = visible
+	self.model.Parent = if visible then (self.data.parent :: Instance?) else nil
+end
+
+function Rig.Destroy(self: Rig)
+	self.model:Destroy()
+end
+
+StudKit.RigClass = Rig
+
+return StudKit
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000004"><Properties><string name="Name">Target</string><ProtectedString name="Source"><![CDATA[--!strict
+-- Target: where is a player's balloon? Server and client both use this, so hit
+-- checks and visuals agree. When FlightService exists, point Target.Resolver at it.
+
+local Players = game:GetService("Players")
+
+local Target = {}
+
+export type Resolver = (player: Player) -> (Vector3?, number?)
+
+local function fromInstance(balloon: Instance): (Vector3?, number?)
+	if balloon:IsA("Model") then
+		local primary = balloon.PrimaryPart
+		if primary then
+			local extent = balloon:GetExtentsSize()
+			return primary.Position, math.max(extent.X, extent.Y, extent.Z) / 2
+		end
+		local cf, size = balloon:GetBoundingBox()
+		return cf.Position, math.max(size.X, size.Y, size.Z) / 2
+	elseif balloon:IsA("BasePart") then
+		local s = balloon.Size
+		return balloon.Position, math.max(s.X, s.Y, s.Z) / 2
+	end
+	return nil, nil
+end
+
+-- Default lookup: a Model or Part named "Balloon" inside the character, or
+-- workspace.Balloons[player.Name]. Returns (position, radius).
+function Target.Default(player: Player): (Vector3?, number?)
+	local character = player.Character
+	local balloon = character and character:FindFirstChild("Balloon")
+	if not balloon then
+		local folder = workspace:FindFirstChild("Balloons")
+		balloon = folder and folder:FindFirstChild(player.Name)
+	end
+	if balloon then
+		return fromInstance(balloon)
+	end
+	return nil, nil
+end
+
+Target.Resolver = Target.Default :: Resolver
+
+function Target.GetBalloon(player: Player?): (Vector3?, number?)
+	if not player or player.Parent ~= Players then
+		return nil, nil
+	end
+	return Target.Resolver(player)
+end
+
+return Target
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">VFX</string><ProtectedString name="Source"><![CDATA[--!strict
+-- VFX: client-side effect toolkit for hazards, in the game's stud style.
+-- Everything is built from Neon/Plastic Parts, Trails and PointLights, so it needs
+-- no uploaded textures and imports into any place 1:1. Particles are real little
+-- cubes and plates (section 14 of the game prompt: "square confetti, cube sparkles").
+--
+-- The controller calls VFX.Step(dt) once per RenderStepped. Only require this on clients.
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+local StudKit = require(script.Parent.StudKit)
+
+local VFX = {}
+
+VFX.Folder = nil :: Instance?
+VFX.ShakeDistance = 70
+VFX.MaxParticles = 450
+
+local rng = Random.new()
+VFX.Random = rng
+
+--------------------------------------------------------------------------------
+-- Easing
+
+local Ease = {}
+function Ease.linear(a: number): number
+	return a
+end
+function Ease.inQuad(a: number): number
+	return a * a
+end
+function Ease.outQuad(a: number): number
+	return 1 - (1 - a) * (1 - a)
+end
+function Ease.inCubic(a: number): number
+	return a * a * a
+end
+function Ease.outCubic(a: number): number
+	return 1 - (1 - a) ^ 3
+end
+function Ease.inOutSine(a: number): number
+	return -(math.cos(math.pi * a) - 1) / 2
+end
+function Ease.outBack(a: number): number
+	local c1 = 1.70158
+	local c3 = c1 + 1
+	return 1 + c3 * (a - 1) ^ 3 + c1 * (a - 1) ^ 2
+end
+function Ease.outExpo(a: number): number
+	return if a >= 1 then 1 else 1 - 2 ^ (-10 * a)
+end
+function Ease.outElastic(a: number): number
+	if a <= 0 or a >= 1 then
+		return a
+	end
+	local c4 = (2 * math.pi) / 3
+	return 2 ^ (-10 * a) * math.sin((a * 10 - 0.75) * c4) + 1
+end
+VFX.Ease = Ease
+
+--------------------------------------------------------------------------------
+-- Runners: per-frame callbacks with a duration. fn(alpha, dt, elapsed).
+
+export type Runner = {
+	t: number,
+	d: number,
+	fn: (number, number, number) -> (),
+	alive: boolean,
+	Stop: (Runner) -> (),
+}
+
+local runners: { Runner } = {}
+
+local function stopRunner(self: Runner)
+	self.alive = false
+end
+
+function VFX.Run(duration: number, fn: (number, number, number) -> ()): Runner
+	local r: Runner = { t = 0, d = duration, fn = fn, alive = true, Stop = stopRunner }
+	table.insert(runners, r)
+	return r
+end
+
+--------------------------------------------------------------------------------
+-- Part pool
+
+local pool: { BasePart } = {}
+
+local function parent(): Instance
+	return VFX.Folder or workspace
+end
+
+function VFX.Get(color: Color3, neon: boolean?): BasePart
+	local p: BasePart = table.remove(pool) or StudKit.Neon(Vector3.one, color, "FX")
+	p.Color = color
+	p.Material = if neon == false then Enum.Material.SmoothPlastic else Enum.Material.Neon
+	p.Transparency = 1 -- hidden until its first update places it
+	p.Parent = parent()
+	return p
+end
+
+function VFX.Release(p: BasePart)
+	p.Parent = nil
+	if #pool < 400 then
+		table.insert(pool, p)
+	else
+		p:Destroy()
+	end
+end
+
+function VFX.SetBar(part: BasePart, p0: Vector3, p1: Vector3, thick: number, tall: number?)
+	local d = p1 - p0
+	local len = d.Magnitude
+	part.Size = Vector3.new(thick, tall or thick, math.max(len, 0.05))
+	if len < 1e-3 then
+		part.CFrame = CFrame.new(p0)
+	else
+		part.CFrame = CFrame.lookAt((p0 + p1) / 2, p1)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Cube particles
+
+type Particle = {
+	part: BasePart,
+	pos: Vector3,
+	vel: Vector3,
+	rot: CFrame,
+	spin: Vector3,
+	age: number,
+	life: number,
+	size: Vector3,
+	gravity: number,
+	drag: number,
+	shrink: boolean,
+	pop: boolean,
+	pull: Vector3?, -- homing point (for inward effects)
+}
+
+local particles: { Particle } = {}
+
+export type ParticleOpts = {
+	Color: Color3,
+	Size: number,
+	Life: number,
+	Velocity: Vector3?,
+	Gravity: number?,
+	Drag: number?,
+	Neon: boolean?,
+	Plate: boolean?,
+	Shrink: boolean?,
+	Pop: boolean?,
+	Spin: number?,
+	Pull: Vector3?,
+}
+
+function VFX.Particle(pos: Vector3, o: ParticleOpts)
+	if #particles >= VFX.MaxParticles then
+		return
+	end
+	local part = VFX.Get(o.Color, o.Neon)
+	local s = o.Size
+	local size = if o.Plate then Vector3.new(s, s * 0.14, s * 0.7) else Vector3.new(s, s, s)
+	part.Size = size
+	part.CFrame = CFrame.new(pos)
+	local spinMax = o.Spin or 10
+	table.insert(particles, {
+		part = part,
+		pos = pos,
+		vel = o.Velocity or Vector3.zero,
+		rot = CFrame.Angles(rng:NextNumber(0, 6.28), rng:NextNumber(0, 6.28), rng:NextNumber(0, 6.28)),
+		spin = Vector3.new(
+			rng:NextNumber(-spinMax, spinMax),
+			rng:NextNumber(-spinMax, spinMax),
+			rng:NextNumber(-spinMax, spinMax)
+		),
+		age = 0,
+		life = o.Life,
+		size = size,
+		gravity = o.Gravity or 0,
+		drag = o.Drag or 0,
+		shrink = o.Shrink ~= false,
+		pop = o.Pop == true,
+		pull = o.Pull,
+	})
+end
+
+local function randUnit(): Vector3
+	local z = rng:NextNumber(-1, 1)
+	local a = rng:NextNumber(0, 2 * math.pi)
+	local r = math.sqrt(1 - z * z)
+	return Vector3.new(r * math.cos(a), z, r * math.sin(a))
+end
+VFX.RandUnit = randUnit
+
+export type CubesOpts = {
+	Pos: Vector3,
+	Count: number,
+	Colors: { Color3 },
+	Speed: { number },
+	Size: { number },
+	Life: { number },
+	Gravity: number?,
+	Drag: number?,
+	Dir: Vector3?,
+	Spread: number?, -- 0 = straight along Dir, 1 = any direction
+	Flatten: number?, -- squash vertical velocity (0..1)
+	Neon: boolean?,
+	Plate: boolean?,
+	Shrink: boolean?,
+	Spin: number?,
+	Offset: number?, -- random start offset radius
+}
+
+function VFX.Cubes(o: CubesOpts)
+	for i = 1, o.Count do
+		local dir: Vector3
+		if o.Dir then
+			dir = (o.Dir.Unit + randUnit() * (o.Spread or 0.35)).Unit
+		else
+			dir = randUnit()
+		end
+		if o.Flatten then
+			dir = Vector3.new(dir.X, dir.Y * (1 - o.Flatten), dir.Z)
+		end
+		local start = o.Pos
+		if o.Offset then
+			start += randUnit() * rng:NextNumber(0, o.Offset)
+		end
+		VFX.Particle(start, {
+			Color = o.Colors[(i - 1) % #o.Colors + 1],
+			Size = rng:NextNumber(o.Size[1], o.Size[2]),
+			Life = rng:NextNumber(o.Life[1], o.Life[2]),
+			Velocity = dir * rng:NextNumber(o.Speed[1], o.Speed[2]),
+			Gravity = o.Gravity,
+			Drag = o.Drag,
+			Neon = o.Neon,
+			Plate = o.Plate,
+			Shrink = o.Shrink,
+			Spin = o.Spin,
+		})
+	end
+end
+
+-- Cubes that start on a ring/sphere and get sucked into `center`.
+function VFX.Suck(center: Vector3, radius: number, count: number, colors: { Color3 }, life: number, size: number)
+	for i = 1, count do
+		local d = randUnit()
+		d = Vector3.new(d.X, d.Y * 0.45, d.Z).Unit
+		local start = center + d * radius * rng:NextNumber(0.8, 1.2)
+		local lifeI = life * rng:NextNumber(0.75, 1.1)
+		VFX.Particle(start, {
+			Color = colors[(i - 1) % #colors + 1],
+			Size = size * rng:NextNumber(0.7, 1.2),
+			Life = lifeI,
+			Velocity = (center - start) / lifeI,
+			Shrink = true,
+			Pull = center,
+		})
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Shapes
+
+-- A square frame of 4 Neon bars in the XY plane of `cf`, growing from size0 to size1.
+function VFX.SquareRing(cf: CFrame, color: Color3, size0: number, size1: number, thick: number, duration: number, ease: ((number) -> number)?)
+	local bars = { VFX.Get(color), VFX.Get(color), VFX.Get(color), VFX.Get(color) }
+	local easing = ease or Ease.outQuad
+	VFX.Run(duration, function(a)
+		local e = easing(a)
+		local s = size0 + (size1 - size0) * e
+		local h = s / 2
+		local th = math.max(thick * (1 - a * 0.7), 0.05)
+		local tr = a ^ 1.6
+		bars[1].Size = Vector3.new(s + th, th, th)
+		bars[1].CFrame = cf * CFrame.new(0, h, 0)
+		bars[2].Size = Vector3.new(s + th, th, th)
+		bars[2].CFrame = cf * CFrame.new(0, -h, 0)
+		bars[3].Size = Vector3.new(th, s + th, th)
+		bars[3].CFrame = cf * CFrame.new(-h, 0, 0)
+		bars[4].Size = Vector3.new(th, s + th, th)
+		bars[4].CFrame = cf * CFrame.new(h, 0, 0)
+		for _, b in bars do
+			b.Transparency = tr
+		end
+		if a >= 1 then
+			for _, b in bars do
+				VFX.Release(b)
+			end
+		end
+	end)
+end
+
+-- A persistent square frame you drive yourself (reticles, warning frames).
+export type Frame = {
+	bars: { BasePart },
+	Update: (Frame, CFrame, number, number, number) -> (),
+	Destroy: (Frame) -> (),
+}
+
+function VFX.Frame(color: Color3, corners: boolean?): Frame
+	local n = if corners then 8 else 4
+	local bars = {}
+	for i = 1, n do
+		bars[i] = VFX.Get(color)
+	end
+	local frame = {} :: Frame
+	frame.bars = bars
+	function frame.Update(self: Frame, cf: CFrame, size: number, thick: number, transparency: number)
+		local h = size / 2
+		if n == 4 then
+			local b = self.bars
+			b[1].Size = Vector3.new(size + thick, thick, thick)
+			b[1].CFrame = cf * CFrame.new(0, h, 0)
+			b[2].Size = Vector3.new(size + thick, thick, thick)
+			b[2].CFrame = cf * CFrame.new(0, -h, 0)
+			b[3].Size = Vector3.new(thick, size + thick, thick)
+			b[3].CFrame = cf * CFrame.new(-h, 0, 0)
+			b[4].Size = Vector3.new(thick, size + thick, thick)
+			b[4].CFrame = cf * CFrame.new(h, 0, 0)
+		else
+			-- corner brackets: each corner gets one horizontal and one vertical arm
+			local arm = size * 0.3
+			local k = 0
+			for _, sx in { -1, 1 } do
+				for _, sy in { -1, 1 } do
+					k += 1
+					local hb = self.bars[k]
+					hb.Size = Vector3.new(arm, thick, thick)
+					hb.CFrame = cf * CFrame.new(sx * (h - arm / 2), sy * h, 0)
+					k += 1
+					local vb = self.bars[k]
+					vb.Size = Vector3.new(thick, arm, thick)
+					vb.CFrame = cf * CFrame.new(sx * h, sy * (h - arm / 2), 0)
+				end
+			end
+		end
+		for _, b in self.bars do
+			b.Transparency = transparency
+		end
+	end
+	function frame.Destroy(self: Frame)
+		for _, b in self.bars do
+			VFX.Release(b)
+		end
+		table.clear(self.bars)
+	end
+	return frame
+end
+
+-- A cube (rotated 45 degrees) that blasts out and fades. The core of every impact.
+function VFX.Flash(pos: Vector3, color: Color3, size: number, duration: number)
+	local outer = VFX.Get(color)
+	local inner = VFX.Get(Color3.new(1, 1, 1))
+	local tilt = CFrame.new(pos) * CFrame.Angles(math.rad(45), math.rad(45), 0)
+	VFX.Run(duration, function(a)
+		local e = Ease.outExpo(a)
+		local s = size * (0.25 + 0.95 * e)
+		outer.Size = Vector3.new(s, s, s)
+		outer.CFrame = tilt * CFrame.Angles(0, a * 1.2, 0)
+		outer.Transparency = 0.1 + 0.9 * a
+		local si = s * 0.55 * (1 - a)
+		inner.Size = Vector3.new(si, si, si)
+		inner.CFrame = tilt * CFrame.Angles(a * 2, 0, 0)
+		inner.Transparency = a
+		if a >= 1 then
+			VFX.Release(outer)
+			VFX.Release(inner)
+		end
+	end)
+end
+
+-- A four-point glint made of two crossing bars, always facing the camera.
+function VFX.Star(pos: Vector3, color: Color3, size: number, duration: number)
+	local a1 = VFX.Get(color)
+	local a2 = VFX.Get(color)
+	VFX.Run(duration, function(a)
+		local cam = workspace.CurrentCamera
+		local face = if cam then CFrame.lookAt(pos, cam.CFrame.Position) else CFrame.new(pos)
+		local k = if a < 0.35 then Ease.outBack(a / 0.35) else 1 - (a - 0.35) / 0.65
+		local s = size * k
+		local rot = face * CFrame.Angles(0, 0, a * 1.4)
+		a1.Size = Vector3.new(s, s * 0.12, 0.05)
+		a1.CFrame = rot
+		a2.Size = Vector3.new(s * 0.12, s, 0.05)
+		a2.CFrame = rot
+		a1.Transparency = a * 0.6
+		a2.Transparency = a * 0.6
+		if a >= 1 then
+			VFX.Release(a1)
+			VFX.Release(a2)
+		end
+	end)
+end
+
+function VFX.Light(pos: Vector3, color: Color3, brightness: number, range: number, duration: number)
+	local holder = StudKit.Part(Vector3.one * 0.2, color, { Transparency = 1, Studs = false })
+	holder.CFrame = CFrame.new(pos)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness
+	light.Shadows = false
+	light.Parent = holder
+	holder.Parent = parent()
+	VFX.Run(duration, function(a)
+		light.Brightness = brightness * (1 - Ease.outQuad(a))
+		if a >= 1 then
+			holder:Destroy()
+		end
+	end)
+end
+
+-- Glow sparkles: one ParticleEmitter burst on the engine's built-in sparkle texture.
+function VFX.Sparkles(pos: Vector3, color: Color3, count: number, speed: number?)
+	local holder = StudKit.Part(Vector3.one * 0.2, color, { Transparency = 1, Studs = false })
+	holder.CFrame = CFrame.new(pos)
+	local att = Instance.new("Attachment")
+	att.Parent = holder
+	local pe = Instance.new("ParticleEmitter")
+	pe.Enabled = false
+	pe.Color = ColorSequence.new(color, Color3.new(1, 1, 1))
+	pe.LightEmission = 1
+	pe.LightInfluence = 0
+	pe.Brightness = 3
+	pe.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.4),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime = NumberRange.new(0.3, 0.6)
+	pe.Speed = NumberRange.new((speed or 22) * 0.5, speed or 22)
+	pe.SpreadAngle = Vector2.new(180, 180)
+	pe.Drag = 5
+	pe.RotSpeed = NumberRange.new(-360, 360)
+	pe.Rotation = NumberRange.new(0, 360)
+	pe.Parent = att
+	holder.Parent = parent()
+	pe:Emit(count)
+	task.delay(0.8, function()
+		holder:Destroy()
+	end)
+end
+
+export type Destroyable = { Destroy: (any) -> () }
+
+function VFX.Trail(part: BasePart, color: Color3, lifetime: number, width: number): Destroyable
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, width / 2, 0)
+	a0.Parent = part
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -width / 2, 0)
+	a1.Parent = part
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.WidthScale = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0.15),
+	})
+	trail.Lifetime = lifetime
+	trail.LightEmission = 1
+	trail.LightInfluence = 0
+	trail.FaceCamera = true
+	trail.Parent = part
+	return {
+		Destroy = function()
+			trail:Destroy()
+			a0:Destroy()
+			a1:Destroy()
+		end,
+	}
+end
+
+-- A fading Neon afterimage of every part in a model.
+function VFX.Ghost(model: Model, color: Color3, duration: number)
+	local copies = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 0.95 then
+			local g = VFX.Get(color)
+			g.Size = d.Size
+			g.CFrame = d.CFrame
+			g.Transparency = 0.35
+			table.insert(copies, g)
+		end
+	end
+	VFX.Run(duration, function(a)
+		for _, g in copies do
+			g.Transparency = 0.35 + 0.65 * a
+		end
+		if a >= 1 then
+			for _, g in copies do
+				VFX.Release(g)
+			end
+		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- Screen feel
+
+local trauma = 0
+
+function VFX.Shake(pos: Vector3?, magnitude: number)
+	local cam = workspace.CurrentCamera
+	if not cam then
+		return
+	end
+	local f = 1
+	if pos then
+		f = math.clamp(1 - (cam.CFrame.Position - pos).Magnitude / VFX.ShakeDistance, 0, 1)
+	end
+	trauma = math.min(1.4, trauma + magnitude * f)
+end
+
+local tint: ColorCorrectionEffect? = nil
+
+function VFX.Tint(color: Color3, strength: number, duration: number)
+	if not tint then
+		local cc = Instance.new("ColorCorrectionEffect")
+		cc.Name = "HazardTint"
+		cc.Parent = Lighting
+		tint = cc
+	end
+	local cc = tint :: ColorCorrectionEffect
+	VFX.Run(duration, function(a)
+		local k = strength * (1 - Ease.outQuad(a))
+		cc.TintColor = Color3.new(1, 1, 1):Lerp(color, k)
+		cc.Brightness = 0.12 * k
+		if a >= 1 then
+			cc.TintColor = Color3.new(1, 1, 1)
+			cc.Brightness = 0
+		end
+	end)
+end
+
+function VFX.NearCamera(pos: Vector3, distance: number): boolean
+	local cam = workspace.CurrentCamera
+	return cam ~= nil and (cam.CFrame.Position - pos).Magnitude <= distance
+end
+
+-- Floating "-1" damage number.
+function VFX.Popup(pos: Vector3, text: string, color: Color3)
+	local holder = StudKit.Part(Vector3.one * 0.2, color, { Transparency = 1, Studs = false })
+	holder.CFrame = CFrame.new(pos)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(180, 90)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Parent = holder
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Position = UDim2.fromScale(0.5, 0.5)
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.FredokaOne
+	label.Text = text
+	label.TextScaled = true
+	label.TextColor3 = color
+	label.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.Color = Color3.fromRGB(26, 16, 48)
+	stroke.Parent = label
+	holder.Parent = parent()
+	VFX.Run(0.9, function(a)
+		local pop = if a < 0.15 then Ease.outBack(a / 0.15) * 1.25 else 1.25 - 0.25 * math.min((a - 0.15) / 0.2, 1)
+		label.Size = UDim2.fromScale(pop, pop)
+		holder.CFrame = CFrame.new(pos + Vector3.new(0, 4.5 * Ease.outQuad(a), 0))
+		local fade = math.clamp((a - 0.55) / 0.45, 0, 1)
+		label.TextTransparency = fade
+		stroke.Transparency = fade
+		if a >= 1 then
+			holder:Destroy()
+		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- The shared hit burst: flash cube, two square shock rings, cube burst, sparkles,
+-- light, shake and a tint when it's close to you.
+
+export type ImpactOpts = {
+	Scale: number?,
+	Cubes: number?,
+	Colors: { Color3 }?,
+	Shake: number?,
+}
+
+function VFX.Impact(pos: Vector3, color: Color3, hot: Color3, o: ImpactOpts?)
+	local opts: ImpactOpts = o or {}
+	local s = opts.Scale or 1
+	local cam = workspace.CurrentCamera
+	local face = if cam then CFrame.lookAt(pos, cam.CFrame.Position) else CFrame.new(pos)
+	VFX.Flash(pos, hot, 6 * s, 0.4)
+	VFX.SquareRing(face * CFrame.Angles(0, 0, math.rad(45)), color, 2 * s, 16 * s, 0.55 * s, 0.5)
+	task.delay(0.07, function()
+		VFX.SquareRing(face, hot, 1.5 * s, 11 * s, 0.35 * s, 0.42)
+	end)
+	VFX.Cubes({
+		Pos = pos,
+		Count = opts.Cubes or 36,
+		Colors = opts.Colors or { color, hot },
+		Speed = { 16 * s, 40 * s },
+		Size = { 0.35 * s, 0.85 * s },
+		Life = { 0.45, 0.95 },
+		Drag = 3.5,
+		Gravity = -22,
+		Neon = true,
+	})
+	VFX.Sparkles(pos, color, 28, 26 * s)
+	VFX.Light(pos, color, 10, 28 * s, 0.5)
+	VFX.Shake(pos, opts.Shake or 0.45)
+	if VFX.NearCamera(pos, VFX.ShakeDistance * 0.6) then
+		VFX.Tint(color, 0.35, 0.35)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Frame step
+
+local bulkParts: { BasePart } = {}
+local bulkCFs: { CFrame } = {}
+
+function VFX.Step(dt: number)
+	-- runners
+	local i = 1
+	while i <= #runners do
+		local r = runners[i]
+		if r.alive then
+			r.t += dt
+			local a = if r.d > 0 and r.d < math.huge then math.min(r.t / r.d, 1) else 0
+			local ok = xpcall(r.fn, function(err)
+				warn("[HazardVFX] runner error:", err)
+			end, a, dt, r.t)
+			if not ok then
+				r.alive = false
+			elseif r.d < math.huge and r.t >= r.d then
+				r.alive = false
+			end
+		end
+		if r.alive then
+			i += 1
+		else
+			runners[i] = runners[#runners]
+			runners[#runners] = nil
+		end
+	end
+
+	-- particles
+	local n = 0
+	local j = 1
+	while j <= #particles do
+		local p = particles[j]
+		p.age += dt
+		if p.age >= p.life then
+			VFX.Release(p.part)
+			particles[j] = particles[#particles]
+			particles[#particles] = nil
+		else
+			local a = p.age / p.life
+			if p.pull then
+				-- homing: arrive at the pull point exactly at end of life
+				local remaining = p.life - p.age
+				p.vel = (p.pull - p.pos) / math.max(remaining, dt)
+			else
+				p.vel = p.vel * math.max(0, 1 - p.drag * dt) + Vector3.new(0, p.gravity * dt, 0)
+			end
+			p.pos += p.vel * dt
+			p.rot = p.rot * CFrame.Angles(p.spin.X * dt, p.spin.Y * dt, p.spin.Z * dt)
+			local k = 1
+			if p.pop then
+				k = if a < 0.12 then (a / 0.12) * 1.5 else 1.5 - (a - 0.12) / 0.88 * 1.3
+			elseif p.shrink then
+				k = 1 - a * 0.8
+			end
+			if k ~= 1 or p.pop or p.shrink then
+				p.part.Size = p.size * math.max(k, 0.02)
+			end
+			p.part.Transparency = if a > 0.6 then (a - 0.6) / 0.4 else 0
+			n += 1
+			bulkParts[n] = p.part
+			bulkCFs[n] = CFrame.new(p.pos) * p.rot
+			j += 1
+		end
+	end
+	if n > 0 then
+		for k = #bulkParts, n + 1, -1 do
+			bulkParts[k] = nil
+			bulkCFs[k] = nil
+		end
+		workspace:BulkMoveTo(bulkParts, bulkCFs, Enum.BulkMoveMode.FireCFrameChanged)
+	end
+end
+
+-- Camera shake runs after the camera script so it layers on top of it.
+function VFX.BindCamera()
+	RunService:BindToRenderStep("HazardShake", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+		if trauma <= 0.001 then
+			return
+		end
+		local cam = workspace.CurrentCamera
+		if cam then
+			local s = trauma * trauma
+			local t = os.clock() * 38
+			cam.CFrame = cam.CFrame
+				* CFrame.new(math.noise(t, 7) * 0.5 * s, math.noise(t, 8) * 0.5 * s, 0)
+				* CFrame.Angles(math.noise(t, 1) * 0.045 * s, math.noise(t, 2) * 0.045 * s, math.noise(t, 3) * 0.03 * s)
+		end
+		trauma = math.max(0, trauma - dt * 2.4)
+	end)
+end
+
+return VFX
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000000A"><Properties><string name="Name">Visuals</string></Properties><Item class="ModuleScript" referent="RBX00000006"><Properties><string name="Name">Nimbo</string><ProtectedString name="Source"><![CDATA[--!strict
+-- Nimbo (Cloud Shelf) - signature attack: PIN DRIZZLE
+-- Drift over -> soak (swell up, darken, suck in water cubes) -> mark a danger column
+-- and three shrinking target squares -> rain Neon pins through the column -> wring out.
+
+local Hazards = script.Parent.Parent
+local StudKit = require(Hazards.StudKit)
+local VFX = require(Hazards.VFX)
+local Ease = VFX.Ease
+
+local Nimbo = {}
+
+local WHITE = Color3.fromHex("F7FAFF")
+local SIDE = Color3.fromHex("EEF3FF")
+local SHADE = Color3.fromHex("C3CFE8")
+local INK = Color3.fromHex("1A2440")
+local STORM = Color3.fromHex("7F8BA8")
+
+function Nimbo.Build(cfg: any): StudKit.Rig
+	local rig = StudKit.Rig("Nimbo", cfg)
+	local P = StudKit.Part
+	rig:Add("Core", P(Vector3.new(8, 3.2, 5), WHITE), CFrame.new(0, 0, 0), "cloud")
+	rig:Add("PuffL", P(Vector3.new(3.6, 2.6, 4), WHITE), CFrame.new(-1.7, 2.3, 0.2), "cloud")
+	rig:Add("PuffR", P(Vector3.new(4.2, 3, 4.2), WHITE), CFrame.new(1.6, 2.6, 0), "cloud")
+	rig:Add("SideL", P(Vector3.new(2.4, 2.6, 3.6), SIDE), CFrame.new(-4.9, -0.2, 0.1), "cloud")
+	rig:Add("SideR", P(Vector3.new(2.6, 2.8, 3.8), SIDE), CFrame.new(5, -0.1, 0), "cloud")
+	rig:Add("Base", P(Vector3.new(8, 0.6, 5), SHADE, { Studs = false }), CFrame.new(0, -1.9, 0), "cloud")
+	rig:Add("EyeL", StudKit.Neon(Vector3.new(0.9, 0.65, 0.12), cfg.Color), CFrame.new(-1.2, -0.2, -2.56))
+	rig:Add("EyeR", StudKit.Neon(Vector3.new(0.9, 0.65, 0.12), cfg.Color), CFrame.new(1.2, -0.2, -2.56))
+	rig:Add("BrowL", P(Vector3.new(1.3, 0.3, 0.12), INK, { Studs = false }), CFrame.new(-1.2, 0.5, -2.56) * CFrame.Angles(0, 0, math.rad(-18)))
+	rig:Add("BrowR", P(Vector3.new(1.3, 0.3, 0.12), INK, { Studs = false }), CFrame.new(1.2, 0.5, -2.56) * CFrame.Angles(0, 0, math.rad(18)))
+	rig:Add("Mouth", P(Vector3.new(1.3, 0.35, 0.12), INK, { Studs = false }), CFrame.new(0, -1.05, -2.56))
+	-- pins stuck in its head (its ammo)
+	local pins = {
+		CFrame.new(-2, 3.4, 0) * CFrame.Angles(0, 0, math.rad(20)),
+		CFrame.new(0.8, 4.2, 0) * CFrame.Angles(0, 0, math.rad(-8)),
+		CFrame.new(3.2, 3.6, 0) * CFrame.Angles(0, 0, math.rad(-25)),
+	}
+	for i, pin in pins do
+		rig:Add("Pin" .. i, P(Vector3.new(0.16, 2, 0.16), cfg.Hot, { Material = Enum.Material.SmoothPlastic, Studs = false }), pin * CFrame.new(0, 0.5, 0))
+		rig:Add("PinHead" .. i, StudKit.Neon(Vector3.new(0.5, 0.5, 0.5), cfg.Color), pin * CFrame.new(0, 1.6, 0))
+	end
+
+	local light = Instance.new("PointLight")
+	light.Color = cfg.Color
+	light.Brightness = 0.8
+	light.Range = 12
+	light.Parent = rig.parts.Core.part
+	rig.data.light = light
+
+	Nimbo.Reset(rig)
+	return rig
+end
+
+function Nimbo.Reset(rig: StudKit.Rig)
+	rig.pose.bob = 1
+	rig.pose.swell = 1
+	rig.pose.gloom = 0
+	rig.data.light.Brightness = 0.8
+	rig:Tint(STORM, 0, "cloud")
+end
+
+function Nimbo.Animate(rig: StudKit.Rig, _dt: number)
+	local p = rig.pose
+	local t = rig.t
+	rig.scale = p.swell * (1 + math.sin(t * 2.1) * 0.025)
+	rig:ApplyScale()
+	local base = rig.cf * CFrame.new(0, math.sin(t * 1.6) * 0.5 * p.bob, 0) * CFrame.Angles(0, 0, math.sin(t * 1.2) * 0.04)
+	for key in rig.parts do
+		rig:Rest(key, base)
+	end
+	rig:Flush()
+end
+
+function Nimbo.Attack(rig: StudKit.Rig, ctx: any)
+	local cfg = ctx.cfg
+	local C: Color3, HOT: Color3 = cfg.Color, cfg.Hot
+	local p = rig.pose
+
+	-- 1. DRIFT: keep following the server root until it's parked over the balloon
+	if not ctx:WaitUntil(cfg.SoakAt) then
+		return
+	end
+	rig.follow = false
+	local center = rig.cf.Position
+
+	-- 2. SOAK: swell to 1.25x, darken, suck in water cubes, eyes blaze
+	local suckClock = 0
+	ctx:Add(VFX.Run(cfg.LockTime - cfg.SoakAt, function(a, dt)
+		p.swell = 1 + 0.25 * Ease.outBack(a)
+		p.gloom = a
+		rig:Tint(STORM, 0.55 * a, "cloud")
+		rig.data.light.Brightness = 0.8 + 3.5 * a
+		suckClock += dt
+		while suckClock > 0.05 do
+			suckClock -= 0.05
+			VFX.Suck(center, 13, 3, { C, HOT }, 0.4, 0.5)
+		end
+	end))
+
+	-- 3. MARK: danger column + three shrinking target squares locked on the drop zone
+	local lockPos: Vector3? = ctx:WaitLock()
+	if not lockPos then
+		return
+	end
+	local target: Vector3 = lockPos
+	local radius: number = cfg.HitRadius
+	local bottom = center.Y - 2.2 * p.swell
+	local depth: number = cfg.ColumnDepth
+	local column = ctx:Add(StudKit.Neon(Vector3.new(radius * 2, depth, radius * 2), C))
+	column.CFrame = CFrame.new(target.X, bottom - depth / 2, target.Z)
+	column.Transparency = 1
+	column.Parent = VFX.Folder
+	local flat = CFrame.new(target) * CFrame.Angles(math.pi / 2, 0, 0)
+	local squares = { ctx:Add(VFX.Frame(C)), ctx:Add(VFX.Frame(C)), ctx:Add(VFX.Frame(HOT)) }
+	local cross = { ctx:Add(StudKit.Neon(Vector3.one, C)), ctx:Add(StudKit.Neon(Vector3.one, C)) }
+	for _, b in cross do
+		b.Parent = VFX.Folder
+	end
+	local markRun = ctx:Add(VFX.Run(math.huge, function()
+		local t = ctx:Time()
+		local since = t - cfg.LockTime
+		local urgency = math.clamp(since / (cfg.HitTime - cfg.LockTime), 0, 1)
+		local blinkRate = 8 + 22 * urgency
+		local blink = if math.floor(t * blinkRate) % 2 == 0 then 0 else 0.55
+		column.Transparency = 0.9 - 0.12 * urgency - (if blink == 0 then 0.04 else 0)
+		for i, sq in squares do
+			local delay = (i - 1) * 0.2
+			local k = math.clamp((since - delay) / 0.25, 0, 1)
+			local size = radius * 2 * (1 - (i - 1) * 0.25) * (1.7 - 0.7 * Ease.outBack(k))
+			sq:Update(flat * CFrame.Angles(0, 0, (1 - k) * 0.8), size, 0.3, if k <= 0 then 1 else blink)
+		end
+		VFX.SetBar(cross[1], target - Vector3.xAxis * radius, target + Vector3.xAxis * radius, 0.15)
+		VFX.SetBar(cross[2], target - Vector3.zAxis * radius, target + Vector3.zAxis * radius, 0.15)
+		cross[1].Transparency = 0.3 + blink
+		cross[2].Transparency = 0.3 + blink
+	end))
+
+	-- 4. DRIZZLE: Neon pins rain through the column
+	if not ctx:WaitUntil(cfg.DrizzleAt) then
+		return
+	end
+	local rng = VFX.Random
+	local pinCount: number = cfg.PinCount
+	local speed = 115
+	for _ = 1, pinCount do
+		task.delay(rng:NextNumber(0, 0.28), function()
+			if ctx.cancelled then
+				return
+			end
+			local x = target.X + rng:NextNumber(-radius, radius) * 0.9
+			local z = target.Z + rng:NextNumber(-radius, radius) * 0.9
+			local start = Vector3.new(x, bottom, z)
+			local shaft = VFX.Get(HOT)
+			local head = VFX.Get(C)
+			shaft.Size = Vector3.new(0.14, 3.2, 0.14)
+			head.Size = Vector3.new(0.42, 0.42, 0.42)
+			local splashed = false
+			local life = (depth + 6) / speed
+			VFX.Run(life, function(_, _, t)
+				local y = start.Y - speed * t
+				local pos = Vector3.new(x, y, z)
+				shaft.CFrame = CFrame.new(pos + Vector3.new(0, 1.6, 0))
+				head.CFrame = CFrame.new(pos + Vector3.new(0, 3.3, 0))
+				shaft.Transparency = 0.15
+				head.Transparency = 0
+				if not splashed and y <= target.Y then
+					splashed = true
+					for _ = 1, 3 do
+						local d = VFX.RandUnit()
+						VFX.Particle(Vector3.new(x, target.Y, z), { Color = C, Size = 0.3, Life = 0.3, Velocity = Vector3.new(d.X, math.abs(d.Y) * 0.6, d.Z) * 14, Gravity = -40 })
+					end
+				end
+				if t >= life then
+					VFX.Release(shaft)
+					VFX.Release(head)
+				end
+			end)
+		end)
+	end
+	ctx:Add(VFX.Run(cfg.HitTime - cfg.DrizzleAt, function(a)
+		p.swell = 1.25 - 0.3 * Ease.inQuad(a)
+	end))
+
+	-- 5. HIT
+	if not ctx:WaitUntil(cfg.HitTime) then
+		return
+	end
+	markRun:Stop()
+	column.Transparency = 1
+	for _, sq in squares do
+		sq:Destroy()
+	end
+	for _, b in cross do
+		b.Transparency = 1
+	end
+	VFX.Impact(target, C, HOT, { Cubes = 40, Colors = { C, HOT, Color3.fromHex("8ADCFF") } })
+	VFX.SquareRing(flat, C, 4, radius * 3.2, 0.5, 0.5)
+
+	-- 6. WRING: bounce back to size, colour returns, a few wisps float off
+	if not ctx:WaitUntil(cfg.WringAt) then
+		return
+	end
+	VFX.Cubes({
+		Pos = center,
+		Count = 10,
+		Colors = { WHITE, SIDE },
+		Speed = { 2, 5 },
+		Size = { 0.6, 1.1 },
+		Life = { 0.8, 1.3 },
+		Gravity = 4,
+		Dir = Vector3.yAxis,
+		Spread = 0.9,
+		Neon = false,
+		Offset = 3,
+	})
+	ctx:Add(VFX.Run(cfg.HitTime + cfg.Recover - cfg.WringAt, function(a)
+		local e = Ease.outElastic(a)
+		p.swell = 0.95 + 0.05 * e
+		rig:Tint(STORM, 0.55 * (1 - a), "cloud")
+		rig.data.light.Brightness = 4.3 - 3.5 * a
+	end))
+	ctx:WaitUntil(cfg.HitTime + cfg.Recover)
+end
+
+return Nimbo
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000007"><Properties><string name="Name">Pinwheel</string><ProtectedString name="Source"><![CDATA[--!strict
+-- Pinwheel (Cloud Shelf) - signature attack: SAW BLOOM
+-- Spin-up with flung cube sparks -> 4 vanes detach and bloom out in a spiral around the
+-- balloon -> clamp at 4 points with a flashing square frame -> snap shut through the
+-- middle in a + cross -> vanes boomerang home.
+
+local Hazards = script.Parent.Parent
+local StudKit = require(Hazards.StudKit)
+local VFX = require(Hazards.VFX)
+local Ease = VFX.Ease
+
+local Pinwheel = {}
+
+local R = 3.2 -- vane length
+local H = 2.6 -- vane height
+local VANE_COLORS = {
+	Color3.fromHex("FF3FD0"),
+	Color3.fromHex("FFD0F5"),
+	Color3.fromHex("C21E9E"),
+	Color3.fromHex("FF8AE6"),
+}
+local ROT_Y = CFrame.Angles(0, math.pi / 2, 0)
+local EDGE_ROT = CFrame.Angles(0, 0, math.atan2(H, R))
+local EDGE_LEN = math.sqrt(R * R + H * H)
+-- vane placed on the hub (triangle corners at (0,0), (R,0), (R,H) in the hub plane)
+local VANE_OFF = CFrame.new(R / 2, H / 2, -0.55) * ROT_Y
+local EDGE_OFF = CFrame.new(R / 2, H / 2, -0.66) * EDGE_ROT
+-- the same, but pivoting on the triangle's centroid (for free flight)
+local CENT = Vector3.new(2 * R / 3, H / 3, 0)
+local FLY_VANE = CFrame.new(R / 2 - CENT.X, H / 2 - CENT.Y, 0) * ROT_Y
+local FLY_EDGE = CFrame.new(R / 2 - CENT.X, H / 2 - CENT.Y, -0.11) * EDGE_ROT
+-- angle from the centroid to the sharp tip at (0,0): the vane leads with it
+local TIP_ANGLE = math.atan2(-CENT.Y, -CENT.X)
+
+local STATIC = { "Stick", "Hub", "HubTop", "EyeL", "EyeR", "Mouth" }
+
+function Pinwheel.Build(cfg: any): StudKit.Rig
+	local rig = StudKit.Rig("Pinwheel", cfg)
+	local P = StudKit.Part
+	rig:Add("Stick", P(Vector3.new(0.5, 6, 0.5), Color3.fromHex("8A5A2E")), CFrame.new(0, -3.7, 0.3))
+	rig:Add("Hub", P(Vector3.new(1.8, 1.8, 0.9), Color3.fromHex("FFFFFF")), CFrame.new(0, 0, -0.2))
+	rig:Add("HubTop", P(Vector3.new(1.1, 0.35, 0.6), Color3.fromHex("F1E6F0")), CFrame.new(0, 1.07, -0.2))
+	rig:Add("EyeL", P(Vector3.new(0.45, 0.28, 0.1), Color3.fromHex("2A0A24"), { Studs = false }), CFrame.new(-0.4, 0.22, -0.7) * CFrame.Angles(0, 0, math.rad(-15)))
+	rig:Add("EyeR", P(Vector3.new(0.45, 0.28, 0.1), Color3.fromHex("2A0A24"), { Studs = false }), CFrame.new(0.4, 0.22, -0.7) * CFrame.Angles(0, 0, math.rad(15)))
+	rig:Add("Mouth", StudKit.Neon(Vector3.new(0.9, 0.2, 0.1), cfg.Color), CFrame.new(0, -0.35, -0.7))
+	for i = 0, 3 do
+		rig:Add("Vane" .. i, P(Vector3.new(0.18, H, R), VANE_COLORS[i + 1], { Shape = "Wedge", Material = Enum.Material.SmoothPlastic, Studs = false }), nil, "vanes")
+		rig:Add("Edge" .. i, StudKit.Neon(Vector3.new(EDGE_LEN, 0.12, 0.12), cfg.Color), nil, "vanes")
+	end
+
+	local light = Instance.new("PointLight")
+	light.Color = cfg.Color
+	light.Brightness = 0.7
+	light.Range = 11
+	light.Parent = rig.parts.Hub.part
+	rig.data.light = light
+
+	Pinwheel.Reset(rig)
+	return rig
+end
+
+function Pinwheel.Reset(rig: StudKit.Rig)
+	rig.pose.spin = rig.pose.spin or 0
+	rig.pose.spinSpeed = 4
+	rig.pose.shake = 0
+	rig:Fade(0, "vanes")
+	rig.data.light.Brightness = 0.7
+end
+
+-- world CFrame of the hub (after sway and shake)
+local function hubCF(rig: StudKit.Rig): CFrame
+	local t = rig.t
+	local sh = rig.pose.shake
+	local jitter = if sh > 0
+		then Vector3.new(VFX.Random:NextNumber(-sh, sh), VFX.Random:NextNumber(-sh, sh), 0)
+		else Vector3.zero
+	return rig.cf * CFrame.new(Vector3.new(0, math.sin(t * 2) * 0.35, 0) + jitter) * CFrame.Angles(0, 0, math.sin(t * 1.7) * 0.08)
+end
+
+function Pinwheel.Animate(rig: StudKit.Rig, dt: number)
+	local p = rig.pose
+	p.spin += p.spinSpeed * dt
+	local base = hubCF(rig)
+	rig.data.hub = base
+	for _, key in STATIC do
+		rig:Rest(key, base)
+	end
+	for i = 0, 3 do
+		local spoke = base * CFrame.Angles(0, 0, p.spin + i * math.pi / 2)
+		rig:Set("Vane" .. i, spoke * VANE_OFF)
+		rig:Set("Edge" .. i, spoke * EDGE_OFF)
+	end
+	rig:Flush()
+end
+
+type Flyer = { vane: BasePart, edge: BasePart, pos: Vector3, spin: number }
+
+function Pinwheel.Attack(rig: StudKit.Rig, ctx: any)
+	local cfg = ctx.cfg
+	local C: Color3, HOT: Color3 = cfg.Color, cfg.Hot
+	rig.follow = false
+	local p = rig.pose
+
+	-- 1. SPIN-UP: faster and faster, shaking, flinging cube sparks off the tips; a whirl frame forms
+	local whirl = ctx:Add(VFX.Frame(C))
+	local sparkClock = 0
+	ctx:Add(VFX.Run(cfg.BloomAt, function(a, dt)
+		local e = Ease.inQuad(a)
+		p.spinSpeed = 4 + 40 * e
+		p.shake = 0.18 * e
+		rig.data.light.Brightness = 0.7 + 4 * e
+		local hub: CFrame = rig.data.hub or rig.cf
+		whirl:Update(hub * CFrame.Angles(0, 0, p.spin * 0.25), 7 + 2 * e, 0.22, 1 - 0.8 * e)
+		sparkClock += dt
+		while sparkClock > 0.035 do
+			sparkClock -= 0.035
+			local i = VFX.Random:NextInteger(0, 3)
+			local ang = p.spin + i * math.pi / 2
+			local tipLocal = Vector3.new(math.cos(ang) * R - math.sin(ang) * H, math.sin(ang) * R + math.cos(ang) * H, -0.6)
+			local tip = hub * tipLocal
+			local tangent = hub:VectorToWorldSpace(Vector3.new(-math.sin(ang), math.cos(ang), 0))
+			VFX.Particle(tip, { Color = if i % 2 == 0 then C else HOT, Size = 0.35, Life = 0.35, Velocity = tangent * (10 + 20 * e), Drag = 3 })
+		end
+	end))
+	if not ctx:WaitUntil(cfg.BloomAt) then
+		return
+	end
+	whirl:Destroy()
+
+	-- 2. BLOOM: vanes detach and spiral out to 4 points around the balloon
+	local hub: CFrame = rig.data.hub or rig.cf
+	local hubPos = hub.Position
+	rig:Fade(1, "vanes")
+	p.shake = 0
+	p.spinSpeed = 2
+	VFX.Cubes({ Pos = hubPos, Count = 16, Colors = { C, HOT }, Speed = { 12, 24 }, Size = { 0.3, 0.6 }, Life = { 0.3, 0.5 }, Drag = 4, Neon = true })
+
+	local function frameAt(from: Vector3, to: Vector3): CFrame
+		local fwd = to - from
+		fwd = if fwd.Magnitude > 0.1 then fwd.Unit else hub.LookVector
+		local right = fwd:Cross(Vector3.yAxis)
+		right = if right.Magnitude > 0.01 then right.Unit else Vector3.xAxis
+		local upP = right:Cross(fwd).Unit
+		return CFrame.fromMatrix(Vector3.zero, right, upP)
+	end
+
+	local flyers: { Flyer } = {}
+	for i = 0, 3 do
+		local vane = ctx:Add(rig.parts["Vane" .. i].part:Clone())
+		local edge = ctx:Add(rig.parts["Edge" .. i].part:Clone())
+		vane.Transparency = 0
+		edge.Transparency = 0
+		vane.Parent = VFX.Folder
+		edge.Parent = VFX.Folder
+		ctx:Add(VFX.Trail(edge, C, 0.35, 1.4))
+		local ang = p.spin + i * math.pi / 2
+		local startPos = hub * Vector3.new(math.cos(ang) * CENT.X - math.sin(ang) * CENT.Y, math.sin(ang) * CENT.X + math.cos(ang) * CENT.Y, -0.55)
+		flyers[i + 1] = { vane = vane, edge = edge, pos = startPos, spin = ang }
+	end
+
+	local function place(f: Flyer, rot: CFrame)
+		local cf = CFrame.new(f.pos) * rot * CFrame.Angles(0, 0, f.spin)
+		f.vane.CFrame = cf * FLY_VANE
+		f.edge.CFrame = cf * FLY_EDGE
+	end
+
+	local starts = {}
+	for i, f in flyers do
+		starts[i] = { pos = f.pos, spin = f.spin }
+	end
+	local clampR: number = cfg.ClampRadius
+	local function clampSpot(i: number, center: Vector3, rot: CFrame): (Vector3, number)
+		local th = (i - 1) * math.pi / 2
+		local dirW = rot:VectorToWorldSpace(Vector3.new(math.cos(th), math.sin(th), 0))
+		local spin = (th + math.pi) - TIP_ANGLE
+		return center + dirW * clampR, spin
+	end
+
+	ctx:Add(VFX.Run(cfg.LockTime - cfg.BloomAt, function(a)
+		local e = Ease.outCubic(a)
+		local center: Vector3 = ctx:Target()
+		local rot = frameAt(hubPos, center)
+		for i, f in flyers do
+			local goal, goalSpin = clampSpot(i, center, rot)
+			local th = (i - 1) * math.pi / 2
+			local swirl = rot:VectorToWorldSpace(Vector3.new(math.cos(th + 1.2), math.sin(th + 1.2), 0))
+			local ctrl = starts[i].pos:Lerp(goal, 0.5) + swirl * 10
+			local q0 = starts[i].pos:Lerp(ctrl, e)
+			local q1 = ctrl:Lerp(goal, e)
+			f.pos = q0:Lerp(q1, e)
+			f.spin = starts[i].spin + (goalSpin + math.pi * 4 - starts[i].spin) * e
+			place(f, rot)
+		end
+	end))
+
+	-- 3. CLAMP: lock at 4 points, aim inward, flashing square frame + aim dots
+	local lockPos: Vector3? = ctx:WaitLock()
+	if not lockPos then
+		return
+	end
+	local target: Vector3 = lockPos
+	local rot = frameAt(hubPos, target)
+	local clampPos = {}
+	local clampSpin = {}
+	for i = 1, 4 do
+		clampPos[i], clampSpin[i] = clampSpot(i, target, rot)
+	end
+	local frame = ctx:Add(VFX.Frame(C))
+	local aimDots = {}
+	for i = 1, 12 do
+		local d = ctx:Add(StudKit.Neon(Vector3.one * 0.35, HOT))
+		d.Parent = VFX.Folder
+		aimDots[i] = d
+	end
+	local clampRun = ctx:Add(VFX.Run(math.huge, function(_, _, t)
+		local blink = if math.floor(t * 18) % 2 == 0 then 0 else 0.7
+		frame:Update(CFrame.new(target) * rot, clampR * 2, 0.3, blink)
+		for i, f in flyers do
+			local pulse = math.sin(t * 40) * 0.12
+			f.pos = clampPos[i] + (clampPos[i] - target).Unit * pulse
+			f.spin = clampSpin[i]
+			place(f, rot)
+		end
+		for k, d in aimDots do
+			local lane = (k - 1) % 4 + 1
+			local step = math.floor((k - 1) / 4)
+			local fr = ((step / 3) + t * 2.5) % 1
+			d.CFrame = CFrame.new(clampPos[lane]:Lerp(target, fr))
+			d.Transparency = blink * 0.5 + fr * 0.4
+		end
+	end))
+	VFX.Light(target, C, 3, 18, cfg.SnapAt - cfg.LockTime)
+
+	-- 4. SNAP: the vanes slam through the middle
+	if not ctx:WaitUntil(cfg.SnapAt) then
+		return
+	end
+	clampRun:Stop()
+	frame:Destroy()
+	for _, d in aimDots do
+		d.Transparency = 1
+	end
+	ctx:Add(VFX.Run(cfg.HitTime - cfg.SnapAt, function(a)
+		local e = Ease.inQuad(a)
+		for i, f in flyers do
+			local through = target + (target - clampPos[i]).Unit * 2.5
+			f.pos = clampPos[i]:Lerp(through, e)
+			place(f, rot)
+		end
+	end))
+	if not ctx:WaitUntil(cfg.HitTime) then
+		return
+	end
+	-- + cross flash
+	for _, axis in { Vector3.xAxis, Vector3.yAxis } do
+		local bar = VFX.Get(HOT)
+		local along = rot:VectorToWorldSpace(axis)
+		VFX.Run(0.4, function(a)
+			local grow = Ease.outExpo(math.min(a / 0.25, 1))
+			local half = (clampR + 4) * grow
+			VFX.SetBar(bar, target - along * half, target + along * half, 0.9 * (1 - a) + 0.05)
+			bar.Transparency = a ^ 1.5
+			if a >= 1 then
+				VFX.Release(bar)
+			end
+		end)
+	end
+	VFX.Impact(target, C, HOT, { Cubes = 46, Colors = { C, HOT, VANE_COLORS[4] } })
+
+	-- 5. RETURN: vanes boomerang home and snap back onto the hub
+	if not ctx:WaitUntil(cfg.ReturnAt) then
+		return
+	end
+	local from = {}
+	for i, f in flyers do
+		from[i] = { pos = f.pos, spin = f.spin }
+	end
+	local backT = cfg.HitTime + cfg.Recover - cfg.ReturnAt
+	ctx:Add(VFX.Run(backT, function(a)
+		local e = Ease.inOutSine(a)
+		local home: CFrame = rig.data.hub or rig.cf
+		for i, f in flyers do
+			local ang = p.spin + (i - 1) * math.pi / 2
+			local goal = home * Vector3.new(math.cos(ang) * CENT.X - math.sin(ang) * CENT.Y, math.sin(ang) * CENT.X + math.cos(ang) * CENT.Y, -0.55)
+			local th = (i - 1) * math.pi / 2
+			local ctrl = from[i].pos:Lerp(goal, 0.5) + rot:VectorToWorldSpace(Vector3.new(math.cos(th - 1.2), math.sin(th - 1.2), 0)) * 8
+			f.pos = from[i].pos:Lerp(ctrl, e):Lerp(ctrl:Lerp(goal, e), e)
+			f.spin = from[i].spin + math.pi * 6 * e
+			place(f, rot)
+		end
+	end))
+	ctx:WaitUntil(cfg.HitTime + cfg.Recover)
+	VFX.Sparkles((rig.data.hub or rig.cf).Position, C, 16, 12)
+end
+
+return Pinwheel
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">Plane</string><ProtectedString name="Source"><![CDATA[--!strict
+-- Plane (Meadow Sky) - signature attack: CREASE CUTTER
+-- Glide -> unfold into a spinning sheet while a lime crease grid draws itself ->
+-- refold into a razor dart -> square sonic rings + speed lines -> the cut splits in two.
+
+local Hazards = script.Parent.Parent
+local StudKit = require(Hazards.StudKit)
+local VFX = require(Hazards.VFX)
+local Ease = VFX.Ease
+
+local Plane = {}
+
+local WHITE = Color3.fromHex("FFFFFF")
+local PAPER = Color3.fromHex("F4F7FF")
+local FOLD = Color3.fromHex("B8C2D4")
+local SMOOTH = Enum.Material.SmoothPlastic
+
+-- sheet-space crease lines (unit square -1..1), like the origami grid on the concept board
+local CREASES = {
+	{ -1, -1, 1, 1 },
+	{ 1, -1, -1, 1 },
+	{ 0, -1, 0, 1 },
+	{ -1, 0, 1, 0 },
+	{ -1, -0.5, 0.5, 1 },
+	{ 0.5, -1, -1, 0.5 },
+}
+
+function Plane.Build(cfg: any): StudKit.Rig
+	local rig = StudKit.Rig("Plane", cfg)
+	local P = StudKit.Part
+	local wedge = { Shape = "Wedge", Material = SMOOTH, Studs = false }
+	rig:Add("WingL", P(Vector3.new(0.08, 2.4, 6.4), WHITE, wedge), CFrame.new(-1.2, 0, 0) * CFrame.Angles(0, 0, math.rad(90)), "paper")
+	rig:Add("WingR", P(Vector3.new(0.08, 2.4, 6.4), WHITE, wedge), CFrame.new(1.2, 0, 0) * CFrame.Angles(0, 0, math.rad(-90)), "paper")
+	rig:Add("KeelL", P(Vector3.new(0.08, 1.0, 6.4), FOLD, wedge), CFrame.new(-0.06, -0.5, 0) * CFrame.Angles(0, 0, math.pi), "paper")
+	rig:Add("KeelR", P(Vector3.new(0.08, 1.0, 6.4), FOLD, wedge), CFrame.new(0.06, -0.5, 0) * CFrame.Angles(0, 0, math.pi), "paper")
+	rig:Add("Crease", StudKit.Neon(Vector3.new(0.14, 0.14, 6.4), cfg.Color), CFrame.new(0, 0.05, 0), "paper")
+	-- leading edges glow only while attacking
+	local edgeLen = math.sqrt(2.4 ^ 2 + 6.4 ^ 2)
+	rig:Add("EdgeL", StudKit.Neon(Vector3.new(0.1, 0.1, edgeLen), cfg.Color), CFrame.lookAt(Vector3.new(-1.2, 0.03, 0), Vector3.new(0, 0.03, -3.2)), "edge")
+	rig:Add("EdgeR", StudKit.Neon(Vector3.new(0.1, 0.1, edgeLen), cfg.Color), CFrame.lookAt(Vector3.new(1.2, 0.03, 0), Vector3.new(0, 0.03, -3.2)), "edge")
+	rig:Fade(1, "edge")
+
+	local light = Instance.new("PointLight")
+	light.Color = cfg.Color
+	light.Brightness = 0.5
+	light.Range = 9
+	light.Parent = rig.parts.Crease.part
+	rig.data.light = light
+
+	Plane.Reset(rig)
+	return rig
+end
+
+function Plane.Reset(rig: StudKit.Rig)
+	rig.pose.sway = 1
+	rig:Fade(0, "paper")
+	rig:Fade(1, "edge")
+	rig.data.light.Brightness = 0.5
+end
+
+function Plane.Animate(rig: StudKit.Rig, _dt: number)
+	local t = rig.t
+	local s = rig.pose.sway
+	local base = rig.cf
+		* CFrame.new(0, math.sin(t * 1.8) * 0.4 * s, 0)
+		* CFrame.Angles(math.sin(t * 1.3) * 0.06 * s, 0, math.sin(t * 1.1) * 0.2 * s)
+	for key in rig.parts do
+		rig:Rest(key, base)
+	end
+	rig:Flush()
+end
+
+-- The cut: a hot slab along the flight line that splits into two drifting halves.
+function Plane.Cut(pos: Vector3, dir: Vector3, up: Vector3, C: Color3, HOT: Color3)
+	local cf = CFrame.lookAt(pos, pos + dir, up)
+	local slab = VFX.Get(HOT)
+	VFX.Run(0.22, function(a)
+		local len = 26 * Ease.outExpo(math.min(a / 0.4, 1))
+		slab.Size = Vector3.new(0.25, 1.4 * (1 - a * 0.5), math.max(len, 0.1))
+		slab.CFrame = cf
+		slab.Transparency = math.max(0, (a - 0.5) / 0.5)
+		if a >= 1 then
+			VFX.Release(slab)
+		end
+	end)
+	task.delay(0.08, function()
+		for _, sgn in { 1, -1 } do
+			local half = VFX.Get(C)
+			VFX.Run(0.6, function(a)
+				local e = Ease.outCubic(a)
+				half.Size = Vector3.new(0.18, 0.55, 26 * (1 - a * 0.2))
+				half.CFrame = cf * CFrame.new(0, sgn * (0.35 + 3 * e), sgn * e * 1.5) * CFrame.Angles(sgn * e * 0.08, 0, sgn * e * 0.12)
+				half.Transparency = a ^ 1.4
+				if a >= 1 then
+					VFX.Release(half)
+				end
+			end)
+		end
+	end)
+end
+
+function Plane.Attack(rig: StudKit.Rig, ctx: any)
+	local cfg = ctx.cfg
+	local C: Color3, HOT: Color3 = cfg.Color, cfg.Hot
+	rig.follow = false
+	local cf0 = rig.cf
+
+	-- 1. GLIDE: straight line, like the spec's paper planes
+	ctx:Add(VFX.Run(cfg.UnfoldAt, function(_, _, t)
+		rig.cf = cf0 * CFrame.new(0, 0, -cfg.MoveSpeed * t)
+	end))
+	if not ctx:WaitUntil(cfg.UnfoldAt) then
+		return
+	end
+
+	-- 2. UNFOLD: a spinning sheet with a lime crease grid drawing itself on
+	local center = rig.cf.Position
+	local sheet = ctx:Add(StudKit.Part(Vector3.new(6, 6, 0.1), PAPER, { Material = SMOOTH, Studs = false }))
+	sheet.Parent = VFX.Folder
+	local creases = {}
+	for i = 1, #CREASES do
+		local bar = ctx:Add(StudKit.Neon(Vector3.one * 0.1, C))
+		bar.Parent = VFX.Folder
+		creases[i] = bar
+	end
+	local state = { scale = 0.2, squash = 1, grow = 0, thick = 0.16, spin = 0, cf = CFrame.new(center) }
+	local function drawSheet()
+		local h = 3 * state.scale
+		sheet.Size = Vector3.new(math.max(6 * state.scale * state.squash, 0.05), 6 * state.scale, 0.1)
+		sheet.CFrame = state.cf
+		for i, d in CREASES do
+			local q0 = state.cf * Vector3.new(d[1] * h * state.squash, d[2] * h, -0.08)
+			local q1 = state.cf * Vector3.new(d[3] * h * state.squash, d[4] * h, -0.08)
+			VFX.SetBar(creases[i], q0, q0:Lerp(q1, state.grow), state.thick)
+		end
+	end
+	VFX.Light(center, C, 3, 16, cfg.LockTime - cfg.UnfoldAt + 0.2)
+	ctx:Add(VFX.Run(cfg.LockTime - cfg.UnfoldAt, function(a)
+		local tpos = ctx:Target()
+		state.scale = 0.2 + 0.8 * Ease.outBack(math.min(a / 0.6, 1))
+		state.spin = a * math.pi * 2
+		state.cf = CFrame.lookAt(center, tpos) * CFrame.Angles(math.sin(a * math.pi) * 0.6, 0, state.spin)
+		state.grow = math.clamp((a - 0.15) / 0.6, 0, 1)
+		rig:Fade(math.min(a / 0.15, 1), "paper")
+		drawSheet()
+	end))
+
+	-- 3. REFOLD: the aim locks, the sheet collapses into a razor dart
+	local lockPos: Vector3? = ctx:WaitLock()
+	if not lockPos then
+		return
+	end
+	local target: Vector3 = lockPos
+	local p0: Vector3 = ctx.launchPos or center -- the server's launch point, so the cut matches its hit line
+	local dir = target - p0
+	dir = if dir.Magnitude > 0.1 then dir.Unit else rig.cf.LookVector
+	local exit = target + dir * cfg.ExitDistance
+	local aim = CFrame.lookAt(p0, p0 + dir)
+	rig.cf = aim
+	rig.pose.sway = 0
+	state.thick = 0.32
+	VFX.Star(p0, HOT, 8, 0.32)
+	VFX.Light(p0, C, 6, 18, 0.3)
+	ctx:Add(VFX.Run(cfg.LaunchAt - cfg.LockTime, function(a)
+		state.squash = 1 - 0.92 * Ease.inQuad(math.min(a / 0.6, 1))
+		state.cf = CFrame.lookAt(p0, target) * CFrame.Angles(0, 0, state.spin)
+		drawSheet()
+		local fadeSheet = math.max(0, (a - 0.5) / 0.5)
+		sheet.Transparency = fadeSheet
+		for _, c in creases do
+			c.Transparency = fadeSheet
+		end
+		local show = 1 - math.clamp((a - 0.3) / 0.4, 0, 1)
+		rig:Fade(show, "paper")
+		rig:Fade(show, "edge")
+	end))
+
+	-- 4. LAUNCH: square sonic rings + stretched speed lines
+	if not ctx:WaitUntil(cfg.LaunchAt) then
+		return
+	end
+	sheet.Transparency = 1
+	for _, c in creases do
+		c.Transparency = 1
+	end
+	rig:Fade(0, "paper")
+	rig:Fade(0, "edge")
+	rig.data.light.Brightness = 3
+	VFX.SquareRing(aim, C, 2.5, 9, 0.4, 0.3)
+	task.delay(0.07, function()
+		VFX.SquareRing(aim * CFrame.Angles(0, 0, math.rad(45)), HOT, 2, 7, 0.25, 0.3)
+	end)
+	local right = dir:Cross(Vector3.yAxis)
+	right = if right.Magnitude > 0.01 then right.Unit else Vector3.xAxis
+	local up = right:Cross(dir).Unit
+	for k, off in { -1.4, -0.6, 0.6, 1.4 } do
+		local bar = VFX.Get(if k % 2 == 0 then C else HOT)
+		local o = right * off + up * (if k % 2 == 0 then 0.5 else -0.5)
+		VFX.Run(0.38, function(a)
+			local head = math.min(a / 0.45, 1)
+			local tail = math.clamp((a - 0.3) / 0.7, 0, 1)
+			VFX.SetBar(bar, (p0 + o):Lerp(exit + o, tail), (p0 + o):Lerp(exit + o, head), 0.12)
+			bar.Transparency = a * a
+			if a >= 1 then
+				VFX.Release(bar)
+			end
+		end)
+	end
+	ctx:Add(VFX.Trail(rig.parts.Crease.part, C, 0.2, 2.4))
+	ctx:Add(VFX.Run(cfg.HitTime - cfg.LaunchAt, function(a)
+		local pos = p0:Lerp(target, Ease.inQuad(a))
+		rig.cf = CFrame.lookAt(pos, pos + dir)
+	end))
+
+	-- 5. CUT
+	if not ctx:WaitUntil(cfg.HitTime) then
+		return
+	end
+	Plane.Cut(target, dir, up, C, HOT)
+	VFX.Impact(target, C, HOT, { Scale = 0.8, Cubes = 20 })
+	VFX.Cubes({ -- paper shreds
+		Pos = target,
+		Count = 26,
+		Colors = { WHITE, PAPER, C },
+		Speed = { 10, 26 },
+		Size = { 0.6, 1.1 },
+		Life = { 0.8, 1.4 },
+		Gravity = -14,
+		Drag = 2.5,
+		Plate = true,
+		Neon = false,
+		Spin = 12,
+	})
+	ctx:Add(VFX.Run(cfg.Recover, function(a)
+		local pos = target:Lerp(exit, Ease.outQuad(a))
+		rig.cf = CFrame.lookAt(pos, pos + dir)
+		rig:Fade(a, "edge")
+	end))
+	ctx:WaitUntil(cfg.HitTime + cfg.Recover)
+end
+
+return Plane
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">Sparrow</string><ProtectedString name="Source"><![CDATA[--!strict
+-- Sparrow (Meadow Sky) - signature attack: CORKSCREW DIVE
+-- Lock-on reticle -> beak glint -> wings tuck -> barrel-roll dive through the balloon,
+-- drilling a helix of yellow Neon cubes and three square drill rings -> hit burst -> pull-through.
+
+local Hazards = script.Parent.Parent
+local StudKit = require(Hazards.StudKit)
+local VFX = require(Hazards.VFX)
+local Ease = VFX.Ease
+
+local Sparrow = {}
+
+local BROWN = Color3.fromHex("C8742A")
+local DARK = Color3.fromHex("8A4A18")
+local CREAM = Color3.fromHex("F2D7A6")
+local INK = Color3.fromHex("141414")
+
+local STATIC = { "Body", "Belly", "Head", "Cap", "Beak", "EyeL", "EyeR", "Tail", "FootL", "FootR" }
+
+function Sparrow.Build(cfg: any): StudKit.Rig
+	local rig = StudKit.Rig("Sparrow", cfg)
+	local P = StudKit.Part
+	rig:Add("Body", P(Vector3.new(2.6, 2.4, 3.4), BROWN), CFrame.new(0, 0, 0))
+	rig:Add("Belly", P(Vector3.new(2.2, 1, 2.6), CREAM), CFrame.new(0, -0.8, -0.2))
+	rig:Add("Head", P(Vector3.new(2.2, 2.2, 2.2), BROWN), CFrame.new(0, 0.9, -2.3))
+	rig:Add("Cap", P(Vector3.new(2.3, 0.5, 2.3), DARK), CFrame.new(0, 2.05, -2.3))
+	rig:Add("Beak", P(Vector3.new(0.9, 0.8, 1.3), cfg.Color, { Shape = "Wedge", Studs = false }), CFrame.new(0, 0.75, -4.05))
+	rig:Add("EyeL", P(Vector3.new(0.12, 0.45, 0.45), INK, { Studs = false }), CFrame.new(-1.12, 1.15, -2.9))
+	rig:Add("EyeR", P(Vector3.new(0.12, 0.45, 0.45), INK, { Studs = false }), CFrame.new(1.12, 1.15, -2.9))
+	rig:Add("Tail", P(Vector3.new(1.8, 0.3, 1.8), DARK), CFrame.new(0, 0.5, 2.4) * CFrame.Angles(math.rad(20), 0, 0))
+	rig:Add("FootL", P(Vector3.new(0.3, 0.7, 0.3), cfg.Deep, { Studs = false }), CFrame.new(-0.6, -1.5, 0.2))
+	rig:Add("FootR", P(Vector3.new(0.3, 0.7, 0.3), cfg.Deep, { Studs = false }), CFrame.new(0.6, -1.5, 0.2))
+	rig:Add("WingL", P(Vector3.new(2.6, 0.3, 1.9), DARK), nil, "wings")
+	rig:Add("WingR", P(Vector3.new(2.6, 0.3, 1.9), DARK), nil, "wings")
+
+	local light = Instance.new("PointLight")
+	light.Color = cfg.Color
+	light.Brightness = 0.6
+	light.Range = 10
+	light.Parent = rig.parts.Body.part
+	rig.data.light = light
+
+	Sparrow.Reset(rig)
+	return rig
+end
+
+function Sparrow.Reset(rig: StudKit.Rig)
+	rig.pose.bob = 1
+	rig.pose.pitch = 0
+	rig.pose.roll = 0
+	rig.pose.tuck = 0
+	rig.data.light.Brightness = 0.6
+end
+
+function Sparrow.Animate(rig: StudKit.Rig, _dt: number)
+	local p = rig.pose
+	local t = rig.t
+	local bob = math.sin(t * 4.2) * p.bob
+	local base = rig.cf * CFrame.new(0, bob * 0.35, 0) * CFrame.Angles(p.pitch + bob * 0.05, 0, p.roll)
+	for _, key in STATIC do
+		rig:Rest(key, base)
+	end
+	local flap = math.sin(t * 20) * 0.75 * (1 - p.tuck)
+	local fold = p.tuck
+	rig:Set("WingL", base * CFrame.new(-1.2, 0.6, -0.3) * CFrame.Angles(0, fold * 0.9, -flap + fold * 0.25) * CFrame.new(-1.3, 0, 0))
+	rig:Set("WingR", base * CFrame.new(1.2, 0.6, -0.3) * CFrame.Angles(0, -fold * 0.9, flap - fold * 0.25) * CFrame.new(1.3, 0, 0))
+	rig:Flush()
+end
+
+function Sparrow.Attack(rig: StudKit.Rig, ctx: any)
+	local cfg = ctx.cfg
+	local C: Color3, HOT: Color3 = cfg.Color, cfg.Hot
+	rig.follow = false
+	local start = rig.cf
+
+	-- 1. LOCK-ON: corner-bracket reticle snaps onto the balloon, a stream of cubes marks the line
+	local reticle = ctx:Add(VFX.Frame(C, true))
+	local dots = {}
+	for i = 1, 10 do
+		dots[i] = ctx:Add(StudKit.Neon(Vector3.one * 0.4, C))
+		dots[i].Parent = VFX.Folder
+	end
+	ctx:Add(VFX.Run(math.huge, function()
+		local t = ctx:Time()
+		local tpos: Vector3, r: number = ctx:Target()
+		local a = math.clamp(t / cfg.LockTime, 0, 1)
+		local e = Ease.outBack(a)
+		local cam = workspace.CurrentCamera
+		local face = if cam then CFrame.lookAt(tpos, cam.CFrame.Position) else CFrame.new(tpos)
+		local size = (r * 2 + 3) * (2.2 - 1.2 * e)
+		local tr = 0
+		if t >= cfg.HitTime then
+			tr = 1
+		elseif ctx.lockPos then
+			tr = if math.floor(t * 16) % 2 == 0 then 0 else 0.65
+		end
+		reticle:Update(face * CFrame.Angles(0, 0, (1 - e) * math.pi / 4), size, 0.35, tr)
+		local from = rig.cf.Position
+		for i, d in dots do
+			local f = ((i - 1) / #dots + t * 1.2) % 1
+			d.CFrame = CFrame.new(from:Lerp(tpos, f)) * CFrame.Angles(t * 3, t * 2, 0)
+			d.Transparency = if t < cfg.DiveStart then 0.25 + 0.6 * f else 1
+		end
+	end))
+	-- rear back while aiming
+	ctx:Add(VFX.Run(cfg.LockTime, function(a)
+		local e = Ease.outQuad(a)
+		rig.cf = start * CFrame.new(0, 1.2 * e, 1.8 * e)
+		rig.data.light.Brightness = 0.6 + 2.5 * a
+	end))
+
+	-- 2. TUCK: beak glint, wings fold, swing onto the locked dive line
+	if not ctx:WaitUntil(cfg.LockTime - 0.08) then
+		return
+	end
+	local beak = rig.parts.Beak.part
+	VFX.Star(beak.Position + rig.cf.LookVector * 0.8, HOT, 4, 0.3)
+	VFX.Light(beak.Position, C, 6, 14, 0.3)
+
+	local lockPos: Vector3? = ctx:WaitLock()
+	if not lockPos then
+		return
+	end
+	local target: Vector3 = lockPos
+	local p0 = rig.cf.Position
+	local dir = target - p0
+	dir = if dir.Magnitude > 0.1 then dir.Unit else rig.cf.LookVector
+	local exit = target + dir * cfg.ExitDistance
+	local tuckFrom = rig.cf
+	local aim = CFrame.lookAt(p0 - dir * 1.5, target)
+	ctx:Add(VFX.Run(cfg.DiveStart - cfg.LockTime, function(a)
+		local e = Ease.inOutSine(a)
+		rig.pose.tuck = e
+		rig.pose.bob = 1 - e
+		rig.cf = tuckFrom:Lerp(aim, e)
+	end))
+
+	-- 3. CORKSCREW: barrel-roll down the line, drilling a helix of cubes + square rings
+	if not ctx:WaitUntil(cfg.DiveStart) then
+		return
+	end
+	local diveFrom = rig.cf.Position
+	ctx:Add(VFX.Trail(rig.parts.WingL.part, C, 0.22, 1.2))
+	ctx:Add(VFX.Trail(rig.parts.WingR.part, HOT, 0.22, 1.2))
+	local right = dir:Cross(Vector3.yAxis)
+	right = if right.Magnitude > 0.01 then right.Unit else Vector3.xAxis
+	local up = right:Cross(dir).Unit
+	local ringsAt = { 0.28, 0.55, 0.8 }
+	local ringI = 1
+	local laid = 0
+	local step = 0.85
+	ctx:Add(VFX.Run(cfg.HitTime - cfg.DiveStart, function(a)
+		local e = a * a
+		local pos = diveFrom:Lerp(target, e)
+		rig.pose.roll = e * math.pi * 6
+		rig.cf = CFrame.lookAt(pos, pos + dir)
+		local dist = (pos - diveFrom).Magnitude
+		while laid < dist do
+			laid += step
+			local ph = laid * 0.95
+			local hp = diveFrom + dir * laid + (right * math.cos(ph) + up * math.sin(ph)) * 1.7
+			local even = math.floor(laid / step) % 2 == 0
+			VFX.Particle(hp, { Color = if even then C else HOT, Size = if even then 0.55 else 0.75, Life = 0.55, Pop = true, Spin = 8 })
+		end
+		while ringsAt[ringI] and e >= ringsAt[ringI] do
+			local rp = diveFrom:Lerp(target, ringsAt[ringI])
+			VFX.SquareRing(CFrame.lookAt(rp, rp + dir) * CFrame.Angles(0, 0, ringI * 0.4), C, 2.5, 8, 0.3, 0.4)
+			ringI += 1
+		end
+	end))
+
+	-- 4. HIT
+	if not ctx:WaitUntil(cfg.HitTime) then
+		return
+	end
+	VFX.Impact(target, C, HOT, { Colors = { C, HOT, Color3.fromHex("FFB000") }, Cubes = 40 })
+	VFX.Cubes({ -- feather studs
+		Pos = target,
+		Count = 10,
+		Colors = { BROWN, DARK, CREAM },
+		Speed = { 6, 14 },
+		Size = { 0.4, 0.7 },
+		Life = { 0.9, 1.4 },
+		Gravity = -26,
+		Drag = 2,
+		Neon = false,
+		Plate = true,
+	})
+
+	-- 5. PULL-THROUGH: carry on past the balloon, roll out and level off
+	ctx:Add(VFX.Run(cfg.Recover, function(a)
+		local e = Ease.outQuad(a)
+		local pos = target:Lerp(exit, e)
+		rig.pose.roll = math.pi * 6 + e * math.pi * 2
+		rig.pose.tuck = 1 - e
+		rig.cf = CFrame.lookAt(pos, pos + dir) * CFrame.Angles(e * 0.5, 0, 0)
+	end))
+	ctx:WaitUntil(cfg.HitTime + cfg.Recover)
+end
+
+return Sparrow
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="Folder" referent="RBX0000000F"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">DemoBalloon</string><ProtectedString name="Source"><![CDATA[--!strict
+-- DemoBalloon: only used when HazardConfig.Demo.Enabled is true.
+-- Gives every character a stud Gumball over their head with 3 HP, applies hazard hits,
+-- pops it into brick confetti at 0 HP and reinflates it after a few seconds.
+-- The real game replaces all of this with FlightService (section 2 of the prompt).
+
+local Players = game:GetService("Players")
+
+local DemoBalloon = {}
+
+local RED = Color3.fromHex("FF3B3B")
+local RED_DARK = Color3.fromHex("D9232F")
+local RED_LIGHT = Color3.fromHex("FF9A9A")
+
+local LAYERS = { 2, 4, 5, 5, 5, 4, 2 } -- stepped "voxel sphere" widths, bottom to top
+
+local function newPart(size: Vector3, color: Color3, name: string): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = Enum.Material.Plastic
+	p.TopSurface = Enum.SurfaceType.Studs
+	p.BottomSurface = Enum.SurfaceType.Inlet
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.Massless = true
+	p.CastShadow = false
+	return p
+end
+
+local function weld(a: BasePart, b: BasePart)
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = a
+	w.Part1 = b
+	w.Parent = b
+end
+
+local function buildHP(body: BasePart, maxHP: number): BillboardGui
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "HP"
+	gui.Size = UDim2.fromOffset(34 * maxHP, 30)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 5.5, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Padding = UDim.new(0, 6)
+	layout.Parent = gui
+	for i = 1, maxHP do
+		local pip = Instance.new("Frame")
+		pip.Name = "Pip" .. i
+		pip.Size = UDim2.fromOffset(24, 24)
+		pip.BackgroundColor3 = RED
+		pip.LayoutOrder = i
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 5)
+		corner.Parent = pip
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Color = Color3.fromRGB(26, 16, 48)
+		stroke.Parent = pip
+		pip.Parent = gui
+	end
+	gui.Parent = body
+	return gui
+end
+
+local function refreshHP(player: Player)
+	local character = player.Character
+	local balloon = character and character:FindFirstChild("Balloon")
+	local body = balloon and balloon:FindFirstChild("Body")
+	local gui = body and body:FindFirstChild("HP")
+	if not gui then
+		return
+	end
+	local hp = (player:GetAttribute("BalloonHP") :: number?) or 0
+	for _, child in gui:GetChildren() do
+		if child:IsA("Frame") then
+			child.BackgroundColor3 = if child.LayoutOrder <= hp then RED else Color3.fromRGB(42, 36, 64)
+		end
+	end
+end
+
+local function build(character: Model, cfg: any)
+	local hrp = character:WaitForChild("HumanoidRootPart", 10) :: BasePart?
+	if not hrp then
+		return
+	end
+	local old = character:FindFirstChild("Balloon")
+	if old then
+		old:Destroy()
+	end
+	local oldString = character:FindFirstChild("BalloonString")
+	if oldString then
+		oldString:Destroy()
+	end
+
+	local model = Instance.new("Model")
+	model.Name = "Balloon"
+	local center = hrp.CFrame * CFrame.new(0, cfg.Demo.BalloonHeight, 0)
+	local mid = (#LAYERS + 1) / 2
+	local body: Part? = nil
+	for i, w in LAYERS do
+		local color = if i == 1 or i == #LAYERS then RED_DARK else RED
+		local layer = newPart(Vector3.new(w, 1, w), color, if i == mid then "Body" else "Layer" .. i)
+		layer.CFrame = center * CFrame.new(0, i - mid, 0)
+		layer.Parent = model
+		weld(hrp, layer)
+		if layer.Name == "Body" then
+			body = layer
+		end
+	end
+	local shine = newPart(Vector3.new(1, 2, 1), RED_LIGHT, "Shine")
+	shine.CFrame = center * CFrame.new(-1.6, 1, -1.6)
+	shine.Parent = model
+	weld(hrp, shine)
+	local knot = Instance.new("WedgePart")
+	knot.Name = "Knot"
+	knot.Size = Vector3.new(0.8, 0.8, 0.8)
+	knot.Color = RED_DARK
+	knot.CanCollide = false
+	knot.CanTouch = false
+	knot.CanQuery = false
+	knot.Massless = true
+	knot.CFrame = center * CFrame.new(0, -mid - 0.1, 0) * CFrame.Angles(math.pi, 0, 0)
+	knot.Parent = model
+	weld(hrp, knot)
+	model.PrimaryPart = body
+	model.Parent = character
+
+	local stringLen = cfg.Demo.BalloonHeight - mid - 1
+	local str = newPart(Vector3.new(0.1, stringLen, 0.1), Color3.fromHex("F4F6FF"), "BalloonString")
+	str.TopSurface = Enum.SurfaceType.Smooth
+	str.BottomSurface = Enum.SurfaceType.Smooth
+	str.CFrame = hrp.CFrame * CFrame.new(0, 1 + stringLen / 2, 0)
+	str.Parent = character
+	weld(hrp, str)
+
+	if body then
+		buildHP(body, cfg.Demo.BalloonHP)
+	end
+end
+
+function DemoBalloon.Start(cfg: any, _target: any, service: any, remote: RemoteEvent)
+	local popping: { [Player]: boolean } = {}
+
+	local function setup(player: Player)
+		player:SetAttribute("BalloonHP", cfg.Demo.BalloonHP)
+		player.CharacterAdded:Connect(function(character)
+			popping[player] = nil
+			player:SetAttribute("BalloonHP", cfg.Demo.BalloonHP)
+			build(character, cfg)
+			refreshHP(player)
+		end)
+		if player.Character then
+			build(player.Character, cfg)
+		end
+	end
+	for _, player in Players:GetPlayers() do
+		task.spawn(setup, player)
+	end
+	Players.PlayerAdded:Connect(setup)
+	Players.PlayerRemoving:Connect(function(player)
+		popping[player] = nil
+	end)
+
+	service.Hit.Event:Connect(function(player: Player, damage: number)
+		if popping[player] then
+			return
+		end
+		local hp = math.max(0, ((player:GetAttribute("BalloonHP") :: number?) or 0) - damage)
+		player:SetAttribute("BalloonHP", hp)
+		refreshHP(player)
+		if hp > 0 then
+			return
+		end
+		-- POP: brick confetti on every client, then reinflate
+		popping[player] = true
+		local character = player.Character
+		local balloon = character and character:FindFirstChild("Balloon") :: Model?
+		if balloon and balloon.PrimaryPart then
+			remote:FireAllClients("Pop", player.UserId, balloon.PrimaryPart.Position, RED)
+			balloon:Destroy()
+			local str = character and character:FindFirstChild("BalloonString")
+			if str then
+				str:Destroy()
+			end
+		end
+		task.delay(cfg.Demo.RespawnDelay, function()
+			if player.Parent ~= Players then
+				return
+			end
+			popping[player] = nil
+			player:SetAttribute("BalloonHP", cfg.Demo.BalloonHP)
+			if player.Character then
+				build(player.Character, cfg)
+				refreshHP(player)
+			end
+		end)
+	end)
+end
+
+return DemoBalloon
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--!strict
+-- HazardService: server-authoritative hazards for Meadow Sky and Cloud Shelf.
+--
+-- The server owns each hazard as an invisible anchored root Part in workspace.Hazards
+-- (attributes Kind, HazardId). It decides movement, when to attack, the locked aim point
+-- and every hit. Clients only draw: they build the stud model and play the attack from
+-- the "Begin" / "Lock" / "Hit" messages on the HazardFX RemoteEvent. No client->server
+-- remote exists, so nothing here trusts the client.
+--
+-- Hook it to the balloon system:
+--   HazardService.Hit.Event:Connect(function(player, damage, kind, hazardId)
+--       FlightService.DamageBalloon(player, damage) -- apply fragility, pop, etc.
+--   end)
+--   Target.Resolver = function(player) return FlightService.GetBalloonPosition(player) end
+--   HazardService.IsFlying = function(player) return FlightService.IsFlying(player) end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local HazardService = {}
+
+HazardService.Hit = Instance.new("BindableEvent") -- (player, damage, kind, hazardId)
+
+-- Who can be hunted. Default: anyone whose balloon the Target resolver can find.
+HazardService.IsFlying = function(_player: Player): boolean
+	return true
+end
+
+type Hazard = {
+	id: number,
+	kind: string,
+	cfg: any,
+	root: BasePart,
+	target: Player,
+	state: string, -- "Approach" | "Attack" | "Leave"
+	cooldownUntil: number,
+	orbit: number,
+	lastTarget: Vector3,
+	attackToken: number,
+	attackStart: number,
+	leaveAt: number?,
+}
+
+local Config: any
+local Target: any
+local Remote: RemoteEvent
+local Folder: Folder
+local hazards: { [number]: Hazard } = {}
+local nextId = 0
+local demoCycle: { [Player]: number } = {}
+local started = false
+
+--------------------------------------------------------------------------------
+-- helpers
+
+local function count(player: Player): number
+	local n = 0
+	for _, h in hazards do
+		if h.target == player and h.state ~= "Leave" then
+			n += 1
+		end
+	end
+	return n
+end
+
+local function heightOf(pos: Vector3): number
+	return pos.Y - Config.GroundY
+end
+
+local function pickKind(player: Player, pos: Vector3): string?
+	if Config.Demo.Enabled then
+		local kinds = Config.Demo.Kinds
+		local i = (demoCycle[player] or 0) % #kinds + 1
+		demoCycle[player] = i
+		return kinds[i]
+	end
+	local h = heightOf(pos)
+	local total = 0
+	local pool = {}
+	for kind, cfg in Config.Types do
+		if h >= cfg.MinHeight and h <= cfg.MaxHeight then
+			total += cfg.Weight
+			table.insert(pool, { kind = kind, w = cfg.Weight })
+		end
+	end
+	if total <= 0 then
+		return nil
+	end
+	local roll = math.random() * total
+	for _, e in pool do
+		roll -= e.w
+		if roll <= 0 then
+			return e.kind
+		end
+	end
+	return pool[#pool].kind
+end
+
+local function distToSegment(p: Vector3, a: Vector3, b: Vector3): number
+	local ab = b - a
+	local len2 = ab:Dot(ab)
+	if len2 < 1e-6 then
+		return (p - a).Magnitude
+	end
+	local t = math.clamp((p - a):Dot(ab) / len2, 0, 1)
+	return (p - (a + ab * t)).Magnitude
+end
+
+local function faceTowards(pos: Vector3, look: Vector3, fallback: CFrame): CFrame
+	local d = look - pos
+	if d.Magnitude < 0.05 then
+		return CFrame.new(pos) * fallback.Rotation
+	end
+	return CFrame.lookAt(pos, look)
+end
+
+local function flatLook(pos: Vector3, look: Vector3, fallback: CFrame): CFrame
+	local flat = Vector3.new(look.X, pos.Y, look.Z)
+	if (flat - pos).Magnitude < 0.5 then
+		return CFrame.new(pos) * fallback.Rotation
+	end
+	return CFrame.lookAt(pos, flat)
+end
+
+--------------------------------------------------------------------------------
+-- spawning / despawning
+
+function HazardService.Spawn(kind: string, player: Player, position: Vector3): number?
+	local cfg = Config.Types[kind]
+	if not cfg then
+		warn("[HazardService] unknown hazard kind", kind)
+		return nil
+	end
+	nextId += 1
+	local root = Instance.new("Part")
+	root.Name = kind .. "_" .. nextId
+	root.Size = Vector3.new(3, 3, 3)
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide = false
+	root.CanTouch = false
+	root.CanQuery = false
+	root.CastShadow = false
+	root:SetAttribute("Kind", kind)
+	root:SetAttribute("HazardId", nextId)
+	root.CFrame = CFrame.new(position)
+	root.Parent = Folder
+	local pos = Target.GetBalloon(player) or position
+	hazards[nextId] = {
+		id = nextId,
+		kind = kind,
+		cfg = cfg,
+		root = root,
+		target = player,
+		state = "Approach",
+		cooldownUntil = os.clock() + 1.5,
+		orbit = math.random() * math.pi * 2,
+		lastTarget = pos,
+		attackToken = 0,
+		attackStart = 0,
+	}
+	return nextId
+end
+
+function HazardService.Despawn(id: number)
+	local h = hazards[id]
+	if h then
+		hazards[id] = nil
+		h.root:Destroy()
+	end
+end
+
+local function leave(h: Hazard)
+	if h.state == "Leave" then
+		return
+	end
+	h.state = "Leave"
+	h.attackToken += 1
+	h.leaveAt = os.clock() + 2.5
+end
+
+local function spawnFor(player: Player)
+	if count(player) >= Config.Global.MaxPerPlayer then
+		return
+	end
+	local pos = Target.GetBalloon(player)
+	if not pos then
+		return
+	end
+	local kind = pickKind(player, pos)
+	if not kind then
+		return
+	end
+	local cfg = Config.Types[kind]
+	local ang = math.random() * math.pi * 2
+	local dist = if Config.Demo.Enabled then 45 else Config.Global.SpawnRadius
+	local spawnPos = pos + Vector3.new(math.cos(ang) * dist, cfg.OrbitHeight + math.random(0, 10), math.sin(ang) * dist)
+	HazardService.Spawn(kind, player, spawnPos)
+end
+
+--------------------------------------------------------------------------------
+-- attacks
+
+local function hitTest(h: Hazard, lockPos: Vector3, launchPos: Vector3, balloonPos: Vector3, balloonRadius: number): boolean
+	local cfg = h.cfg
+	local reach = cfg.HitRadius + balloonRadius * 0.6
+	if cfg.HitShape == "Line" then
+		local dir = lockPos - launchPos
+		dir = if dir.Magnitude > 0.1 then dir.Unit else h.root.CFrame.LookVector
+		return distToSegment(balloonPos, launchPos, lockPos + dir * cfg.ExitDistance) <= reach
+	elseif cfg.HitShape == "Column" then
+		local top = h.root.Position.Y
+		local flat = Vector3.new(balloonPos.X - lockPos.X, 0, balloonPos.Z - lockPos.Z).Magnitude
+		return flat <= reach and balloonPos.Y <= top and balloonPos.Y >= top - cfg.ColumnDepth
+	end
+	return (balloonPos - lockPos).Magnitude <= reach
+end
+
+local function beginAttack(h: Hazard)
+	h.state = "Attack"
+	h.attackToken += 1
+	local token = h.attackToken
+	local cfg = h.cfg
+	h.attackStart = os.clock()
+	Remote:FireAllClients("Begin", h.id, h.target.UserId, workspace:GetServerTimeNow())
+
+	-- the Plane glides straight ahead before it unfolds; move the root with it so the
+	-- server's cut line starts exactly where the client's dart launches
+	if cfg.UnfoldAt then
+		task.spawn(function()
+			local look = h.root.CFrame
+			local t = 0
+			while t < cfg.UnfoldAt and h.attackToken == token and hazards[h.id] do
+				t = math.min(t + RunService.Heartbeat:Wait(), cfg.UnfoldAt)
+				h.root.CFrame = look * CFrame.new(0, 0, -cfg.MoveSpeed * t)
+			end
+		end)
+	end
+
+	task.spawn(function()
+		task.wait(cfg.LockTime)
+		if h.attackToken ~= token or not hazards[h.id] then
+			return
+		end
+		local lockPos = Target.GetBalloon(h.target) or h.lastTarget
+		local launchPos = h.root.Position
+		Remote:FireAllClients("Lock", h.id, lockPos, launchPos)
+
+		task.wait(cfg.HitTime - cfg.LockTime)
+		if h.attackToken ~= token or not hazards[h.id] then
+			return
+		end
+		-- any flying balloon caught in the attack takes the hit (bigger balloons are easier to hit)
+		for _, player in Players:GetPlayers() do
+			if HazardService.IsFlying(player) then
+				local bpos, brad = Target.GetBalloon(player)
+				if bpos and hitTest(h, lockPos, launchPos, bpos, brad or 2) then
+					Remote:FireAllClients("Hit", h.id, player.UserId, cfg.Damage)
+					HazardService.Hit:Fire(player, cfg.Damage, h.kind, h.id)
+				end
+			end
+		end
+
+		-- dives and cuts carry the hazard through the target; the client matches this path
+		if cfg.ExitDistance > 0 then
+			local dir = lockPos - launchPos
+			dir = if dir.Magnitude > 0.1 then dir.Unit else h.root.CFrame.LookVector
+			local exit = lockPos + dir * cfg.ExitDistance
+			h.root.CFrame = CFrame.lookAt(exit, exit + dir)
+		end
+
+		task.wait(cfg.Recover)
+		if h.attackToken ~= token or not hazards[h.id] then
+			return
+		end
+		h.state = "Approach"
+		h.cooldownUntil = os.clock() + cfg.Cooldown
+	end)
+end
+
+-- Rider swatter: knocks a hazard away and cancels its attack if it hasn't hit yet.
+-- Call from RiderService after validating the swing. Returns true if it connected.
+function HazardService.Swat(player: Player, id: number): boolean
+	local h = hazards[id]
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not h or not hrp or h.state == "Leave" then
+		return false
+	end
+	if (hrp.Position - h.root.Position).Magnitude > Config.Global.SwatRange + 4 then
+		return false
+	end
+	local cancelled = h.state == "Attack" and os.clock() - h.attackStart < h.cfg.HitTime - 0.1
+	if h.state == "Attack" and not cancelled then
+		return false
+	end
+	h.attackToken += 1
+	h.state = "Approach"
+	h.cooldownUntil = os.clock() + h.cfg.Cooldown
+	local away = h.root.Position - hrp.Position
+	away = if away.Magnitude > 0.1 then away.Unit else Vector3.yAxis
+	h.root.CFrame = h.root.CFrame + away * 10
+	Remote:FireAllClients("Cancel", h.id)
+	return true
+end
+
+--------------------------------------------------------------------------------
+-- AI tick
+
+local function tick(dt: number)
+	local now = os.clock()
+	for id, h in hazards do
+		local root = h.root
+		if not root.Parent then
+			hazards[id] = nil
+			continue
+		end
+		if h.state == "Leave" then
+			root.CFrame = root.CFrame + Vector3.new(0, 18 * dt, 0) + root.CFrame.LookVector * 20 * dt
+			if h.leaveAt and now >= h.leaveAt then
+				HazardService.Despawn(id)
+			end
+			continue
+		end
+
+		local target = h.target
+		local tpos = if target.Parent == Players and HazardService.IsFlying(target) then Target.GetBalloon(target) else nil
+		if not tpos then
+			leave(h)
+			continue
+		end
+		h.lastTarget = tpos
+		local cfg = h.cfg
+
+		if (tpos - root.Position).Magnitude > Config.Global.DespawnDistance then
+			leave(h)
+			continue
+		end
+		if not Config.Demo.Enabled then
+			local height = heightOf(tpos)
+			if height < cfg.MinHeight - 60 or height > cfg.MaxHeight + 120 then
+				leave(h)
+				continue
+			end
+		end
+
+		if h.state == "Approach" then
+			h.orbit += cfg.OrbitSpeed * dt
+			local desired = tpos + Vector3.new(math.cos(h.orbit) * cfg.OrbitRadius, cfg.OrbitHeight, math.sin(h.orbit) * cfg.OrbitRadius)
+			local pos = root.Position
+			local delta = desired - pos
+			local step = math.min(delta.Magnitude, cfg.MoveSpeed * dt)
+			if delta.Magnitude > 0.01 then
+				pos += delta.Unit * step
+			end
+			if h.kind == "Nimbo" then
+				root.CFrame = flatLook(pos, tpos, root.CFrame)
+			elseif h.kind == "Plane" then
+				-- planes look where they're going until they're lined up
+				local ahead = if delta.Magnitude > 2 then desired else tpos
+				root.CFrame = faceTowards(pos, ahead, root.CFrame)
+			else
+				root.CFrame = faceTowards(pos, tpos, root.CFrame)
+			end
+			if now >= h.cooldownUntil and (desired - pos).Magnitude < 8 and (tpos - pos).Magnitude <= cfg.AttackRange then
+				if h.kind == "Plane" then
+					root.CFrame = faceTowards(pos, tpos, root.CFrame)
+				end
+				beginAttack(h)
+			end
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- start
+
+export type StartOptions = {
+	Shared: Instance, -- the folder holding Config/ and Hazards/
+	RemoteParent: Instance, -- where the HazardFX RemoteEvent lives
+	Demo: boolean?,
+}
+
+function HazardService.Start(opts: StartOptions)
+	assert(RunService:IsServer(), "HazardService runs on the server")
+	if started then
+		return
+	end
+	started = true
+	Config = require((opts.Shared :: any).Config.HazardConfig) :: any
+	Target = require((opts.Shared :: any).Hazards.Target) :: any
+	if opts.Demo ~= nil then
+		Config.Demo.Enabled = opts.Demo
+	end
+
+	local remote = opts.RemoteParent:FindFirstChild("HazardFX") :: RemoteEvent?
+	if not remote then
+		local created = Instance.new("RemoteEvent")
+		created.Name = "HazardFX"
+		created.Parent = opts.RemoteParent
+		remote = created
+	end
+	Remote = remote :: RemoteEvent
+
+	local folder = workspace:FindFirstChild("Hazards") :: Folder?
+	if not folder then
+		local created = Instance.new("Folder")
+		created.Name = "Hazards"
+		created.Parent = workspace
+		folder = created
+	end
+	Folder = folder :: Folder
+
+	if Config.Demo.Enabled then
+		local DemoBalloon = require(script.Parent.DemoBalloon)
+		DemoBalloon.Start(Config, Target, HazardService, Remote)
+	end
+
+	Players.PlayerRemoving:Connect(function(player)
+		demoCycle[player] = nil
+		for _, h in hazards do
+			if h.target == player then
+				leave(h)
+			end
+		end
+	end)
+
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		local rate = Config.Global.TickRate
+		if acc >= rate then
+			tick(acc)
+			acc = 0
+		end
+	end)
+
+	task.spawn(function()
+		while true do
+			task.wait(Config.Global.SpawnInterval)
+			for _, player in Players:GetPlayers() do
+				if HazardService.IsFlying(player) then
+					spawnFor(player)
+				end
+			end
+		end
+	end)
+end
+
+return HazardService
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000012"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">HazardFXController</string><ProtectedString name="Source"><![CDATA[--!strict
+-- HazardFXController: builds a stud model for every hazard root the server creates,
+-- animates it every frame, and plays attacks in sync with the server's messages:
+--   "Begin"(id, targetUserId, serverTime)   attack starts (all clients, synced by server time)
+--   "Lock"(id, lockPos, launchPos)          aim point locked, dodge window starts
+--   "Hit"(id, userId, damage)               a balloon got hit (damage number + extra shake for you)
+--   "Cancel"(id)                            a rider swatted it mid-attack
+--   "Pop"(userId, pos, color)               demo balloon popped into brick confetti
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local HazardFXController = {}
+
+local LocalPlayer = Players.LocalPlayer
+
+local Config: any
+local Target: any
+local VFX: any
+local Visuals: { [string]: any } = {}
+local rigs: { [number]: any } = {}
+local folder: Folder
+
+--------------------------------------------------------------------------------
+-- Attack context: timing, target tracking and cleanup for one attack
+
+local Ctx = {}
+Ctx.__index = Ctx
+
+function Ctx.new(rig: any, player: Player?, serverT0: number)
+	local elapsed = math.max(0, workspace:GetServerTimeNow() - serverT0)
+	local self = setmetatable({
+		rig = rig,
+		cfg = rig.cfg,
+		player = player,
+		start = os.clock() - elapsed,
+		items = {},
+		cancelled = false,
+		finished = false,
+		lockPos = nil :: Vector3?,
+		launchPos = nil :: Vector3?,
+		lastTarget = nil :: Vector3?,
+		radius = 2.5,
+	}, Ctx)
+	return self
+end
+
+function Ctx.Time(self: any): number
+	return os.clock() - self.start
+end
+
+-- Yields until `t` seconds into the attack. Returns false if the attack was cancelled.
+function Ctx.WaitUntil(self: any, t: number): boolean
+	while not self.cancelled and self:Time() < t do
+		RunService.Heartbeat:Wait()
+	end
+	return not self.cancelled
+end
+
+-- The balloon position: live until the server locks it, then the locked point.
+function Ctx.Target(self: any): (Vector3, number)
+	if self.lockPos then
+		return self.lockPos, self.radius
+	end
+	local pos, radius = Target.GetBalloon(self.player)
+	if pos then
+		self.lastTarget = pos
+		self.radius = radius or self.radius
+	end
+	local fallback = self.rig.cf.Position + self.rig.cf.LookVector * 20
+	return self.lastTarget or fallback, self.radius
+end
+
+-- Waits for the server's lock (with a small grace period), then returns the locked point.
+function Ctx.WaitLock(self: any): Vector3?
+	local deadline = self.cfg.LockTime + 0.35
+	while not self.cancelled and not self.lockPos and self:Time() < deadline do
+		RunService.Heartbeat:Wait()
+	end
+	if self.cancelled then
+		return nil
+	end
+	if not self.lockPos then
+		self.lockPos = (self:Target())
+	end
+	return self.lockPos
+end
+
+function Ctx.Add(self: any, item: any): any
+	table.insert(self.items, item)
+	return item
+end
+
+function Ctx.Cleanup(self: any)
+	for _, item in self.items do
+		if typeof(item) == "Instance" then
+			item:Destroy()
+		elseif type(item) == "function" then
+			item()
+		elseif type(item) == "table" then
+			if item.Stop then
+				item:Stop()
+			elseif item.Destroy then
+				item:Destroy()
+			end
+		end
+	end
+	table.clear(self.items)
+end
+
+function Ctx.Cancel(self: any)
+	if self.cancelled then
+		return
+	end
+	self.cancelled = true
+	self:Cleanup()
+end
+
+--------------------------------------------------------------------------------
+
+local function finish(rig: any, ctx: any)
+	ctx:Cleanup()
+	if rig.ctx == ctx then
+		rig.ctx = nil
+		rig.follow = true
+		local visual = Visuals[rig.kind]
+		if visual and visual.Reset then
+			visual.Reset(rig)
+		end
+	end
+end
+
+local function addRig(root: Instance)
+	if not root:IsA("BasePart") then
+		return
+	end
+	local kind = root:GetAttribute("Kind")
+	local id = root:GetAttribute("HazardId")
+	if type(kind) ~= "string" then
+		return
+	end
+	local visual = Visuals[kind]
+	local cfg = Config.Types[kind]
+	if not visual or not cfg or type(id) ~= "number" then
+		return
+	end
+	local rig = visual.Build(cfg)
+	rig.root = root
+	rig.cf = root.CFrame
+	rig.data.parent = folder
+	rig.model.Parent = folder
+	rigs[id] = rig
+	visual.Animate(rig, 0)
+	-- arrival poof
+	VFX.Cubes({ Pos = root.Position, Count = 14, Colors = { cfg.Color, cfg.Hot }, Speed = { 6, 14 }, Size = { 0.3, 0.6 }, Life = { 0.3, 0.6 }, Drag = 3, Neon = true })
+end
+
+local function removeRig(id: number)
+	local rig = rigs[id]
+	if not rig then
+		return
+	end
+	rigs[id] = nil
+	if rig.ctx then
+		rig.ctx:Cancel()
+	end
+	VFX.Cubes({ Pos = rig.cf.Position, Count = 12, Colors = { rig.cfg.Color, rig.cfg.Hot }, Speed = { 5, 12 }, Size = { 0.3, 0.6 }, Life = { 0.3, 0.6 }, Drag = 3, Neon = true })
+	rig:Destroy()
+end
+
+local function onMessage(kind: string, ...: any)
+	local args = { ... }
+	if kind == "Begin" then
+		local id, userId, serverT0 = args[1], args[2], args[3]
+		local rig = rigs[id]
+		if not rig then
+			return
+		end
+		if rig.ctx then
+			rig.ctx:Cancel()
+		end
+		local ctx = Ctx.new(rig, Players:GetPlayerByUserId(userId), serverT0)
+		rig.ctx = ctx
+		local visual = Visuals[rig.kind]
+		task.spawn(function()
+			local ok, err = pcall(visual.Attack, rig, ctx)
+			if not ok then
+				warn("[HazardFX] " .. rig.kind .. " attack error: " .. tostring(err))
+			end
+			finish(rig, ctx)
+		end)
+	elseif kind == "Lock" then
+		local rig = rigs[args[1]]
+		if rig and rig.ctx then
+			rig.ctx.lockPos = args[2]
+			rig.ctx.launchPos = args[3]
+		end
+	elseif kind == "Cancel" then
+		local rig = rigs[args[1]]
+		if rig and rig.ctx then
+			local ctx = rig.ctx
+			ctx:Cancel()
+			finish(rig, ctx)
+			-- knocked away: a dizzy cube puff and a spin
+			VFX.Cubes({ Pos = rig.cf.Position, Count = 18, Colors = { rig.cfg.Color, Color3.new(1, 1, 1) }, Speed = { 8, 16 }, Size = { 0.3, 0.6 }, Life = { 0.3, 0.6 }, Drag = 3, Neon = true })
+			VFX.Star(rig.cf.Position, rig.cfg.Hot, 5, 0.3)
+		end
+	elseif kind == "Hit" then
+		local id, userId, damage = args[1], args[2], args[3]
+		local rig = rigs[id]
+		local player = Players:GetPlayerByUserId(userId)
+		local pos = player and Target.GetBalloon(player)
+		if pos then
+			local color = if rig then rig.cfg.Hot else Color3.new(1, 1, 1)
+			VFX.Popup(pos + Vector3.new(2.5, 2, 0), "-" .. tostring(damage), color)
+		end
+		if player == LocalPlayer then
+			VFX.Shake(nil, 0.55)
+			if rig then
+				VFX.Tint(rig.cfg.Color, 0.45, 0.4)
+			end
+		end
+	elseif kind == "Pop" then
+		local pos: Vector3, color: Color3 = args[2], args[3]
+		VFX.Flash(pos, Color3.new(1, 1, 1), 9, 0.35)
+		VFX.Cubes({ -- brick confetti: studded plates that tumble down
+			Pos = pos,
+			Count = 60,
+			Colors = { color, Color3.fromHex("D9232F"), Color3.fromHex("FF9A9A"), Color3.new(1, 1, 1) },
+			Speed = { 14, 34 },
+			Size = { 0.7, 1.3 },
+			Life = { 1.2, 2 },
+			Gravity = -45,
+			Drag = 1.2,
+			Neon = false,
+			Plate = true,
+			Shrink = false,
+			Spin = 14,
+		})
+		VFX.SquareRing(CFrame.new(pos) * CFrame.Angles(math.pi / 2, 0, 0), color, 2, 22, 0.7, 0.5)
+		VFX.Sparkles(pos, color, 40, 34)
+		VFX.Light(pos, color, 12, 34, 0.5)
+		VFX.Shake(pos, 0.9)
+		if args[1] == LocalPlayer.UserId then
+			VFX.Popup(pos + Vector3.new(0, 3, 0), "POP!", Color3.new(1, 1, 1))
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+
+export type StartOptions = {
+	Shared: Instance,
+	RemoteParent: Instance,
+}
+
+function HazardFXController.Start(opts: StartOptions)
+	local shared = opts.Shared
+	local hazardsFolder = shared:WaitForChild("Hazards")
+	Config = require(shared:WaitForChild("Config"):WaitForChild("HazardConfig") :: ModuleScript) :: any
+	Target = require(hazardsFolder:WaitForChild("Target") :: ModuleScript) :: any
+	VFX = require(hazardsFolder:WaitForChild("VFX") :: ModuleScript) :: any
+	local visualsFolder = hazardsFolder:WaitForChild("Visuals")
+	for kind in Config.Types do
+		Visuals[kind] = require(visualsFolder:WaitForChild(kind) :: ModuleScript) :: any
+	end
+
+	local existing = workspace:FindFirstChild("HazardVisuals")
+	if existing then
+		existing:Destroy()
+	end
+	folder = Instance.new("Folder")
+	folder.Name = "HazardVisuals"
+	folder.Parent = workspace
+	local fx = Instance.new("Folder")
+	fx.Name = "FX"
+	fx.Parent = folder
+	VFX.Folder = fx
+	VFX.ShakeDistance = Config.Global.ShakeDistance
+	VFX.BindCamera()
+
+	local remote = opts.RemoteParent:WaitForChild("HazardFX") :: RemoteEvent
+	remote.OnClientEvent:Connect(onMessage)
+
+	local hazards = workspace:WaitForChild("Hazards")
+	for _, child in hazards:GetChildren() do
+		addRig(child)
+	end
+	hazards.ChildAdded:Connect(addRig)
+	hazards.ChildRemoved:Connect(function(child)
+		local id = child:GetAttribute("HazardId")
+		if type(id) == "number" then
+			removeRig(id)
+		end
+	end)
+
+	local visibleDist = Config.Global.VisibleDistance
+	RunService.RenderStepped:Connect(function(dt)
+		VFX.Step(dt)
+		local cam = workspace.CurrentCamera
+		local camPos = if cam then cam.CFrame.Position else Vector3.zero
+		for _, rig in rigs do
+			local root = rig.root
+			if rig.follow and root then
+				rig.cf = rig.cf:Lerp(root.CFrame, 1 - math.exp(-10 * dt))
+			end
+			rig.t += dt
+			local near = (rig.cf.Position - camPos).Magnitude <= visibleDist
+			rig:Show(near or rig.ctx ~= nil)
+			if rig.visible then
+				Visuals[rig.kind].Animate(rig, dt)
+			end
+		end
+	end)
+end
+
+return HazardFXController
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000011"><Properties><string name="Name">Run</string><bool name="Disabled">true</bool><token name="RunContext">2</token><ProtectedString name="Source"><![CDATA[-- Client runner for the hazard pack (enabled by the pack's Start script).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+require(script.Parent:WaitForChild("HazardFXController")).Start({
+	Shared = ReplicatedStorage:WaitForChild("HazardShared"),
+	RemoteParent = ReplicatedStorage,
+})
+]]></ProtectedString></Properties></Item></Item><Item class="Script" referent="RBX00000013"><Properties><string name="Name">Start</string><bool name="Disabled">false</bool><token name="RunContext">1</token><ProtectedString name="Source"><![CDATA[-- 1+ Ballon Pop hazard pack: installs itself on Play and starts the hazards.
+-- Set DEMO = false once FlightService gives players real balloons.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local DEMO = true
+
+local pack = script.Parent
+local shared = pack:WaitForChild("Shared")
+shared.Name = "HazardShared"
+shared.Parent = ReplicatedStorage
+
+local server = pack:WaitForChild("Server")
+server.Name = "HazardServer"
+server.Parent = ServerScriptService
+
+local client = pack:WaitForChild("Client")
+client.Name = "HazardClient"
+client.Parent = ReplicatedStorage
+local run = client:WaitForChild("Run") :: Script
+run.Enabled = true
+
+require(server:WaitForChild("HazardService")).Start({
+	Shared = shared,
+	RemoteParent = ReplicatedStorage,
+	Demo = DEMO,
+})
+]]></ProtectedString></Properties></Item></Item></roblox>
