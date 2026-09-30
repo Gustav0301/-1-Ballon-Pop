@@ -2,10 +2,26 @@
 
 Roblox game by Gustav. You hold a stud balloon that grows every second and lifts you, you earn coins while you fly, and you land on a sky island to bank them before hazards pop you. The full design is in `docs/GAME_PROMPT.md` (v3.5). Read it before designing anything new.
 
+## The three most important rules
+
+1. **Ask questions BEFORE building.** Before starting anything new (a feature, a model, a map piece, a menu), ask Gustav about the choices that are his to make. Give your recommendation with each question, and number the questions so he can answer them one by one. Only then build. If something comes up halfway, ask rather than guess. Small technical details you can decide yourself; tell him what you chose.
+2. **Everything connects.** The game is one whole, not separate features. Every new piece has to fit what's already there:
+   - The same look: stud style, the same UIKit pieces, colours and fonts.
+   - The same systems: flight states, DataService saves, the server-authoritative remotes, SoundConfig sounds, the toasts.
+   - The same rules: `GAME_PROMPT.md` and the decisions below.
+
+   Before building, look at how the existing parts do it and reuse or extend them. After building, hook the new thing into the rest: sounds, the HUD, saving, the docs, `CLAUDE.md`, and `build/GamePack.rbxmx`. When one thing changes, update everything that depends on it. A shop balloon should look like the flying balloon and the gallery balloon, and a new window should look like the Shop window.
+3. **High detail and high quality, never "AI slop".** Use detailed stud and voxel models with real shapes, not blobs. Polish the UI: gloss, outlines, stripes, pop-in animations, sounds. Motion should feel good. Check your own work before handing it over:
+   - Render previews of models and the map.
+   - Build HTML mock-ups of UI at the real sizes and screenshot them in headless Chromium (see `docs/hud/`, `docs/menu/`).
+   - Look at spectrograms of sounds.
+   - Type-check the code.
+
+   Fix what you find, then deliver. If something can't be verified here (it needs Studio), say so plainly.
+
 ## Working with Gustav
 
-- **Quality in OUR style above all.** Stud / voxel art, and the Shop GUI style in `docs/UI_STYLE.md`: red panels, thick dark outline, diagonal stripes, Fredoka One white text with a dark stroke, and chunky buttons with a lip. It must never look like "AI slop". Check layouts before shipping, for example with an HTML mock-up at the real sizes rendered in headless Chromium (see `docs/hud/`, `docs/menu/`).
-- **Ask questions** when a design choice is his to make, and give a recommendation with it. He answers them one by one.
+- **Our style:** stud / voxel art, and the Shop GUI style in `docs/UI_STYLE.md`: red panels, thick dark outline, diagonal stripes, Fredoka One white text with a dark stroke, and chunky buttons with a lip. Reference pictures are in `docs/reference/`.
 - He tests in **Roblox Studio on his own PC**. Cloud sessions can't see Studio, so verify through his screenshots and Output errors.
 - He installs by **dragging `build/*.rbxmx` into Studio**. After code changes, rebuild `build/GamePack.rbxmx` (`python3 tools/build_rbxmx.py`) and send it to him.
 - Anything he should be able to restyle lives in **editable UI templates in StarterGui** (`HUDTemplate` / `MenuTemplate` `Install()`), and the code finds pieces **by name**.
