@@ -26,9 +26,34 @@ local function def(name: string): any?
 	return d
 end
 
+-- "123", "rbxassetid://123" and "https://www.roblox.com/asset/?id=123" all work
+local function assetId(id: any): string
+	local text = tostring(id):gsub("%s", "")
+	if text:match("^%d+$") then
+		return "rbxassetid://" .. text
+	end
+	local digits = text:match("[?&]id=(%d+)")
+	if digits then
+		return "rbxassetid://" .. digits
+	end
+	return text
+end
+
+local warned: { [string]: boolean } = {}
+
 local function make(d: any, parent: Instance): Sound
 	local s = Instance.new("Sound")
-	s.SoundId = d.Id
+	s.SoundId = assetId(d.Id)
+	-- tell the developer (once) if an id can't load: wrong id, still in moderation, or
+	-- the audio isn't allowed in this experience yet
+	if not warned[s.SoundId] then
+		warned[s.SoundId] = true
+		task.delay(8, function()
+			if s.Parent and not s.IsLoaded then
+				warn(`[Sounds] {s.SoundId} hasn't loaded - check the id, that it passed moderation, and that this experience can use it`)
+			end
+		end)
+	end
 	s.Volume = d.Volume
 	s.PlaybackSpeed = d.Pitch or 1
 	s.Looped = d.Loop == true
@@ -118,9 +143,12 @@ function SoundController.Start(opts: StartOptions)
 	folder = f
 
 	-- music: both tracks run, we crossfade the volume
+	-- (the same song in both slots just plays once, no crossfade)
+	local ground, sky = def("MusicGround"), def("MusicSky")
+	local sameSong = ground ~= nil and sky ~= nil and assetId(ground.Id) == assetId(sky.Id)
 	for _, name in { "MusicGround", "MusicSky" } do
 		local d = def(name)
-		if d then
+		if d and not (sameSong and name == "MusicSky") then
 			local s = make(d, folder)
 			s.Volume = 0
 			s.Looped = true
@@ -193,7 +221,7 @@ function SoundController.Start(opts: StartOptions)
 		local character = LocalPlayer.Character
 		local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local high = hrp ~= nil and hrp.Position.Y > Config.SkyMusicAbove
-		local want = if flying or high then "MusicSky" else "MusicGround"
+		local want = if (flying or high) and not sameSong then "MusicSky" else "MusicGround"
 		if want ~= current then
 			current = want
 			setMusic(want)

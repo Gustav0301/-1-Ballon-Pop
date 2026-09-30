@@ -31,7 +31,7 @@ To change a sound, edit its function in `make_sounds.py` and run `python3 tools/
 
 1. In Studio, open **View → Asset Manager**, click **Bulk Import**, and pick all the `.ogg` files from `sounds/`. You can also upload them one at a time on the Creator Hub under *Development Items → Audio*. Audio uploads are free, but there's a monthly limit.
 2. When they're uploaded, right-click each one and choose **Copy Asset ID**.
-3. Paste each ID into `src/shared/Config/SoundConfig.lua`. In the drag-in pack, that's `GamePack → Shared → Config → SoundConfig`:
+3. Paste each ID into `src/shared/Config/SoundConfig.lua` (just the number is fine, or `rbxassetid://` plus the number). In the drag-in pack, that's `GamePack → Shared → Config → SoundConfig`:
    ```lua
    Pop = { Id = "rbxassetid://1234567890", Volume = 0.9, Vary = 0.1 },
    ```
