@@ -65,16 +65,50 @@ Roblox game by Gustav. You hold a stud balloon that grows every second and lifts
 
 ## Status and next steps
 
-- M1 (flying, bank, pop, save) and most of M2 (shop, upgrades, inventory) are done and waiting for Gustav's testing.
-- Ideas raised but not built yet:
-  - The sky changing look as you climb.
-  - Confetti coin drops on a pop.
-  - Riders.
-  - Mutations (M4).
-  - Premium bundles.
-  - The first pop dropping you gently onto an island (tutorial).
-  - The "Index" as its own book (the Index stall opens My Balloons for now).
-- All work so far is on branch `claude/inspiring-babbage-w5gtkw` (PR #1). Merge it to `main` so new chats start with everything.
+We're in **Phase 1 (Float)**. The milestones are from `GAME_PROMPT.md` section 18; M1 to M6 make up the launchable game.
+
+| Milestone | Status |
+|---|---|
+| M1: Grow and bank | Done: flying, growing, landing, banking, popping, falling, saving, the start map, 4 sky islands. |
+| M2: Balloons + shop | Mostly done: restocking shop, upgrades, inventory, equip. **Balloon special abilities don't work yet.** |
+| M3: Phase 1 & 2 content | Not started: 4 zones, 5 hazard types (4 enemies exist: Sparrow, Plane, Pinwheel, Nimbo), updrafts, daily quests. |
+| M4: Mutations | Not started: roll while you fly, lose them on a pop, keep them by landing ("LAND TO KEEP"). |
+| M5: Riders + Rebirth | Not started. |
+| M6: Launch polish | Not started: mobile UI, gamepasses, leaderboards. **Publish here.** |
+| M7–M9 | Updates after launch: Storm, Space, bosses and seasons. |
+
+**The biggest gap:** balloons differ only in numbers. Every balloon's `Special` (in `BalloonConfig`) is still text only, so buying a new balloon doesn't feel special.
+
+**Recommended order (agreed as the plan; Gustav picks which one starts):**
+1. **The feel pass (small), recommended first:**
+   - The sky changing as you climb.
+   - A zone banner when you enter a zone.
+   - Leaderboards on the start map: biggest pop, most banked.
+   - Confetti coins falling when someone pops (10% of their unbanked coins, for players below to grab).
+2. **Balloon abilities (medium):** make every balloon's special work, with its own VFX and sounds.
+3. **Mutations (M4, big):** the core "one more second" gamble. The prompt calls "LAND TO KEEP" the most important UI.
+
+**More engagement ideas:**
+- A daily reward and 3 daily quests.
+- Updrafts: glowing wind columns that push you up.
+- Near-miss "CLOSE!" popups that pay bonus coins.
+- Riders (M5), the social hook.
+
+**Open questions already asked about the sky change.** Ask for his answers if he hasn't given them:
+1. What changes as you climb? The recommendation is a smooth blend with height. Meadow Sky stays bright blue. In Cloud Shelf the clouds sink below you like a floor, the sky gets deeper and clearer, the sun brighter and warmer, and a soft golden haze covers the horizon.
+2. Each player sees the sky for their own height (client-side)? Recommended yes.
+3. A "CLOUD SHELF" / "MEADOW SKY" zone banner with a sound? Recommended yes.
+4. Day and night? Recommended later; always sunny for now.
+
+Technical plan: a list of sky settings per zone, so future zones just add an entry.
+
+**Other items not built yet:**
+- The first pop dropping you gently onto an island (tutorial).
+- The first bird being scripted to miss.
+- The Index as its own book (the Index stall opens My Balloons for now).
+- Premium bundles.
+
+PR #1 (everything up to the shop and sounds) is merged into `main`.
 
 ## Checking code (cloud session)
 
