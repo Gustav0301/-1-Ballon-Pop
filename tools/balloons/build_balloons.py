@@ -746,7 +746,7 @@ def render(balloon, size_px=360):
         rgb = col * shade
         if mat == "G":
             rgb = rgb * 0.7 + 255 * 0.3 * (1 - tr)
-        P = [((p[0] - cx) * k + W / 2, (cyv - p[1]) * k + H / 2, p[2]) for p in (a, b_, c)]
+        P = [((cx - p[0]) * k + W / 2, (cyv - p[1]) * k + H / 2, p[2]) for p in (a, b_, c)]  # screen right is -x
         minx, maxx = int(max(0, math.floor(min(p[0] for p in P)))), int(min(W - 1, math.ceil(max(p[0] for p in P))))
         miny, maxy = int(max(0, math.floor(min(p[1] for p in P)))), int(min(H - 1, math.ceil(max(p[1] for p in P))))
         if minx > maxx or miny > maxy:

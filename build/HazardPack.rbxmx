@@ -186,6 +186,9 @@ function BalloonGallery.Start(equipRemote: RemoteEvent?): Folder
 	folder.Name = "BalloonGallery"
 	folder.Parent = workspace
 
+	-- the start map has a "GalleryAnchor" part: two rows of nine facing its LookVector.
+	-- Without one (an empty baseplate), fall back to an arc around the spawn.
+	local anchor = workspace:FindFirstChild("GalleryAnchor", true)
 	local origin = findSpawn()
 	local names = BalloonConfig.Ordered()
 	local radius = 62
@@ -193,10 +196,18 @@ function BalloonGallery.Start(equipRemote: RemoteEvent?): Folder
 	local exhibits: { Exhibit } = {}
 
 	for i, name in names do
-		local t = (i - 1) / (#names - 1)
-		local a = -span / 2 + span * t
-		local floor = origin * CFrame.new(math.sin(a) * radius, 0, -math.cos(a) * radius)
-		local face = CFrame.lookAt(floor.Position, Vector3.new(origin.X, floor.Y, origin.Z))
+		local face: CFrame
+		if anchor and anchor:IsA("BasePart") then
+			local col = (i - 1) % 9
+			local row = math.floor((i - 1) / 9)
+			local base = anchor.CFrame * CFrame.new((col - 4) * 7.5, -anchor.Size.Y / 2, row * 12)
+			face = CFrame.lookAt(base.Position, base.Position + anchor.CFrame.LookVector)
+		else
+			local t = (i - 1) / (#names - 1)
+			local a = -span / 2 + span * t
+			local floor = origin * CFrame.new(math.sin(a) * radius, 0, -math.cos(a) * radius)
+			face = CFrame.lookAt(floor.Position, Vector3.new(origin.X, floor.Y, origin.Z))
+		end
 		local cfg = BalloonConfig.Types[name]
 		local tierColor = BalloonConfig.TierColors[cfg.Tier]
 

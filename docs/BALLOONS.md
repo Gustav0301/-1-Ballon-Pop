@@ -62,4 +62,4 @@ In demo mode the client builds an arc of stud pedestals near the SpawnLocation w
 ## Open questions
 
 - **Riders:** the prompt's "+1 rider per 2 Lift" no longer fits Lift values up to 20. `BalloonConfig` sets riders per balloon instead (Common 1, Rare 2, Epic 3, Whale 6, Thorn 0, Mythic 4).
-- **Premium bundles:** Gustav's six Robux bundle icons (Royal Treasury, Galaxy Vault, Solar Ascension, Inferno Forge, Frozen Diamond, Thunder Emperor; 18 jewelled balloons in gift chests) are a separate premium line. Section 13 of the prompt says Robux never buys power and Mythics can't be bought directly, so their stats need a decision before they're built.
+- **Premium bundles:** decided 2026-09-30, option **b**: the six Robux bundles (Royal Treasury, Galaxy Vault, Solar Ascension, Inferno Forge, Frozen Diamond, Thunder Emperor; 18 jewelled balloons in gift chests) are truly stronger balloons. This deliberately overrides section 13's "no power for Robux" rule. Their stats and models are still to be built.
