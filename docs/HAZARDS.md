@@ -24,11 +24,11 @@ Every number lives in `src/shared/Config/HazardConfig.lua`. Damage is the base v
 
 **Rojo (recommended):** `rojo serve` with `default.project.json`. The layout matches section 17 of the game prompt: `ReplicatedStorage/Shared/Config/HazardConfig`, `ServerScriptService/Services/HazardService`, `StarterPlayerScripts/Controllers/HazardFXController`.
 
-**Drag and drop:** drag `build/HazardPack.rbxmx` into Studio and press Play. On Play it moves itself into ReplicatedStorage and ServerScriptService and starts in demo mode. Rebuild it after code changes with `python3 tools/build_rbxmx.py`.
+**Drag and drop:** the hazards are now part of `build/GamePack.rbxmx` (see `docs/FLIGHT.md`), hooked to real flying: they hunt flying players by altitude and hits damage the held balloon through `FlightService.Damage`. Rebuild it after code changes with `python3 tools/build_rbxmx.py`.
 
 ## Demo mode
 
-`Demo = true` in `src/server/HazardBootstrap.server.lua` (and `DEMO` in the pack's Start script) gives every player a stud balloon over their head (HP = its Toughness) and builds the balloon gallery by the spawn, where **Try it** swaps balloons. It cycles Sparrow → Plane → Pinwheel → Nimbo around them at any height. At 0 HP the balloon pops into brick confetti and reinflates after 3 s.
+Demo mode (`HazardService.Start{ Demo = true }`, off by default now) gives every player a stud balloon over their head (HP = its Toughness) and builds the balloon gallery by the spawn, where **Try it** swaps balloons. It cycles Sparrow → Plane → Pinwheel → Nimbo around them at any height. At 0 HP the balloon pops into brick confetti and reinflates after 3 s.
 
 ## Hooking up FlightService (milestone M1)
 

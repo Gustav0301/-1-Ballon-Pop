@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Builds build/HazardPack.rbxmx: a drag-and-drop Roblox model containing the whole
-hazard system (same source files as the Rojo project, byte for byte).
+"""Builds build/GamePack.rbxmx: a drag-and-drop Roblox model containing the whole game
+code (the same source files as the Rojo project, byte for byte).
 
 Drop it anywhere in Studio (it lands in Workspace). On Play, its Start script moves:
-  Shared  -> ReplicatedStorage.HazardShared
-  Server  -> ServerScriptService.HazardServer
-  Client  -> ReplicatedStorage.HazardClient (and enables the client runner)
-then starts HazardService in demo mode.
+  Shared  -> ReplicatedStorage.GameShared
+  Server  -> ServerScriptService.GameServer  (Services + Packages/ProfileStore)
+  Client  -> ReplicatedStorage.GameClient    (Controllers, and enables the client runner)
+then starts the server (world look, saves, flying, hazards).
 
 Usage: python3 tools/build_rbxmx.py
 """
@@ -14,44 +14,42 @@ import os
 from xml.sax.saxutils import escape
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "build", "HazardPack.rbxmx")
+OUT = os.path.join(ROOT, "build", "GamePack.rbxmx")
 
-START = """-- 1+ Ballon Pop pack: installs itself on Play, applies the festival sky and starts the hazards.
--- Set DEMO = false once FlightService gives players real balloons.
+START = """-- 1+ Ballon Pop game pack: installs itself on Play and starts the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local DEMO = true
+if workspace:FindFirstChild("HazardPack") then
+	warn("[GamePack] Delete the old HazardPack from Workspace - GamePack replaces it.")
+end
 
 local pack = script.Parent
 local shared = pack:WaitForChild("Shared")
-shared.Name = "HazardShared"
+shared.Name = "GameShared"
 shared.Parent = ReplicatedStorage
 
 local server = pack:WaitForChild("Server")
-server.Name = "HazardServer"
+server.Name = "GameServer"
 server.Parent = ServerScriptService
 
 local client = pack:WaitForChild("Client")
-client.Name = "HazardClient"
+client.Name = "GameClient"
 client.Parent = ReplicatedStorage
 local run = client:WaitForChild("Run") :: Script
 run.Enabled = true
 
-require(server:WaitForChild("WorldLook")).Apply()
-
-require(server:WaitForChild("HazardService")).Start({
+require(server:WaitForChild("Services"):WaitForChild("ServerMain")).Start({
 	Shared = shared,
 	RemoteParent = ReplicatedStorage,
-	Demo = DEMO,
 })
 """
 
-RUN = """-- Client runner for the hazard pack (enabled by the pack's Start script).
+RUN = """-- Client runner for the game pack (enabled by the pack's Start script).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-require(script.Parent:WaitForChild("HazardFXController")).Start({
-	Shared = ReplicatedStorage:WaitForChild("HazardShared"),
+require(script.Parent:WaitForChild("ClientMain")).Start({
+	Shared = ReplicatedStorage:WaitForChild("GameShared"),
 	RemoteParent = ReplicatedStorage,
 })
 """
@@ -96,19 +94,20 @@ def tree(path):
         p = os.path.join(path, entry)
         if os.path.isdir(os.path.join(ROOT, p)):
             items.append(folder(entry, tree(p)))
-        elif entry.endswith(".lua") and not entry.endswith((".server.lua", ".client.lua")):
+        elif entry.endswith((".server.lua", ".client.lua")):
+            continue
+        elif entry.endswith(".luau"):
+            items.append(module(entry[:-5], read(p)))
+        elif entry.endswith(".lua"):
             items.append(module(entry[:-4], read(p)))
     return items
 
 
 def main():
-    pack = folder("HazardPack", [
+    pack = folder("GamePack", [
         folder("Shared", tree("src/shared")),
-        folder("Server", tree("src/server/Services")),
-        folder("Client", [
-            module("HazardFXController", read("src/client/Controllers/HazardFXController.lua")),
-            script("Run", RUN, 2, disabled=True),
-        ]),
+        folder("Server", tree("src/server")),
+        folder("Client", tree("src/client/Controllers") + [script("Run", RUN, 2, disabled=True)]),
         script("Start", START, 1),
     ])
     xml = ('<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" '

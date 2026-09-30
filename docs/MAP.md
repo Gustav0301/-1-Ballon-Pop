@@ -70,7 +70,7 @@ Every island has a gold coin landing pad with lanterns, plus an invisible `Landi
 
 ## Sky look
 
-`src/server/Services/WorldLook.lua` (started by `WorldBootstrap.server.lua`, and by the pack's Start script) sets up the festival sky:
+`src/server/Services/WorldLook.lua` (started by `ServerMain`, from `GameBootstrap.server.lua` or the GamePack's Start script) sets up the festival sky:
 - a warm early-afternoon sun
 - a soft blue Atmosphere haze that hides the horizon edge
 - gentle bloom so Neon glows

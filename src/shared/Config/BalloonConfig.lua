@@ -68,6 +68,31 @@ function BalloonConfig.HeightFor(size: number, lift: number): number
 	return BalloonConfig.HeightBase * math.max(size, 0) ^ BalloonConfig.HeightExponent * lift
 end
 
+export type Stats = {
+	MaxSize: number,
+	Growth: number,
+	Toughness: number,
+	Earn: number,
+	Lift: number,
+	Slots: number,
+}
+
+-- A balloon's stats at an upgrade level (section 3.4): every level +2% Max Size, +1% Growth,
+-- +1% Earn; +1 Toughness at 10 and 30; +1 slot at 20 (max 3); Golden Edge +25% Earn at 50.
+function BalloonConfig.StatsFor(kind: string, level: number?): Stats
+	local t = BalloonConfig.Types[kind] or BalloonConfig.Types.Gumball
+	local lvl = math.clamp(level or 1, 1, 50)
+	local up = lvl - 1
+	return {
+		MaxSize = t.MaxSize * (1 + 0.02 * up),
+		Growth = t.Growth * (1 + 0.01 * up),
+		Toughness = t.Toughness + (if lvl >= 10 then 1 else 0) + (if lvl >= 30 then 1 else 0),
+		Earn = t.Earn * (1 + 0.01 * up) * (if lvl >= 50 then 1.25 else 1),
+		Lift = t.Lift,
+		Slots = math.min(3, t.Slots + (if lvl >= 20 then 1 else 0)),
+	}
+end
+
 -- Balloon names sorted by their order in the Index.
 function BalloonConfig.Ordered(): { string }
 	local names = {}

@@ -282,22 +282,30 @@ function HazardFXController.Start(opts: StartOptions)
 	local remote = opts.RemoteParent:WaitForChild("HazardFX") :: RemoteEvent
 	remote.OnClientEvent:Connect(onMessage)
 
-	-- demo mode: the balloon gallery by the spawn, with "Try it" prompts
+	-- the balloon gallery by the spawn, with "Try it" prompts (demo mode or Studio)
 	local function startGallery()
 		local gallery = require(shared:WaitForChild("Balloons"):WaitForChild("BalloonGallery") :: ModuleScript) :: any
 		local equip = opts.RemoteParent:WaitForChild("DemoEquip", 10) :: RemoteEvent?
 		gallery.Start(equip)
 	end
-	if shared:GetAttribute("Demo") then
+	-- (also in Studio play-tests: FlightService sets "Gallery" there)
+	local function wanted(): boolean
+		return shared:GetAttribute("Demo") == true or shared:GetAttribute("Gallery") == true
+	end
+	if wanted() then
 		task.spawn(startGallery)
 	else
-		local conn
-		conn = shared:GetAttributeChangedSignal("Demo"):Connect(function()
-			if shared:GetAttribute("Demo") then
-				conn:Disconnect()
+		local conns: { RBXScriptConnection } = {}
+		local function check()
+			if wanted() then
+				for _, c in conns do
+					c:Disconnect()
+				end
 				task.spawn(startGallery)
 			end
-		end)
+		end
+		table.insert(conns, shared:GetAttributeChangedSignal("Demo"):Connect(check))
+		table.insert(conns, shared:GetAttributeChangedSignal("Gallery"):Connect(check))
 	end
 
 	local hazards = workspace:WaitForChild("Hazards")
