@@ -4,6 +4,7 @@
 
 local FlightConfig = {}
 
+FlightConfig.GroundY = 0 -- world Y of the grass start map
 FlightConfig.TickRate = 0.1 -- server growth / earn tick
 FlightConfig.Ceiling = 1500 -- top of Cloud Shelf (Phase 1); raise as zones unlock
 FlightConfig.StringLength = 5 -- rope between hand and knot
@@ -56,6 +57,8 @@ FlightConfig.Rise = {
 	Speed = 14, -- studs/s climb at Lift 1
 	PerLift = 3, -- extra climb speed per sqrt(Lift)
 	FallSpeed = 30, -- sink speed when letting out air
+	Recover = 6, -- studs/s you float back up after letting go of Space
+	Floor = 6, -- letting out air stops this many studs above the grass
 	Terminal = 160, -- max fall speed after a pop (also stops tunnelling through the ground)
 }
 

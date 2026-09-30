@@ -280,6 +280,25 @@ local function stepFlight(dt: number)
 		stepY = math.sign(d) * math.min(math.abs(d), 2 * dt)
 	end
 	yCur = math.clamp(yCur + stepY, pos.Y - 8, pos.Y + 8)
+
+	-- never shove the body into an island: pressing into its underside (or into the ground
+	-- when you sink onto it) makes friction pin you in place. Stop at the surface instead,
+	-- so you can still drift out sideways.
+	local c = character
+	if c then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { c }
+		params.IgnoreWater = true
+		local head = workspace:Raycast(pos, Vector3.new(0, 4.5, 0), params)
+		if head and head.Instance.CanCollide and yCur > pos.Y then
+			yCur = pos.Y
+		end
+		local feet = workspace:Raycast(pos, Vector3.new(0, -3.4, 0), params)
+		if feet and feet.Instance.CanCollide and yCur < pos.Y then
+			yCur = pos.Y
+		end
+	end
 	local bob = math.sin(now * 1.4) * 0.45
 	m.align.Position = Vector3.new(target.X, yCur + bob, target.Z)
 

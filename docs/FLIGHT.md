@@ -26,6 +26,8 @@ With Rojo, `GameBootstrap.server.lua` and `GameBootstrap.client.lua` start the s
 - Input *accelerates* you (30 studs/s²) and drag bleeds speed off slowly (0.7/s), so you keep sliding after you let go. Top speed is 22 studs/s.
 - A lazy wind (up to 5 studs/s) changes direction every 3 to 7 seconds, so hovering over an island takes a little steering.
 - You rise automatically to the server's height target (`40 × size^0.6 × Lift` above where you took off) at 14 + 3·√Lift studs/s, and sink at 30 studs/s when it drops.
+- **Let out air** (hold Space) drops you at 30 studs/s right away and costs 5% of the balloon's size per second. Let go and you float back up at 6 studs/s to your now-smaller balloon's height. That makes it a real dodge, and a way down to an island below you. It works the same on high-Lift balloons that are far over the zone ceiling, and it stops 6 studs above the grass.
+- You never get pushed into an island: if you rise under one or sink onto one, you stop at its surface and can drift away sideways.
 - Your body leans into the drift and turns to face where you're going. The balloon trails behind on its string.
 - The camera pulls back as the balloon grows. The balloon's visual size caps at 1.25× so giant balloons don't break physics.
 - After a pop there's no parachute: you fall straight down, capped at 160 studs/s so you can't tunnel through the ground.

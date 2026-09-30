@@ -35,6 +35,7 @@ type Flight = {
 	hp: number,
 	baseY: number,
 	letOut: boolean,
+	dip: number, -- studs of height lost by letting out air (you float back up slowly)
 	landSpot: any?,
 	landEnd: number,
 	launchedAt: number,
@@ -101,9 +102,21 @@ local function loadout(player: Player, f: Flight)
 	f.stats = BalloonConfig.StatsFor(kind, level)
 end
 
-local function heightTarget(f: Flight): number
+-- where your balloon's size alone would carry you (capped by the zone ceiling)
+local function sizeTarget(f: Flight): number
 	local h = BalloonConfig.HeightFor(f.size, f.stats.Lift)
 	return math.min(FlightConfig.Ceiling, f.baseY + 3 + h)
+end
+
+-- the lowest you can let air out to (just above the grass)
+local function floorY(): number
+	return FlightConfig.GroundY + 3 + FlightConfig.Rise.Floor
+end
+
+-- the height the client flies to: size height minus what you let out
+local function heightTarget(f: Flight): number
+	local top = sizeTarget(f)
+	return math.max(math.min(top, floorY()), top - f.dip)
 end
 
 local function publish(player: Player, f: Flight)
@@ -294,6 +307,7 @@ end
 local function toGround(player: Player, f: Flight)
 	f.state = "Ground"
 	f.size = 1
+	f.dip = 0
 	f.unbanked = 0
 	f.letOut = false
 	f.landSpot = nil
@@ -323,6 +337,7 @@ local function launch(player: Player, f: Flight)
 	f.baseY = if hit then hit.Position.Y else hrp.Position.Y - 3
 	f.state = "Flying"
 	f.size = 1
+	f.dip = 0
 	f.unbanked = 0
 	f.hp = f.stats.Toughness
 	f.launchedAt = os.clock()
@@ -464,17 +479,21 @@ local function step(player: Player, f: Flight, dt: number)
 		return
 	end
 
-	-- growing and earning
+	-- growing and earning. Letting out air costs 5% size per second AND drops you at
+	-- FallSpeed right away (even when a high-Lift balloon is far over the ceiling);
+	-- let go and you float back up to your (now smaller) balloon's height.
 	if f.letOut then
 		f.size = math.max(1, f.size * (1 - FlightConfig.LetOutAirRate * dt))
+		f.dip = math.min(f.dip + FlightConfig.Rise.FallSpeed * dt, math.max(0, sizeTarget(f) - floorY()))
 	elseif f.state == "Flying" then
 		f.size = math.min(f.stats.MaxSize, f.size + f.stats.Growth * dt)
+		f.dip = math.max(0, f.dip - FlightConfig.Rise.Recover * dt)
 	end
 	f.unbanked += f.size * f.stats.Earn * dt
 
-	-- height check: the client rises to the target and sinks at FallSpeed, so allow for that
-	local target = heightTarget(f)
-	f.allowedY = math.max(target, f.allowedY - FlightConfig.Rise.FallSpeed * 1.2 * dt)
+	-- height check against the size height (never the dipped one), shrinking slower than
+	-- the client can sink, so an honest player is never pulled down
+	f.allowedY = math.max(sizeTarget(f), f.allowedY - FlightConfig.Rise.FallSpeed * 0.8 * dt)
 	local limit = f.allowedY + FlightConfig.AntiCheat.Above
 	if hrp.Position.Y > limit then
 		character:PivotTo(character:GetPivot() - Vector3.new(0, hrp.Position.Y - limit + 5, 0))
@@ -512,16 +531,17 @@ local function onMessage(player: Player, kind: unknown, arg: unknown)
 	if not gap then
 		return
 	end
-	-- per-message spacing plus a total budget (refills at 20 messages / second)
+	-- per-message spacing plus a total budget (refills at 20 messages / second).
+	-- "Stop" messages (let go of Space / E) always get through so nothing sticks on.
 	local now = os.clock()
-	if now - (f.msgs[kind] or 0) < gap then
-		return
+	local stop = kind ~= "Launch" and arg ~= true
+	if not stop then
+		if now - (f.msgs[kind] or 0) < gap or f.budget <= 0 then
+			return
+		end
+		f.msgs[kind] = now
+		f.budget -= 1
 	end
-	if f.budget <= 0 then
-		return
-	end
-	f.msgs[kind] = now
-	f.budget -= 1
 
 	if kind == "Launch" then
 		launch(player, f)
@@ -572,6 +592,7 @@ local function newFlight(): Flight
 		hp = 3,
 		baseY = 0,
 		letOut = false,
+		dip = 0,
 		landSpot = nil,
 		landEnd = 0,
 		launchedAt = 0,
