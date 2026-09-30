@@ -98,12 +98,13 @@ local function build(player: Player, character: Model, cfg: any)
 	end
 	clear(character)
 	local kind = kinds[player] or "Gumball"
-	local knot: Vector3 = BalloonBuilder.KnotOffset(kind)
+	local scale: number = cfg.Demo.BalloonScale or 1
+	local knot: Vector3 = BalloonBuilder.KnotOffset(kind) * scale
 	local hand = hrp.CFrame * CFrame.new(0, 1, 0)
 	local knotWorld = hand * CFrame.new(0, cfg.Demo.StringLength, 0)
 	local center = knotWorld * CFrame.new(-knot)
 
-	local model: Model = BalloonBuilder.Build(kind, { Anchored = false, CFrame = center, Name = "Balloon" })
+	local model: Model = BalloonBuilder.Build(kind, { Anchored = false, CFrame = center, Name = "Balloon", Scale = scale })
 	local root = model.PrimaryPart :: BasePart
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = hrp

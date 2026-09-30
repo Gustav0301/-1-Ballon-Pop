@@ -112,7 +112,7 @@ function BalloonGallery.Start(equipRemote: RemoteEvent?): Folder
 
 		-- balloon on a string
 		local base = face * CFrame.new(0, 12.5, 0)
-		local balloon = BalloonBuilder.Build(name, { Anchored = true, CFrame = base, Scale = 0.72 })
+		local balloon = BalloonBuilder.Build(name, { Anchored = true, CFrame = base, Scale = 0.6 })
 		balloon.Parent = stand
 		local knot = balloon.PrimaryPart and (balloon.PrimaryPart :: BasePart):FindFirstChild("StringAttachment") :: Attachment?
 		if knot then

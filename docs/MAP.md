@@ -1,8 +1,10 @@
 # Start map: Balloon Festival
 
-The grass start map from `reference/start-map-festival.webp`, built entirely from classic stud Parts (about 4,800 anchored parts, no scripts, no uploaded assets).
+The grass start map from `reference/start-map-festival.webp`, built entirely from classic stud Parts (about 6,400 anchored parts, no scripts, no uploaded assets).
 
 ![Overview](map/overview.png)
+
+![Horizon](map/horizon.png)
 
 | | |
 |---|---|
@@ -20,6 +22,8 @@ The grass start map from `reference/start-map-festival.webp`, built entirely fro
 - **Golden coin arch** (north, decoration for now): a raised terrace with a grand staircase, stone cliff face, fences and coin piles. The arch has lanterns and a giant gold coin on top.
 - **River** (south): studded water with stone banks, lily pads and rocks, a wooden bridge on the main path and a small bridge to the west.
 - **Scenery:** blocky trees, pines on the back and side hills, flowers, confetti studs on the grass, a picnic table, a signpost and a treasure chest.
+- **Border** (added after the first Studio test): a ring of stepped stud mountains with snowy peaks and pines around the whole map, grassland out to the horizon (4,096 studs across), distant stepped hills and stud clouds. You never see the void, from the ground or high in the sky.
+- **Building sizes** (after the first Studio test): Shop ×1.5, Index ×1.45, Upgrades ×1.35, each moved out a little from the plaza.
 - **GalleryAnchor** (south-east field): an invisible part where the demo balloon gallery lays out its two rows.
 
 ## Install

@@ -36,6 +36,7 @@ HazardConfig.Demo = {
 	BalloonHP = 3, -- fallback when a balloon type has no Toughness
 	RespawnDelay = 3,
 	StringLength = 4.5, -- studs of string between the hand and the balloon's knot
+	BalloonScale = 0.6, -- visual size of the held balloon (1 = the model's base size, ~9 studs wide)
 }
 
 export type HazardType = {

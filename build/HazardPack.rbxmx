@@ -253,7 +253,7 @@ function BalloonGallery.Start(equipRemote: RemoteEvent?): Folder
 
 		-- balloon on a string
 		local base = face * CFrame.new(0, 12.5, 0)
-		local balloon = BalloonBuilder.Build(name, { Anchored = true, CFrame = base, Scale = 0.72 })
+		local balloon = BalloonBuilder.Build(name, { Anchored = true, CFrame = base, Scale = 0.6 })
 		balloon.Parent = stand
 		local knot = balloon.PrimaryPart and (balloon.PrimaryPart :: BasePart):FindFirstChild("StringAttachment") :: Attachment?
 		if knot then
@@ -1816,6 +1816,7 @@ HazardConfig.Demo = {
 	BalloonHP = 3, -- fallback when a balloon type has no Toughness
 	RespawnDelay = 3,
 	StringLength = 4.5, -- studs of string between the hand and the balloon's knot
+	BalloonScale = 0.6, -- visual size of the held balloon (1 = the model's base size, ~9 studs wide)
 }
 
 export type HazardType = {
@@ -4010,12 +4011,13 @@ local function build(player: Player, character: Model, cfg: any)
 	end
 	clear(character)
 	local kind = kinds[player] or "Gumball"
-	local knot: Vector3 = BalloonBuilder.KnotOffset(kind)
+	local scale: number = cfg.Demo.BalloonScale or 1
+	local knot: Vector3 = BalloonBuilder.KnotOffset(kind) * scale
 	local hand = hrp.CFrame * CFrame.new(0, 1, 0)
 	local knotWorld = hand * CFrame.new(0, cfg.Demo.StringLength, 0)
 	local center = knotWorld * CFrame.new(-knot)
 
-	local model: Model = BalloonBuilder.Build(kind, { Anchored = false, CFrame = center, Name = "Balloon" })
+	local model: Model = BalloonBuilder.Build(kind, { Anchored = false, CFrame = center, Name = "Balloon", Scale = scale })
 	local root = model.PrimaryPart :: BasePart
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = hrp

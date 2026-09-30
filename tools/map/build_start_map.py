@@ -64,28 +64,29 @@ class Scene:
 
 
 class T:
-    """A placement frame: position + rotation. Builders work in local coordinates."""
+    """A placement frame: position + rotation + uniform scale. Builders work in local units."""
 
-    def __init__(self, pos=(0, 0, 0), m=I3):
+    def __init__(self, pos=(0, 0, 0), m=I3, s=1.0):
         self.pos = pos
         self.m = m
+        self.s = s
 
     def p(self, v):
-        return BB.add(self.pos, BB.apply(self.m, v))
+        return BB.add(self.pos, BB.apply(self.m, BB.scale(v, self.s)))
 
     def r(self, m):
         return BB.matmul(self.m, m)
 
     def at(self, v, m=I3):
-        return T(self.p(v), self.r(m))
+        return T(self.p(v), self.r(m), self.s)
 
 
-def facing(pos, target=(0, 0, 0)):
-    """Frame at `pos` whose local -Z (front) looks at `target` (level)."""
+def facing(pos, target=(0, 0, 0), s=1.0):
+    """Frame at `pos` whose local -Z (front) looks at `target` (level), scaled by `s`."""
     z = BB.norm((pos[0] - target[0], 0, pos[2] - target[2]))
     y = (0, 1, 0)
     x = BB.cross(y, z)
-    return T(pos, (x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]))
+    return T(pos, (x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]), s)
 
 
 def yaw(deg):
@@ -96,11 +97,11 @@ S = Scene()
 
 
 def box(g, t, color, size, center, rot=I3, mat="P", tr=0.0, collide=True, name=None):
-    S.add(g, "B", color, size, t.p(center), t.r(rot), mat, tr, collide, name)
+    S.add(g, "B", color, BB.scale(size, t.s), t.p(center), t.r(rot), mat, tr, collide, name)
 
 
 def wedge(g, t, color, size, center, rot=I3, mat="P", collide=True):
-    S.add(g, "W", color, size, t.p(center), t.r(rot), mat, 0.0, collide)
+    S.add(g, "W", color, BB.scale(size, t.s), t.p(center), t.r(rot), mat, 0.0, collide)
 
 
 def span(g, t, color, x0, x1, y0, y1, z0, z1, mat="P", tr=0.0, collide=True):
@@ -140,7 +141,7 @@ def balloon_model(g, t, kind, center, scale_=0.4, recolor=None, spin=0):
         if recolor:
             hexv = recolor(key, pos, hexv)
         p = BB.add(center, BB.apply(rot, BB.scale(pos, scale_)))
-        S.add(g, shape, hexv, tuple(v * scale_ for v in size), t.p(p), t.r(BB.matmul(rot, prot)), mat, tr, False)
+        S.add(g, shape, hexv, tuple(v * scale_ * t.s for v in size), t.p(p), t.r(BB.matmul(rot, prot)), mat, tr, False)
     # string down to the pedestal
     knot = BB.add(center, BB.apply(rot, BB.scale(b.knot, scale_)))
     return knot
@@ -285,7 +286,7 @@ def string_between(g, t, a, b):
     d = BB.add(b, BB.scale(a, -1))
     L = math.sqrt(BB.dot(d, d))
     if L > 0.05:
-        S.add(g, "B", "F4F6FF", (0.1, L, 0.1), t.p(BB.scale(BB.add(a, b), 0.5)), t.r(BB.basis(d)), "S", 0, False)
+        S.add(g, "B", "F4F6FF", (0.1, L * t.s, 0.1), t.p(BB.scale(BB.add(a, b), 0.5)), t.r(BB.basis(d)), "S", 0, False)
 
 
 # ----------------------------------------------------------------------------- terrain
@@ -467,10 +468,10 @@ def build_paths():
 
     cobble(-6, 6, 42, 160)
     cobble(-6, 6, -66, -40)
-    cobble(-56, -42, -6, 6)  # to the shop
-    cobble(42, 64, -6, 6)  # to the index
+    cobble(-62, -42, -6, 6)  # to the shop
+    cobble(42, 70, -6, 6)  # to the index
     # to the upgrades workshop (diagonal-ish, as steps)
-    for i in range(10):
+    for i in range(8):
         span(g, T(), C["tan"] if i % 2 else C["tanDark"], 22 + i * 2.4, 30 + i * 2.4, -0.3, 0.15, -28 - i * 2.8, -22 - i * 2.8)
     # main bridge over the river
     zc = river_z(0)
@@ -503,7 +504,7 @@ def build_paths():
 
 def build_shop():
     g = "Shop"
-    t = facing((-74, 0, -6))
+    t = facing((-84, 0, -6), s=1.5)
     # platform + steps
     span(g, t, C["cream"], -17, 17, 0, 1, -12, 12)
     span(g, t, C["creamDark"], -7, 7, 0, 0.66, -13.5, -12)
@@ -581,7 +582,7 @@ def build_shop():
 
 def build_index():
     g = "Index"
-    t = facing((80, 0, 10))
+    t = facing((94, 0, 8), s=1.45)
     span(g, t, C["cream"], -20, 20, 0, 1, -13, 12)
     for k in range(3):
         span(g, t, C["creamDark"], -9, 9, 0, 1 - k * 0.33, -13 - 1.5 * (k + 1), -13 - 1.5 * k)
@@ -625,7 +626,7 @@ def build_index():
 
 def build_upgrades():
     g = "Upgrades"
-    t = facing((48, 0, -62))
+    t = facing((54, 0, -58), s=1.35)
     span(g, t, C["stone"], -13, 13, 0, 1, -10, 9)
     span(g, t, C["stoneDark"], -5, 5, 0, 0.5, -11.5, -10)
     # plank walls
@@ -733,16 +734,71 @@ def build_arch():
             box(g, T((x, 6, z), yaw(rng.uniform(0, 90))), C["gold"] if k % 2 == 0 else C["goldDark"], (1.8, 0.5, 1.8), (0, 0.25 + k * 0.5, 0))
 
 
+# ----------------------------------------------------------------------------- border
+
+def build_border():
+    """Mountains around the map, grassland out to the horizon, far hills and clouds,
+    so nobody sees the void at the edge or from high in the sky."""
+    g = "Border"
+    cell = 16
+    for cx in range(-224, 224, cell):
+        for cz in range(-224, 224, cell):
+            ring = max(abs(cx + cell / 2), abs(cz + cell / 2)) - 160
+            if ring < 0:
+                continue
+            n = math.sin(cx * 0.051 + 1.3) * math.cos(cz * 0.043 - 0.7) + math.sin((cx + cz) * 0.027)
+            h = 18 + ring * 0.7 + n * 9 + rng.uniform(-3, 3)
+            h = max(14, min(72, round(h / 2) * 2))
+            stone = C["stone"] if (cx // cell + cz // cell) % 2 else C["stoneDark"]
+            span(g, T(), stone, cx, cx + cell, 0, h - 2, cz, cz + cell)
+            if h >= 52:
+                span(g, T(), "F4F8FF", cx, cx + cell, h - 2, h, cz, cz + cell)
+            else:
+                span(g, T(), C["grass2"], cx, cx + cell, h - 2, h, cz, cz + cell)
+                # a stepped ledge on some cells makes the range look carved
+                if rng.random() < 0.45:
+                    lx, lz = cx + rng.choice([0, 8]), cz + rng.choice([0, 8])
+                    span(g, T(), stone, lx, lx + 8, h, h + 4, lz, lz + 8)
+                    span(g, T(), C["grass"], lx, lx + 8, h + 4, h + 5, lz, lz + 8)
+                elif rng.random() < 0.5:
+                    pine("Trees", cx + cell / 2 + rng.uniform(-4, 4), cz + cell / 2 + rng.uniform(-4, 4), y=h, s=rng.uniform(0.9, 1.3))
+    # grassland to the horizon (max Part size is 2048)
+    far = "Horizon"
+    for x0, x1, z0, z1 in ((-2048, 0, -2048, -224), (0, 2048, -2048, -224), (-2048, 0, 224, 2048), (0, 2048, 224, 2048),
+                           (-2048, -224, -224, 224), (224, 2048, -224, 224)):
+        span(far, T(), "5AAE45", x0, x1, -4, 0, z0, z1)
+    # distant stepped hills
+    for i in range(26):
+        a = i / 26 * 2 * math.pi + rng.uniform(-0.1, 0.1)
+        r = rng.uniform(380, 900)
+        x, z = math.cos(a) * r, math.sin(a) * r
+        w = rng.uniform(60, 140)
+        h = rng.uniform(30, 110)
+        for k, (fw, fh) in enumerate(((1.0, 0.45), (0.7, 0.35), (0.42, 0.2))):
+            base = h * sum(f for _, f in ((1.0, 0.45), (0.7, 0.35), (0.42, 0.2))[:k])
+            col = ("4E9E3C", "5AAE45", "F4F8FF" if h > 90 else "6CBF55")[k]
+            box(far, T(), col, (w * fw, h * fh, w * fw * rng.uniform(0.8, 1.2)), (x, base + h * fh / 2, z))
+    # stud clouds around the sky
+    for i in range(30):
+        a = rng.uniform(0, 2 * math.pi)
+        r = rng.uniform(260, 1100)
+        x, z = math.cos(a) * r, math.sin(a) * r
+        y = rng.uniform(90, 420)
+        s = rng.uniform(1.0, 2.6)
+        for bx, by, bz, w, hh, d in ((0, 0, 0, 40, 10, 24), (-12, 7, 2, 18, 10, 16), (10, 8, -2, 22, 12, 18), (24, 2, 3, 14, 8, 12)):
+            box("Clouds", T(), "FFFFFF", (w * s, hh * s, d * s), (x + bx * s, y + by * s, z + bz * s), mat="S", collide=False)
+
+
 # ----------------------------------------------------------------------------- scatter
 
 OCCUPIED = [
     (-46, 46, -46, 46),  # plaza
-    (-100, -48, -30, 24),  # shop
-    (54, 106, -18, 38),  # index
-    (22, 78, -80, -40),  # upgrades
+    (-118, -52, -40, 30),  # shop
+    (60, 130, -30, 46),  # index
+    (26, 90, -86, -34),  # upgrades
     (-9, 9, 40, 160),  # path
     (-160, 160, -160, -79),  # terrace
-    (70, 150, 20, 94),  # demo balloon gallery field
+    (62, 138, 60, 90),  # demo balloon gallery field
 ]
 
 
@@ -815,7 +871,7 @@ def build_scatter():
     box("Decor", ch, C["gold"], (0.6, 3.8, 3.1), (1.3, 1.9, 0))
     box("Decor", ch, C["gold"], (0.8, 0.8, 0.3), (0, 2.4, -1.6), mat="N")
     # gallery anchor (demo mode balloon gallery lays out here)
-    S.add("Decor", "B", "FFFFFF", (4, 1, 4), (108, 0.5, 58), yaw(90), "P", 1.0, False, "GalleryAnchor")
+    S.add("Decor", "B", "FFFFFF", (4, 1, 4), (100, 0.5, 68), I3, "P", 1.0, False, "GalleryAnchor")
 
 
 # ----------------------------------------------------------------------------- export
@@ -966,16 +1022,19 @@ def main():
     build_index()
     build_upgrades()
     build_arch()
+    build_border()
     build_scatter()
     size = export()
     print(f"StartMap: {S.count()} parts in {len(S.groups)} groups -> {os.path.relpath(OUT, ROOT)} ({size // 1024} KB)")
     for gname, parts in sorted(S.groups.items(), key=lambda kv: -len(kv[1])):
         print(f"  {gname:10s} {len(parts)}")
     if "--preview" in sys.argv:
-        render((200, -32), 1800, 1100, "overview.png")
-        render((0, -89.9), 1400, 1400, "topdown.png")
-        render((200, -24), 1400, 900, "plaza-shop.png", focus=(-40, -5), radius=58)
-        render((150, -22), 1400, 900, "index-upgrades.png", focus=(62, -20), radius=60)
+        render((200, -32), 1800, 1100, "overview.png", focus=(0, 0), radius=235)
+        render((0, -89.9), 1400, 1400, "topdown.png", focus=(0, 0), radius=235)
+        render((200, -20), 1800, 900, "horizon.png", focus=(0, 0), radius=1800)
+        render((75, -10), 1000, 640, "shop-front.png", focus=(-84, -6), radius=34)
+        render((255, -14), 1000, 640, "index-front.png", focus=(94, 8), radius=34)
+        render((215, -14), 1000, 640, "upgrades-front.png", focus=(58, -60), radius=40)
         render((180, -18), 1200, 800, "arch.png", focus=(0, -96), radius=34)
         print("previews -> docs/map/")
 
