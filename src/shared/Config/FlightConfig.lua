@@ -26,9 +26,9 @@ FlightConfig.Land = {
 	FirstBonus = 2, -- x2 coins on the first landing (tutorial via play)
 	Range = 6, -- extra studs outside the island radius
 	Below = 10, -- how far under the island top you can start landing
-	Above = 22, -- how far above it
+	Above = 45, -- how far above it (coming down onto an island is the natural way in)
 	FirstRange = 16, -- first landing: a much bigger landing zone...
-	FirstAbove = 45, -- ...and you can start it from higher up
+	FirstAbove = 70, -- ...and you can start it from higher up
 }
 
 -- The grass start map is a landing zone too, once you let out enough air to get low.
@@ -80,17 +80,33 @@ FlightConfig.AntiCheat = {
 
 export type LandSpot = { Name: string, Top: Vector3, Radius: number, Pad: Vector3?, Below: number?, Above: number? }
 
--- Can a character whose root is at `pos` start (and keep) landing on `spot`?
-function FlightConfig.CanLand(spot: LandSpot, pos: Vector3, first: boolean?): boolean
+-- Where is `pos` compared to `spot`'s landing zone?
+--   "ok"   inside it: you can land
+--   "high" over the island but too high: let out air (hold Space)
+--   "low"  beside it but too low: wait to float up
+--   "far"  too far sideways
+-- The second value is how many studs too high / too low.
+function FlightConfig.LandStatus(spot: LandSpot, pos: Vector3, first: boolean?): (string, number)
 	local land = FlightConfig.Land
 	local range = spot.Radius + (if first then land.FirstRange else land.Range)
 	local flat = Vector3.new(pos.X - spot.Top.X, 0, pos.Z - spot.Top.Z)
 	if flat.Magnitude > range then
-		return false
+		return "far", 0
 	end
 	local dy = pos.Y - spot.Top.Y
 	local above = spot.Above or (if first then land.FirstAbove else land.Above)
-	return dy >= -(spot.Below or land.Below) and dy <= above
+	local below = spot.Below or land.Below
+	if dy > above then
+		return "high", dy - above
+	elseif dy < -below then
+		return "low", -below - dy
+	end
+	return "ok", 0
+end
+
+-- Can a character whose root is at `pos` start (and keep) landing on `spot`?
+function FlightConfig.CanLand(spot: LandSpot, pos: Vector3, first: boolean?): boolean
+	return (FlightConfig.LandStatus(spot, pos, first)) == "ok"
 end
 
 -- The first spot you can land on from `pos` (nil if none).

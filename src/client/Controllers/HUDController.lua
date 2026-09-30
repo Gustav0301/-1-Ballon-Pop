@@ -1,19 +1,21 @@
 --!strict
--- HUDController: the flight HUD in the Shop style (docs/UI_STYLE.md).
+-- HUDController: brings the flight HUD to life (docs/UI_STYLE.md, docs/HUD_EDITING.md).
 --
---   top centre     coin counter (gold pill, the stud coin breaking out of its left edge)
---   over balloons  unbanked coins that wobble as they tick up, SIZE chip, HP balloons,
---                  risk bar (fragility) or landing progress - for every flying player
---   right edge     altitude gauge: zones, islands and you
---   bottom centre  JUMP TO FLY on the ground; a big green LAND button near an island
---   bottom right   LET OUT AIR (touch and mouse; Space on keyboard)
---   in the world   island markers with distance, and an edge arrow to the nearest one
---   cards          BANKED! with a coin fountain into the counter, POPPED!, toasts
+-- The HUD itself is a normal ScreenGui called "BalloonHUD". If you've installed one in
+-- StarterGui (HUDTemplate.Install() from the command bar) and edited it, THAT one is used;
+-- otherwise the default is built from HUDTemplate. Everything is found by name, so the
+-- look is yours to change in Studio - this file only moves, fills in and animates it.
 --
--- Everything is built from UI instances (no uploaded images) through UIKit.
+--   Coins         coin counter; counts up as banked coins fly in
+--   Altitude      zones, island notches, your balloon riding up the bar
+--   Actions       JUMP TO FLY on the ground, LAND near an island
+--   LetOutAir     hold to drop
+--   IslandArrow   points at the nearest island when it's off screen
+--   Templates     BalloonBoard (over every flying balloon), IslandMarker, cards, toast
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
 local HUDController = {}
@@ -21,25 +23,20 @@ local HUDController = {}
 local LocalPlayer = Players.LocalPlayer
 
 local UIKit: any
+local HUDTemplate: any
 local T: any
 local FlightConfig: any
 local Flight: any
 local Net: RemoteEvent
 
 local gui: ScreenGui
+local templates: Folder
 local fxLayer: Frame
 local viewportScales: { UIScale } = {}
 local keyChips: { GuiObject } = {}
 
-local new: (string, { [string]: any }?, { Instance }?) -> any
-
-local GAUGE_TOP = 1500 -- altitude at the top of the gauge (Cloud Shelf ceiling)
-local ZONES = {
-	{ Name = "MEADOW SKY", From = 0, To = 500, Top = Color3.fromHex("8FE3FF"), Bottom = Color3.fromHex("63D56E") },
-	{ Name = "CLOUD SHELF", From = 500, To = 1500, Top = Color3.fromHex("E9F1FF"), Bottom = Color3.fromHex("B7CCFF") },
-}
-local HP_ON = Color3.fromHex("FF3B4E")
-local HP_OFF = Color3.fromHex("5A4A66")
+local HP_ON: Color3
+local HP_OFF: Color3
 
 --------------------------------------------------------------------------------
 -- helpers
@@ -58,41 +55,20 @@ local function titleName(name: string): string
 	return (name:gsub("(%l)(%u)", "%1 %2"))
 end
 
--- "WindmillHill" -> "WINDMILL HILL"
-local function prettyName(name: string): string
-	return titleName(name):upper()
+local function prettyName(spot: any): string
+	return string.upper(spot.Label or titleName(spot.Name))
 end
 
--- a top-level container that scales with the screen
-local function anchor(name: string, size: UDim2, pos: UDim2, ap: Vector2): Frame
-	local frame = new("Frame", {
-		Name = name,
-		Size = size,
-		Position = pos,
-		AnchorPoint = ap,
-		BackgroundTransparency = 1,
-		Parent = gui,
-	})
-	table.insert(viewportScales, new("UIScale", { Parent = frame }))
-	return frame
-end
-
-local function keyChip(text: string, parent: Instance, pos: UDim2, ap: Vector2?, h: number?): Frame
-	local chip = UIKit.Key(text, parent, h)
-	chip.Position = pos
-	chip.AnchorPoint = ap or Vector2.new(0.5, 0.5)
-	chip.ZIndex = 30
-	for _, d in chip:GetDescendants() do
-		if d:IsA("GuiObject") then
-			d.ZIndex = 31
-		end
+local function find(root: Instance, path: string): any
+	local node: Instance? = root
+	for part in path:gmatch("[^%.]+") do
+		node = node and node:FindFirstChild(part)
 	end
-	table.insert(keyChips, chip)
-	return chip
+	return node
 end
 
-local function show(obj: GuiObject, on: boolean, scale: UIScale?)
-	if obj.Visible == on then
+local function show(obj: GuiObject?, on: boolean, scale: UIScale?)
+	if not obj or obj.Visible == on then
 		return
 	end
 	obj.Visible = on
@@ -102,40 +78,35 @@ local function show(obj: GuiObject, on: boolean, scale: UIScale?)
 	end
 end
 
+local function gradientColor(frame: Instance?, top: Color3, base: Color3)
+	local g = frame and frame:FindFirstChildOfClass("UIGradient")
+	if g then
+		g.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, top), ColorSequenceKeypoint.new(0.55, base), ColorSequenceKeypoint.new(1, base) })
+	end
+end
+
+local function copy(name: string): any
+	local t = templates:FindFirstChild(name)
+	if not t then
+		return nil
+	end
+	local c = t:Clone()
+	if c:IsA("GuiObject") then
+		c.Visible = true
+	end
+	UIKit.BindStripes(c)
+	return c
+end
+
 --------------------------------------------------------------------------------
 -- coin counter
 
-local coins = { shown = 0, target = 0, holdUntil = 0, scale = nil :: UIScale?, label = nil :: TextLabel?, icon = nil :: Frame? }
+local coins = { shown = 0, target = 0, holdUntil = 0, scale = nil :: UIScale?, label = nil :: TextLabel?, icon = nil :: GuiObject? }
 
-local function buildCoins()
-	local root = anchor("Coins", UDim2.fromOffset(270, 64), UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
-	local holder = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = root })
-	coins.scale = new("UIScale", { Parent = holder })
-	local lip = UIKit.Panel({ Name = "Lip", Size = UDim2.new(1, -22, 0, 52), Position = UDim2.fromOffset(22, 11), Color = T.GoldLip, Radius = 26, Parent = holder })
-	local _ = lip
-	local pill = UIKit.Panel({ Name = "Pill", Size = UDim2.new(1, -22, 0, 52), Position = UDim2.fromOffset(22, 6), Color = T.Gold, Top = T.GoldTop, Radius = 26, Parent = holder })
-	local shine = new("Frame", {
-		Size = UDim2.new(1, -60, 0, 6),
-		Position = UDim2.new(0.5, 14, 0, 6),
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.45,
-		BorderSizePixel = 0,
-		Parent = pill,
-	})
-	UIKit.Corner(shine, UDim.new(1, 0))
-	coins.label = UIKit.Label({
-		Name = "Amount",
-		Text = "0",
-		TextSize = 36,
-		Stroke = 4,
-		Size = UDim2.new(1, -62, 1, 0),
-		Position = UDim2.fromOffset(52, -1),
-		Parent = pill,
-	})
-	local icon = UIKit.Coin(66, holder)
-	icon.Position = UDim2.fromOffset(0, -1)
-	coins.icon = icon
+local function bindCoins()
+	coins.scale = find(gui, "Coins.Holder.Pop")
+	coins.label = find(gui, "Coins.Holder.Pill.Amount")
+	coins.icon = find(gui, "Coins.Holder.Coin")
 end
 
 local function stepCoins(dt: number)
@@ -156,254 +127,121 @@ local function stepCoins(dt: number)
 end
 
 --------------------------------------------------------------------------------
--- altitude gauge
+-- altitude gauge (reads the bar's own position and size, so you can move/resize it)
 
-local gauge = { root = nil :: Frame?, marker = nil :: Frame?, value = nil :: TextLabel?, height = 340, top = 50 }
+local gauge = { root = nil :: GuiObject?, bar = nil :: GuiObject?, you = nil :: GuiObject?, value = nil :: TextLabel? }
 
-local function gaugeY(alt: number): number
-	return gauge.top + gauge.height * (1 - math.clamp(alt / GAUGE_TOP, 0, 1))
-end
-
-local function buildGauge()
-	local h = gauge.height
-	local root = anchor("Altitude", UDim2.fromOffset(200, h + gauge.top + 16), UDim2.new(1, -16, 0.5, -34), Vector2.new(1, 0.5))
-	gauge.root = root
-	local barX = 200 - 34
-	-- your altitude, in a red tag on top of the gauge
-	local tag = UIKit.Panel({ Name = "Tag", Size = UDim2.fromOffset(96, 34), Position = UDim2.fromOffset(barX + 30, 4), AnchorPoint = Vector2.new(1, 0), Color = T.Red, Top = T.RedTop, Radius = 11, Outline = 3.5, Stripes = true, Parent = root })
-	gauge.value = UIKit.Label({ Text = "0m", TextSize = 22, Stroke = 3, ZIndex = 2, Parent = tag })
-
-	local bar = UIKit.Panel({ Name = "Bar", Size = UDim2.fromOffset(30, h), Position = UDim2.fromOffset(barX, gauge.top), Color = T.Dark, Radius = 15, Parent = root })
-	for i, z in ZONES do
-		local y0, y1 = gaugeY(z.To) - gauge.top, gaugeY(z.From) - gauge.top
-		local band = new("Frame", {
-			Name = z.Name,
-			Size = UDim2.new(1, -8, 0, y1 - y0 - (if i == 1 then 4 else 2)),
-			Position = UDim2.fromOffset(4, y0 + (if i == #ZONES then 4 else 1)),
-			BorderSizePixel = 0,
-			Parent = bar,
-		})
-		UIKit.Corner(band, UDim.new(0, 11))
-		UIKit.Gloss(band, z.Top, z.Bottom, 1)
-		UIKit.Label({
-			Text = z.Name,
-			TextSize = 13,
-			Stroke = 2,
-			Size = UDim2.fromOffset(y1 - y0, 20),
-			Position = UDim2.new(0.5, 0, 0.5, 0),
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Rotation = -90,
-			Parent = band,
-		})
+local function bindGauge()
+	gauge.root = find(gui, "Altitude")
+	gauge.bar = find(gui, "Altitude.Bar")
+	gauge.you = find(gui, "Altitude.You")
+	gauge.value = find(gui, "Altitude.Tag.Value")
+	if gauge.root then
+		(gauge.root :: GuiObject).Visible = false
 	end
-	-- island notches with names
-	for _, spot in Flight.GetSpots() do
-		if spot.Name ~= FlightConfig.Home.Name then
-			local y = gaugeY(spot.Top.Y)
-			local notch = new("Frame", {
-				Size = UDim2.fromOffset(14, 6),
-				Position = UDim2.fromOffset(barX - 6, y),
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.new(1, 1, 1),
-				BorderSizePixel = 0,
-				ZIndex = 3,
-				Parent = root,
-			})
-			UIKit.Corner(notch, UDim.new(1, 0))
-			UIKit.Stroke(notch, 2)
-			UIKit.Label({
-				Text = prettyName(spot.Name),
-				TextSize = 13,
-				Stroke = 2.5,
-				Size = UDim2.fromOffset(120, 16),
-				Position = UDim2.fromOffset(barX - 16, y),
-				AnchorPoint = Vector2.new(1, 0.5),
-				XAlign = Enum.TextXAlignment.Right,
-				Parent = root,
-			})
-		end
-	end
-	-- you: a balloon riding up the bar
-	local marker = UIKit.BalloonIcon(26, HP_ON, root)
-	marker.Name = "You"
-	marker.AnchorPoint = Vector2.new(0.5, 0.4)
-	for _, d in marker:GetDescendants() do
-		if d:IsA("GuiObject") then
-			d.ZIndex += 5
-		end
-	end
-	gauge.marker = marker
-	root.Visible = false
 end
 
 local function stepGauge()
-	local root = gauge.root
-	local marker = gauge.marker
-	if not root or not marker then
+	local root, bar, you = gauge.root, gauge.bar, gauge.you
+	if not root or not bar then
 		return
 	end
 	root.Visible = state() ~= "Ground"
 	local character = LocalPlayer.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not hrp then
+	if not hrp or not root.Visible then
 		return
 	end
 	local alt = math.max(0, hrp.Position.Y - 3)
-	marker.Position = UDim2.fromOffset(200 - 34 + 15, gaugeY(alt))
+	local top = num(root :: any, "MaxAltitude", HUDTemplate.GaugeTop)
+	if you then
+		local k = 1 - math.clamp(alt / top, 0, 1)
+		you.Position = UDim2.new(
+			bar.Position.X.Scale,
+			bar.Position.X.Offset + bar.Size.X.Offset / 2,
+			bar.Position.Y.Scale,
+			bar.Position.Y.Offset + bar.Size.Y.Offset * k
+		)
+	end
 	if gauge.value then
 		gauge.value.Text = UIKit.Number(alt) .. "m"
 	end
 end
 
 --------------------------------------------------------------------------------
--- bottom actions: JUMP TO FLY, LAND, LET OUT AIR
+-- JUMP TO FLY, LAND, LET OUT AIR
 
 local actions = {
-	jump = nil :: Frame?,
+	jump = nil :: GuiObject?,
 	jumpScale = nil :: UIScale?,
+	bob = nil :: GuiObject?,
+	bobRest = UDim2.new(),
 	land = nil :: any,
-	landFill = nil :: Frame?,
-	landSpot = nil :: TextLabel?,
-	landTag = nil :: Frame?,
+	landFill = nil :: GuiObject?,
+	landFillSize = UDim2.new(),
 	landTitle = nil :: TextLabel?,
-	firstRibbon = nil :: Frame?,
+	landTitleText = "LAND",
+	landSpot = nil :: TextLabel?,
+	firstRibbon = nil :: GuiObject?,
 	letOut = nil :: any,
+	letOutRoot = nil :: GuiObject?,
 	launchedOnce = false,
 	landShownAt = 0,
 }
 
-local function buildJumpPrompt(root: Frame)
-	local holder = new("Frame", { Name = "JumpToFly", Size = UDim2.fromOffset(340, 70), Position = UDim2.new(0.5, 0, 1, 0), AnchorPoint = Vector2.new(0.5, 1), BackgroundTransparency = 1, Parent = root })
-	actions.jumpScale = new("UIScale", { Parent = holder })
-	UIKit.Panel({ Name = "Lip", Size = UDim2.new(1, 0, 0, 62), Position = UDim2.fromOffset(0, 8), Color = T.RedDark, Radius = 18, Parent = holder })
-	local pill = UIKit.Panel({ Name = "Pill", Size = UDim2.new(1, 0, 0, 62), Color = T.Red, Top = T.RedTop, Radius = 18, Stripes = true, Parent = holder })
-	local icon = UIKit.BalloonIcon(30, T.Gold, pill)
-	icon.Position = UDim2.new(0, 20, 0.5, -20)
-	icon.Name = "Bob"
-	for _, d in icon:GetDescendants() do
-		if d:IsA("GuiObject") then
-			d.ZIndex += 2
-		end
-	end
-	UIKit.Label({ Text = "JUMP TO FLY", TextSize = 32, Stroke = 3.5, ZIndex = 3, Size = UDim2.new(1, -40, 1, 0), Position = UDim2.fromOffset(18, -1), Parent = pill })
-	keyChip("SPACE", holder, UDim2.new(1, -8, 0, -4), Vector2.new(1, 0.5), 26)
-	actions.jump = holder
-	holder.Visible = false
-end
-
-local function buildLand(root: Frame)
-	local btn = UIKit.Button({
-		Name = "Land",
-		Size = UDim2.fromOffset(270, 84),
-		Position = UDim2.new(0.5, 0, 1, -8),
-		AnchorPoint = Vector2.new(0.5, 1),
-		Face = T.Green,
-		Top = T.GreenTop,
-		Lip = T.GreenLip,
-		Radius = 20,
-		LipDepth = 7,
-		Parent = root,
-	})
-	local fill = new("Frame", {
-		Name = "Fill",
-		Size = UDim2.new(0, 0, 1, -14),
-		Position = UDim2.fromOffset(7, 7),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.5,
-		BorderSizePixel = 0,
-		ZIndex = 3,
-		Parent = btn.Face,
-	})
-	UIKit.Corner(fill, UDim.new(0, 14))
-	actions.landTitle = UIKit.Label({ Text = "LAND", TextSize = 46, Stroke = 4.5, ZIndex = 4, Position = UDim2.fromOffset(0, -1), Parent = btn.Face })
-	-- where you'll land, on a little tag over the button
-	local tag = UIKit.Panel({ Name = "Spot", Size = UDim2.fromOffset(200, 30), Position = UDim2.new(0.5, 0, 0, -14), AnchorPoint = Vector2.new(0.5, 1), Color = T.Dark, Radius = 10, Outline = 3, Parent = btn.Frame })
-	actions.landSpot = UIKit.Label({ Text = "", TextSize = 17, Stroke = 2.5, Parent = tag })
-	actions.landTag = tag
-	-- first landing hint
-	local ribbon = UIKit.Panel({ Name = "First", Size = UDim2.fromOffset(150, 30), Position = UDim2.new(1, 12, 0, 6), AnchorPoint = Vector2.new(1, 0.5), Color = T.Gold, Top = T.GoldTop, Radius = 10, Outline = 3, Parent = btn.Frame })
-	ribbon.Rotation = 6
-	ribbon.ZIndex = 25
-	UIKit.Label({ Text = "FIRST LANDING x2", TextSize = 15, Stroke = 2.5, ZIndex = 26, Parent = ribbon })
-	actions.firstRibbon = ribbon
-	keyChip("E", btn.Frame, UDim2.fromOffset(4, 4), Vector2.new(0.5, 0.5), 30)
-
+local function holdButton(btn: any, on: (boolean) -> ())
 	btn.Hit.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Flight.SetLanding(true)
+			on(true)
 		end
 	end)
 	btn.Hit.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Flight.SetLanding(false)
+			on(false)
 		end
 	end)
-	actions.land = btn
-	actions.landFill = fill
-	btn.Frame.Visible = false
 end
 
-local function arrowDown(parent: Instance, size: number, z: number)
-	-- a chunky down arrow: a stem and a chevron made of two rounded bars
-	local holder = new("Frame", { Name = "Arrow", Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1, ZIndex = z, Parent = parent })
-	local function bar(w: number, h: number, x: number, y: number, rot: number)
-		local b = new("Frame", {
-			Size = UDim2.fromOffset(w, h),
-			Position = UDim2.fromOffset(x, y),
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Rotation = rot,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BorderSizePixel = 0,
-			ZIndex = z,
-			Parent = holder,
-		})
-		UIKit.Corner(b, UDim.new(1, 0))
-		UIKit.Stroke(b, 3)
+local function bindActions()
+	local jump = find(gui, "Actions.JumpToFly")
+	actions.jump = jump
+	actions.jumpScale = jump and jump:FindFirstChild("Pop")
+	actions.bob = find(gui, "Actions.JumpToFly.Pill.Bob")
+	if actions.bob then
+		actions.bobRest = (actions.bob :: GuiObject).Position
 	end
-	local s = size
-	bar(s * 0.2, s * 0.62, s * 0.5, s * 0.36, 0)
-	bar(s * 0.2, s * 0.5, s * 0.36, s * 0.62, -45)
-	bar(s * 0.2, s * 0.5, s * 0.64, s * 0.62, 45)
-	return holder
-end
+	if jump then
+		jump.Visible = false
+	end
 
-local function buildLetOut()
-	local root = anchor("LetOutAir", UDim2.fromOffset(132, 124), UDim2.new(1, -18, 1, -18), Vector2.new(1, 1))
-	local btn = UIKit.Button({
-		Name = "LetOut",
-		Size = UDim2.fromOffset(124, 110),
-		Position = UDim2.new(0.5, 0, 1, -8),
-		AnchorPoint = Vector2.new(0.5, 1),
-		Face = T.Blue,
-		Top = T.BlueTop,
-		Lip = T.BlueLip,
-		Radius = 22,
-		Parent = root,
-	})
-	local arrow = arrowDown(btn.Face, 46, 4)
-	arrow.Position = UDim2.new(0.5, 0, 0, 12)
-	arrow.AnchorPoint = Vector2.new(0.5, 0)
-	UIKit.Label({ Text = "LET OUT\nAIR", TextSize = 19, Stroke = 3, ZIndex = 4, Size = UDim2.new(1, 0, 0, 44), Position = UDim2.new(0, 0, 1, -50), Parent = btn.Face })
-	keyChip("SPACE", btn.Frame, UDim2.new(0.5, 0, 0, -2), Vector2.new(0.5, 0.5), 24)
-	btn.Hit.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Flight.SetLetOut(true)
+	local landFrame = find(gui, "Actions.Land")
+	if landFrame then
+		local btn = UIKit.BindButton(landFrame)
+		actions.land = btn
+		actions.landFill = find(landFrame, "Face.Fill")
+		actions.landTitle = find(landFrame, "Face.Title")
+		actions.landSpot = find(landFrame, "Spot.Text")
+		actions.firstRibbon = find(landFrame, "First")
+		if actions.landTitle then
+			actions.landTitleText = (actions.landTitle :: TextLabel).Text
 		end
-	end)
-	btn.Hit.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Flight.SetLetOut(false)
+		if actions.landFill then
+			actions.landFillSize = (actions.landFill :: GuiObject).Size
 		end
-	end)
-	actions.letOut = { root = root, btn = btn }
-	root.Visible = false
-end
+		holdButton(btn, Flight.SetLanding)
+		landFrame.Visible = false
+	end
 
-local function buildActions()
-	local root = anchor("Actions", UDim2.fromOffset(360, 150), UDim2.new(0.5, 0, 1, -22), Vector2.new(0.5, 1))
-	buildJumpPrompt(root)
-	buildLand(root)
-	buildLetOut()
+	local letFrame = find(gui, "LetOutAir.LetOut")
+	if letFrame then
+		local btn = UIKit.BindButton(letFrame)
+		actions.letOut = btn
+		actions.letOutRoot = find(gui, "LetOutAir")
+		holdButton(btn, Flight.SetLetOut)
+		if actions.letOutRoot then
+			(actions.letOutRoot :: GuiObject).Visible = false
+		end
+	end
 end
 
 local function stepActions(now: number)
@@ -418,11 +256,10 @@ local function stepActions(now: number)
 	if jump then
 		local character = LocalPlayer.Character
 		local ready = s == "Ground" and LocalPlayer:GetAttribute("DataLoaded") == true and character ~= nil and character:FindFirstChild("Balloon") ~= nil
-		local want = ready and (not actions.launchedOnce or LocalPlayer:GetAttribute("FirstLanding") == true)
-		show(jump, want, actions.jumpScale)
-		local bob = jump:FindFirstChild("Pill") and (jump :: any).Pill:FindFirstChild("Bob")
-		if bob then
-			bob.Position = UDim2.new(0, 20, 0.5, -20 + math.sin(now * 3) * 4)
+		show(jump, ready and (not actions.launchedOnce or LocalPlayer:GetAttribute("FirstLanding") == true), actions.jumpScale)
+		local bob = actions.bob
+		if bob and jump.Visible then
+			bob.Position = actions.bobRest + UDim2.fromOffset(0, math.sin(now * 3) * 4)
 			bob.Rotation = math.sin(now * 2.2) * 8
 		end
 	end
@@ -438,40 +275,45 @@ local function stepActions(now: number)
 		show(land.Frame, on, land.Scale)
 		local settled = now - actions.landShownAt > 0.35
 		if on then
-			local label = actions.landSpot
-			if label then
-				label.Text = if spot.Label then string.upper(spot.Label) else prettyName(spot.Name)
+			if actions.landSpot then
+				actions.landSpot.Text = prettyName(spot)
 			end
 			if actions.firstRibbon then
 				actions.firstRibbon.Visible = LocalPlayer:GetAttribute("FirstLanding") == true
 			end
-			local fill = actions.landFill :: Frame
-			local title = actions.landTitle :: TextLabel
+			local fill = actions.landFill
+			local title = actions.landTitle
+			local full = actions.landFillSize
 			if s == "Landing" then
 				local total = if LocalPlayer:GetAttribute("FirstLanding") == true then FlightConfig.Land.FirstTime else FlightConfig.Land.Time
-				local left = num(LocalPlayer, "LandEnd", 0) - workspace:GetServerTimeNow()
-				local k = math.clamp(1 - left / total, 0, 1)
-				fill.Size = UDim2.new(k, -14 * k, 1, -14)
-				title.Text = "LANDING"
-				title.TextSize = 38
+				local k = math.clamp(1 - (num(LocalPlayer, "LandEnd", 0) - workspace:GetServerTimeNow()) / total, 0, 1)
+				if fill then
+					fill.Size = UDim2.new(k, (full.X.Offset - 7) * k, full.Y.Scale, full.Y.Offset)
+					fill.Visible = true
+				end
+				if title then
+					title.Text = "LANDING"
+				end
 				if settled then
 					land.Scale.Scale = 1 + math.sin(now * 20) * 0.015
 				end
 			else
-				fill.Size = UDim2.new(0, 0, 1, -14)
-				title.Text = "LAND"
-				title.TextSize = 46
-				-- a gentle "press me" breathe
+				if fill then
+					fill.Visible = false
+				end
+				if title then
+					title.Text = actions.landTitleText
+				end
 				if settled then
-					land.Scale.Scale = 1 + math.sin(now * 5) * 0.03
+					land.Scale.Scale = 1 + math.sin(now * 5) * 0.03 -- a gentle "press me" breathe
 				end
 			end
 		end
 	end
 
 	local letOut = actions.letOut
-	if letOut then
-		show(letOut.root, s == "Flying", letOut.btn.Scale)
+	if letOut and actions.letOutRoot then
+		show(actions.letOutRoot, s == "Flying", letOut.Scale)
 	end
 end
 
@@ -480,16 +322,17 @@ end
 
 type Board = {
 	gui: BillboardGui,
-	amount: TextLabel,
-	amountScale: UIScale,
-	row: Frame,
-	sizeChip: Frame,
-	sizeText: TextLabel,
-	pips: { Frame },
-	pipRow: Frame,
-	riskFill: Frame,
-	riskBar: Frame,
-	riskLabel: TextLabel,
+	amount: TextLabel?,
+	amountScale: UIScale?,
+	sizeChip: GuiObject?,
+	sizeText: TextLabel?,
+	sizeWidth: number,
+	pipRow: GuiObject?,
+	pips: { GuiObject },
+	pipBody: UDim2,
+	riskFill: GuiObject?,
+	riskFillColor: Color3,
+	riskLabel: TextLabel?,
 	maxHP: number,
 	last: number,
 	lastHP: number,
@@ -500,99 +343,56 @@ type Board = {
 }
 
 local boards: { [Player]: Board } = {}
-local boardFolder: Folder
+local worldFolder: Folder
 
 local function buildPips(b: Board, maxHP: number)
 	for _, pip in b.pips do
 		pip:Destroy()
 	end
 	b.pips = {}
+	local row = b.pipRow
+	if not row then
+		return
+	end
 	local count = math.min(10, math.max(1, math.floor(maxHP + 0.5)))
 	for i = 1, count do
-		local pip = UIKit.BalloonIcon(15, HP_ON, b.pipRow)
-		pip.LayoutOrder = i
-		table.insert(b.pips, pip)
+		local pip = copy("HPPip")
+		if pip then
+			pip.LayoutOrder = i
+			pip.Parent = row
+			table.insert(b.pips, pip)
+		end
 	end
 	b.maxHP = maxHP
 end
 
-local function buildBoard(player: Player): Board
+local function newBoard(player: Player): Board?
+	local bb = copy("BalloonBoard") :: BillboardGui?
+	if not bb then
+		return nil
+	end
 	local isMe = player == LocalPlayer
-	local bb = new("BillboardGui", {
-		Name = "Balloon_" .. player.Name,
-		Size = UDim2.fromOffset(250, 118),
-		LightInfluence = 0,
-		AlwaysOnTop = isMe,
-		MaxDistance = if isMe then 1e5 else 260,
-		ResetOnSpawn = false,
-		ClipsDescendants = false,
-		Parent = boardFolder,
-	})
-	-- unbanked coins: the big number
-	local top = new("Frame", { Name = "Top", Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, Parent = bb })
-	local amountScale = new("UIScale", { Parent = top })
-	new("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-		Padding = UDim.new(0, 6),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = top,
-	})
-	local coin = UIKit.Coin(36, top)
-	coin.LayoutOrder = 1
-	local amount = UIKit.Label({ Name = "Amount", Text = "+0", TextSize = 40, Stroke = 4.5, Size = UDim2.fromOffset(0, 48), Parent = top })
-	amount.AutomaticSize = Enum.AutomaticSize.X
-	amount.LayoutOrder = 2
-
-	-- size chip + HP balloons
-	local row = new("Frame", { Name = "Row", Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 54), BackgroundTransparency = 1, Parent = bb })
-	new("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-		Padding = UDim.new(0, 8),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = row,
-	})
-	local chip = UIKit.Panel({ Name = "Size", Size = UDim2.fromOffset(92, 28), Color = T.Red, Top = T.RedTop, Radius = 9, Outline = 3, Stripes = true, Parent = row })
-	chip.LayoutOrder = 1
-	local sizeText = UIKit.Label({ Text = "SIZE 1", TextSize = 17, Stroke = 2.5, ZIndex = 2, Parent = chip })
-	local pipRow = new("Frame", { Name = "HP", Size = UDim2.fromOffset(0, 26), AutomaticSize = Enum.AutomaticSize.X, BackgroundTransparency = 1, LayoutOrder = 2, Parent = row })
-	new("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-		Padding = UDim.new(0, 3),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = pipRow,
-	})
-
-	-- risk (fragility) bar, or landing progress
-	local riskBar = UIKit.Panel({ Name = "Risk", Size = UDim2.fromOffset(150, 14), Position = UDim2.new(0.5, 12, 0, 94), AnchorPoint = Vector2.new(0.5, 0), Color = T.Dark, Radius = 7, Outline = 2.5, Parent = bb })
-	local riskFill = new("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = riskBar })
-	UIKit.Corner(riskFill, UDim.new(0, 7))
-	new("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHex("6BE35A")),
-			ColorSequenceKeypoint.new(0.5, Color3.fromHex("FFD23F")),
-			ColorSequenceKeypoint.new(1, Color3.fromHex("FF3B3B")),
-		}),
-		Parent = riskFill,
-	})
-	local riskLabel = UIKit.Label({ Text = "RISK", TextSize = 14, Stroke = 2.5, Size = UDim2.fromOffset(60, 14), Position = UDim2.new(0, -8, 0.5, 0), AnchorPoint = Vector2.new(1, 0.5), XAlign = Enum.TextXAlignment.Right, Parent = riskBar })
-
+	bb.Name = "Balloon_" .. player.Name
+	bb.AlwaysOnTop = isMe
+	bb.MaxDistance = if isMe then 1e5 else 260
+	bb.Parent = worldFolder
+	local chip = find(bb, "Row.Size")
+	local fill = find(bb, "Risk.Fill")
+	local pipTemplate = templates:FindFirstChild("HPPip")
+	local body = pipTemplate and pipTemplate:FindFirstChild("Body") :: GuiObject?
 	local b: Board = {
 		gui = bb,
-		amount = amount,
-		amountScale = amountScale,
-		row = row,
+		amount = find(bb, "Top.Amount"),
+		amountScale = find(bb, "Top.Pop"),
 		sizeChip = chip,
-		sizeText = sizeText,
+		sizeText = find(bb, "Row.Size.Text"),
+		sizeWidth = if chip then chip.Size.X.Offset else 92,
+		pipRow = find(bb, "Row.HP"),
 		pips = {},
-		pipRow = pipRow,
-		riskFill = riskFill,
-		riskBar = riskBar,
-		riskLabel = riskLabel,
+		pipBody = if body then body.Size else UDim2.fromOffset(15, 15),
+		riskFill = fill,
+		riskFillColor = if fill then fill.BackgroundColor3 else Color3.new(1, 1, 1),
+		riskLabel = find(bb, "Risk.Label"),
 		maxHP = 0,
 		last = -1,
 		lastHP = -1,
@@ -621,28 +421,29 @@ local function stepBoard(player: Player, b: Board, root: BasePart, now: number)
 
 	-- unbanked: pop + tilt every tick so it feels alive
 	local unbanked = num(player, "Unbanked", 0)
-	if unbanked ~= b.last then
+	local amount = b.amount
+	if amount and unbanked ~= b.last then
 		if b.last >= 0 and unbanked > b.last then
 			b.flip = -b.flip
-			b.amountScale.Scale = 1.09
-			UIKit.Tween(b.amountScale, 0.18, { Scale = 1 })
-			b.amount.Rotation = 3 * b.flip
-			UIKit.Tween(b.amount, 0.25, { Rotation = 0 }, Enum.EasingStyle.Back)
+			if b.amountScale then
+				b.amountScale.Scale = 1.09
+				UIKit.Tween(b.amountScale, 0.18, { Scale = 1 })
+			end
+			amount.Rotation = 3 * b.flip
+			UIKit.Tween(amount, 0.25, { Rotation = 0 }, Enum.EasingStyle.Back)
 		end
 		b.last = unbanked
-		b.amount.Text = "+" .. UIKit.Number(unbanked)
+		amount.Text = "+" .. UIKit.Number(unbanked)
 	end
 
 	-- size chip goes gold at max size
 	local size = num(player, "Size", 1)
 	local maxed = player:GetAttribute("Maxed") == true
-	b.sizeText.Text = if maxed then "MAX " .. UIKit.Number(size) else "SIZE " .. UIKit.Number(size)
-	b.sizeChip.Size = UDim2.fromOffset(math.max(92, 30 + #b.sizeText.Text * 9), 28)
-	local gold = b.sizeChip:FindFirstChildOfClass("UIGradient")
-	if gold then
-		local c0 = if maxed then T.GoldTop else T.RedTop
-		local c1 = if maxed then T.GoldDark else T.Red
-		gold.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, c0), ColorSequenceKeypoint.new(0.55, c1), ColorSequenceKeypoint.new(1, c1) })
+	if b.sizeText and b.sizeChip then
+		b.sizeText.Text = if maxed then "MAX " .. UIKit.Number(size) else "SIZE " .. UIKit.Number(size)
+		local chip = b.sizeChip :: GuiObject
+		chip.Size = UDim2.new(chip.Size.X.Scale, math.max(b.sizeWidth, 30 + #b.sizeText.Text * 9), chip.Size.Y.Scale, chip.Size.Y.Offset)
+		gradientColor(chip, if maxed then T.GoldTop else T.RedTop, if maxed then T.GoldDark else T.Red)
 	end
 
 	-- HP balloons (partial HP shows as a half-deflated balloon)
@@ -655,44 +456,55 @@ local function stepBoard(player: Player, b: Board, root: BasePart, now: number)
 		b.shakeUntil = now + 0.35
 	end
 	b.lastHP = hp
-	local perPip = maxHP / #b.pips
-	for i, pip in b.pips do
-		local v = math.clamp((hp - (i - 1) * perPip) / perPip, 0, 1)
-		local body = pip:FindFirstChild("Body") :: Frame?
-		local knot = pip:FindFirstChild("Knot") :: Frame?
-		if body and knot then
-			local color = if v <= 0 then HP_OFF else HP_ON
-			body.BackgroundColor3 = color
-			knot.BackgroundColor3 = color
-			local s = if v <= 0 then 0.8 else 0.62 + 0.38 * v
-			body.Size = UDim2.fromOffset(15 * s, 15 * s)
-			body.Position = UDim2.fromOffset(15 * (1 - s) / 2, 15 * (1 - s))
+	if #b.pips > 0 then
+		local perPip = maxHP / #b.pips
+		local full = b.pipBody
+		for i, pip in b.pips do
+			local v = math.clamp((hp - (i - 1) * perPip) / perPip, 0, 1)
+			local body = pip:FindFirstChild("Body") :: GuiObject?
+			local knot = pip:FindFirstChild("Knot") :: GuiObject?
+			if body then
+				local color = if v <= 0 then HP_OFF else HP_ON
+				body.BackgroundColor3 = color
+				if knot then
+					knot.BackgroundColor3 = color
+				end
+				local s = if v <= 0 then 0.8 else 0.62 + 0.38 * v
+				local w, h = full.X.Offset, full.Y.Offset
+				body.Size = UDim2.fromOffset(w * s, h * s)
+				body.Position = UDim2.fromOffset(w * (1 - s) / 2, h * (1 - s))
+			end
 		end
 	end
-	local shake = if now < b.shakeUntil then math.sin(now * 70) * 4 else 0
-	b.pipRow.Position = UDim2.fromOffset(shake, 0)
+	if b.pipRow then
+		b.pipRow.Position = UDim2.fromOffset(if now < b.shakeUntil then math.sin(now * 70) * 4 else 0, 0)
+	end
 
 	-- risk: fragility (1 + size / 200) fills the bar; while landing it's the landing timer
-	if state(player) == "Landing" then
-		local first = player:GetAttribute("FirstLanding") == true
-		local total = if first then FlightConfig.Land.FirstTime else FlightConfig.Land.Time
-		local k = math.clamp(1 - (num(player, "LandEnd", 0) - workspace:GetServerTimeNow()) / total, 0, 1)
-		b.riskFill.Size = UDim2.fromScale(k, 1)
-		b.riskFill.BackgroundColor3 = Color3.fromHex("3CCB4A")
-		local grad = b.riskFill:FindFirstChildOfClass("UIGradient")
-		if grad then
-			grad.Enabled = false
+	local fill = b.riskFill
+	if fill then
+		local grad = fill:FindFirstChildOfClass("UIGradient")
+		if state(player) == "Landing" then
+			local total = if player:GetAttribute("FirstLanding") == true then FlightConfig.Land.FirstTime else FlightConfig.Land.Time
+			local k = math.clamp(1 - (num(player, "LandEnd", 0) - workspace:GetServerTimeNow()) / total, 0, 1)
+			fill.Size = UDim2.fromScale(k, 1)
+			fill.BackgroundColor3 = T.Green
+			if grad then
+				grad.Enabled = false
+			end
+			if b.riskLabel then
+				b.riskLabel.Text = "LANDING"
+			end
+		else
+			fill.Size = UDim2.fromScale(math.max(math.clamp(size / FlightConfig.Fragility, 0, 1), 0.06), 1)
+			fill.BackgroundColor3 = b.riskFillColor
+			if grad then
+				grad.Enabled = true
+			end
+			if b.riskLabel then
+				b.riskLabel.Text = "RISK"
+			end
 		end
-		b.riskLabel.Text = "LANDING"
-	else
-		local risk = math.clamp(size / FlightConfig.Fragility, 0, 1)
-		b.riskFill.Size = UDim2.fromScale(math.max(risk, 0.06), 1)
-		b.riskFill.BackgroundColor3 = Color3.new(1, 1, 1)
-		local grad = b.riskFill:FindFirstChildOfClass("UIGradient")
-		if grad then
-			grad.Enabled = true
-		end
-		b.riskLabel.Text = "RISK"
 	end
 end
 
@@ -703,13 +515,18 @@ local function stepBoards(now: number)
 		local balloon = character and character:FindFirstChild("Balloon")
 		local root = balloon and (balloon :: Model).PrimaryPart
 		local want = (s == "Flying" or s == "Landing") and root ~= nil
-		local b = boards[player]
+		local b: Board? = boards[player]
 		if want and root then
 			if not b then
-				b = buildBoard(player)
-				boards[player] = b
+				local created = newBoard(player)
+				if created then
+					boards[player] = created
+				end
+				b = created
 			end
-			stepBoard(player, b :: Board, root, now)
+			if b then
+				stepBoard(player, b, root, now)
+			end
 		elseif b then
 			b.gui:Destroy()
 			boards[player] = nil
@@ -726,91 +543,52 @@ end
 --------------------------------------------------------------------------------
 -- island markers and the edge arrow
 
-type Marker = { spot: any, gui: BillboardGui, pill: Frame, name: TextLabel, dist: TextLabel, scale: UIScale, part: BasePart }
+type Marker = { spot: any, gui: BillboardGui, pill: GuiObject?, name: TextLabel?, dist: TextLabel?, hint: TextLabel?, scale: UIScale? }
 local markers: { Marker } = {}
-local arrow = { root = nil :: Frame?, pointer = nil :: Frame?, dist = nil :: TextLabel? }
+local arrow = { root = nil :: GuiObject?, pointer = nil :: GuiObject?, dist = nil :: TextLabel? }
+local ORANGE_TOP = Color3.fromHex("FFC35A")
+local ORANGE = Color3.fromHex("FF8A1F")
 
-local function setPillColor(pill: Frame, top: Color3, base: Color3)
-	local g = pill:FindFirstChildOfClass("UIGradient")
-	if g then
-		g.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, top), ColorSequenceKeypoint.new(0.55, base), ColorSequenceKeypoint.new(1, base) })
-	end
-end
-
-local function buildMarkers()
-	local folder = new("Folder", { Name = "IslandMarkers", Parent = workspace })
+local function bindMarkers()
+	local folder = Instance.new("Folder")
+	folder.Name = "IslandMarkers"
+	folder.Parent = workspace
 	for _, spot in Flight.GetSpots() do
 		if spot.Name ~= FlightConfig.Home.Name then
-			local part = new("Part", {
-				Name = spot.Name,
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
-				Transparency = 1,
-				Size = Vector3.one,
-				Position = spot.Top + Vector3.new(0, 16, 0),
-				Parent = folder,
-			})
-			local bb = new("BillboardGui", {
-				Name = "Marker_" .. spot.Name,
-				Adornee = part,
-				Size = UDim2.fromOffset(210, 86),
-				AlwaysOnTop = true,
-				LightInfluence = 0,
-				MaxDistance = 1e5,
-				ResetOnSpawn = false,
-				Enabled = false,
-				Parent = boardFolder,
-			})
-			local holder = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = bb })
-			local scale = new("UIScale", { Parent = holder })
-			local pill = UIKit.Panel({ Name = "Pill", Size = UDim2.fromOffset(190, 34), Position = UDim2.new(0.5, 0, 0, 4), AnchorPoint = Vector2.new(0.5, 0), Color = T.Red, Top = T.RedTop, Radius = 11, Outline = 3, Stripes = true, Parent = holder })
-			local name = UIKit.Label({ Text = prettyName(spot.Name), TextSize = 19, Stroke = 3, ZIndex = 2, Parent = pill })
-			local dist = UIKit.Label({ Text = "", TextSize = 17, Stroke = 3, Size = UDim2.fromOffset(190, 20), Position = UDim2.new(0.5, 0, 0, 44), AnchorPoint = Vector2.new(0.5, 0), Parent = holder })
-			-- a stud diamond pointing down at the island
-			local tip = new("Frame", {
-				Size = UDim2.fromOffset(14, 14),
-				Position = UDim2.new(0.5, 0, 0, 74),
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Rotation = 45,
-				BackgroundColor3 = Color3.new(1, 1, 1),
-				BorderSizePixel = 0,
-				Parent = holder,
-			})
-			UIKit.Corner(tip, UDim.new(0, 3))
-			UIKit.Stroke(tip, 3)
-			table.insert(markers, { spot = spot, gui = bb, pill = pill, name = name, dist = dist, scale = scale, part = part })
+			local part = Instance.new("Part")
+			part.Name = spot.Name
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.Transparency = 1
+			part.Size = Vector3.one
+			part.Position = spot.Top + Vector3.new(0, 16, 0)
+			part.Parent = folder
+			local bb = copy("IslandMarker") :: BillboardGui?
+			if bb then
+				bb.Name = "Marker_" .. spot.Name
+				bb.Adornee = part
+				bb.Enabled = false
+				bb.Parent = worldFolder
+				table.insert(markers, {
+					spot = spot,
+					gui = bb,
+					pill = find(bb, "Holder.Pill"),
+					name = find(bb, "Holder.Pill.Name"),
+					dist = find(bb, "Holder.Distance"),
+					hint = find(bb, "Holder.Hint"),
+					scale = find(bb, "Holder.Pop"),
+				})
+			end
 		end
 	end
-
-	-- the edge arrow (nearest island when it's off screen)
-	local root = anchor("IslandArrow", UDim2.fromOffset(90, 90), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
-	local pointer = new("Frame", { Name = "Pointer", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = root })
-	local tip = new("Frame", {
-		Size = UDim2.fromOffset(26, 26),
-		Position = UDim2.new(1, -12, 0.5, 0),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Rotation = 45,
-		BackgroundColor3 = T.Red,
-		BorderSizePixel = 0,
-		Parent = pointer,
-	})
-	UIKit.Corner(tip, UDim.new(0, 5))
-	UIKit.Stroke(tip, 3.5)
-	local disc = UIKit.Panel({ Name = "Disc", Size = UDim2.fromOffset(62, 62), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Color = T.Red, Top = T.RedTop, Radius = 31, Parent = root })
-	disc.ZIndex = 2
-	local icon = UIKit.BalloonIcon(20, T.Gold, disc)
-	icon.Position = UDim2.new(0.5, -10, 0, 7)
-	for _, d in icon:GetDescendants() do
-		if d:IsA("GuiObject") then
-			d.ZIndex += 2
-		end
+	arrow.root = find(gui, "IslandArrow")
+	arrow.pointer = find(gui, "IslandArrow.Pointer")
+	arrow.dist = find(gui, "IslandArrow.Disc.Distance")
+	if arrow.root then
+		(arrow.root :: GuiObject).Visible = false
 	end
-	arrow.dist = UIKit.Label({ Text = "", TextSize = 15, Stroke = 2.5, ZIndex = 5, Size = UDim2.new(1, 0, 0, 18), Position = UDim2.new(0, 0, 1, -24), Parent = disc })
-	arrow.root = root
-	arrow.pointer = pointer
-	root.Visible = false
 end
 
 local function stepMarkers(now: number)
@@ -819,33 +597,54 @@ local function stepMarkers(now: number)
 	local character = LocalPlayer.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local pos = if hrp then hrp.Position else Vector3.zero
+	local first = LocalPlayer:GetAttribute("FirstLanding") == true
 	for _, m in markers do
 		local d = (m.spot.Top - pos).Magnitude
-		local on = flying and hrp ~= nil and d > 28
+		local on = flying and hrp ~= nil and d > 20
 		if on ~= m.gui.Enabled then
 			m.gui.Enabled = on
-			if on then
+			if on and m.scale then
 				m.scale.Scale = 0.5
 				UIKit.Tween(m.scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
 			end
 		end
 		if on then
-			local landable = Flight.Spot == m.spot
-			if landable then
-				m.name.Text = "LAND HERE!"
-				setPillColor(m.pill, T.GreenTop, T.Green)
-				m.scale.Scale = 1 + math.sin(now * 6) * 0.05
+			-- tell the player what to do: LAND HERE / DROP DOWN / FLOAT UP
+			local status, off = FlightConfig.LandStatus(m.spot, pos, first)
+			local label, hint = prettyName(m.spot), ""
+			if status == "ok" then
+				label = "LAND HERE!"
+				hint = "HOLD E"
+				gradientColor(m.pill, T.GreenTop, T.Green)
+				if m.scale then
+					m.scale.Scale = 1 + math.sin(now * 6) * 0.05
+				end
+			elseif status == "high" then
+				label = "DROP DOWN!"
+				hint = "HOLD SPACE  •  " .. UIKit.Number(off) .. "m too high"
+				gradientColor(m.pill, ORANGE_TOP, ORANGE)
+			elseif status == "low" then
+				label = "FLOAT UP"
+				hint = UIKit.Number(off) .. "m too low"
+				gradientColor(m.pill, ORANGE_TOP, ORANGE)
 			else
-				m.name.Text = prettyName(m.spot.Name)
-				setPillColor(m.pill, T.RedTop, T.Red)
+				gradientColor(m.pill, T.RedTop, T.Red)
 			end
-			m.dist.Text = UIKit.Number(d) .. "m"
+			if m.name then
+				m.name.Text = label
+			end
+			if m.hint then
+				m.hint.Text = hint
+				m.hint.Visible = hint ~= ""
+			end
+			if m.dist then
+				m.dist.Text = UIKit.Number(d) .. "m"
+			end
 		end
 	end
 
 	-- edge arrow to the nearest island when it's off screen
-	local root = arrow.root
-	local pointer = arrow.pointer
+	local root, pointer = arrow.root, arrow.pointer
 	local nearest = Flight.Nearest
 	local cam = workspace.CurrentCamera
 	if not root or not pointer then
@@ -855,8 +654,7 @@ local function stepMarkers(now: number)
 		root.Visible = false
 		return
 	end
-	local world = nearest.Top + Vector3.new(0, 16, 0)
-	local sp, onScreen = cam:WorldToViewportPoint(world)
+	local sp, onScreen = cam:WorldToViewportPoint(nearest.Top + Vector3.new(0, 16, 0))
 	local vp = cam.ViewportSize
 	if onScreen and sp.X > 60 and sp.X < vp.X - 60 and sp.Y > 60 and sp.Y < vp.Y - 60 then
 		root.Visible = false
@@ -872,13 +670,13 @@ local function stepMarkers(now: number)
 	end
 	local unit = dir.Unit
 	local margin = 80
-	local hx, hy = center.X - margin, center.Y - margin
-	local t = math.min(hx / math.max(math.abs(unit.X), 1e-3), hy / math.max(math.abs(unit.Y), 1e-3))
+	local t = math.min((center.X - margin) / math.max(math.abs(unit.X), 1e-3), (center.Y - margin) / math.max(math.abs(unit.Y), 1e-3))
 	local at = center + unit * t
 	root.Position = UDim2.fromOffset(at.X, at.Y)
+	root.AnchorPoint = Vector2.new(0.5, 0.5)
 	pointer.Rotation = math.deg(math.atan2(unit.Y, unit.X))
 	if arrow.dist then
-		arrow.dist.Text = UIKit.Number((nearest.Top - (if hrp then hrp.Position else Vector3.zero)).Magnitude) .. "m"
+		arrow.dist.Text = UIKit.Number((nearest.Top - pos).Magnitude) .. "m"
 	end
 	root.Visible = true
 end
@@ -886,31 +684,30 @@ end
 --------------------------------------------------------------------------------
 -- cards: BANKED!, POPPED!, toasts
 
-local cardSlot: Frame
-local toastSlot: Frame
+local cardSlot: GuiObject
+local toastSlot: GuiObject
 local cardToken = 0
 
-local function card(title: string, headerTop: Color3, headerBase: Color3): (CanvasGroup, Frame)
+local function showCard(name: string): (CanvasGroup?, Instance?)
 	for _, old in cardSlot:GetChildren() do
 		if old:IsA("CanvasGroup") then
 			old:Destroy()
 		end
 	end
-	local group = new("CanvasGroup", {
-		Name = "Card",
-		Size = UDim2.fromOffset(460, 250),
-		Position = UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundTransparency = 1,
-		GroupTransparency = 0,
-		Parent = cardSlot,
-	})
-	local scale = new("UIScale", { Scale = 0.3, Parent = group })
-	local panel = UIKit.Panel({ Name = "Panel", Size = UDim2.fromOffset(400, 190), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Color = T.RedDark, Radius = 18, Outline = 4, Parent = group })
-	local header = UIKit.Panel({ Name = "Header", Size = UDim2.new(1, 0, 0, 62), Color = headerBase, Top = headerTop, Radius = 18, Outline = 4, Stripes = true, Parent = panel })
-	UIKit.Label({ Text = title, TextSize = 44, Stroke = 4.5, ZIndex = 3, Position = UDim2.fromOffset(0, -1), Parent = header })
-	UIKit.Tween(scale, 0.38, { Scale = 1 }, Enum.EasingStyle.Back)
-	return group, panel
+	local group = copy(name) :: CanvasGroup?
+	if not group then
+		return nil, nil
+	end
+	group.Position = UDim2.fromScale(0.5, 0.5)
+	group.AnchorPoint = Vector2.new(0.5, 0.5)
+	group.GroupTransparency = 0
+	group.Parent = cardSlot
+	local scale = group:FindFirstChild("Pop") :: UIScale?
+	if scale then
+		scale.Scale = 0.3
+		UIKit.Tween(scale, 0.38, { Scale = 1 }, Enum.EasingStyle.Back)
+	end
+	return group, group:FindFirstChild("Panel")
 end
 
 local function dismiss(group: CanvasGroup, after: number)
@@ -931,13 +728,28 @@ end
 
 function HUDController.Toast(text: string, color: Color3?)
 	for _, old in toastSlot:GetChildren() do
-		old:Destroy()
+		if old:IsA("CanvasGroup") then
+			old:Destroy()
+		end
 	end
-	local group = new("CanvasGroup", { Size = UDim2.fromOffset(520, 56), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, GroupTransparency = 1, Parent = toastSlot })
-	local pill = UIKit.Panel({ Size = UDim2.new(1, -16, 0, 42), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Color = color or T.Dark, Radius = 21, Outline = 3, Parent = group })
-	UIKit.Label({ Text = text, TextSize = 21, Stroke = 3, Size = UDim2.new(1, -20, 1, 0), Position = UDim2.fromOffset(10, 0), Parent = pill })
+	local group = copy("Toast") :: CanvasGroup?
+	if not group then
+		return
+	end
+	group.Position = UDim2.fromScale(0.5, 0.5)
+	group.AnchorPoint = Vector2.new(0.5, 0.5)
+	group.GroupTransparency = 1
+	group.Parent = toastSlot
+	local label = find(group, "Pill.Text") :: TextLabel?
+	if label then
+		label.Text = text
+	end
+	local pill = group:FindFirstChild("Pill") :: GuiObject?
+	if pill and color then
+		pill.BackgroundColor3 = color
+	end
 	UIKit.Tween(group, 0.2, { GroupTransparency = 0 })
-	task.delay(2.2, function()
+	task.delay(2.4, function()
 		if group.Parent then
 			UIKit.Tween(group, 0.3, { GroupTransparency = 1 })
 			task.delay(0.35, function()
@@ -964,8 +776,12 @@ local function coinFountain(from: GuiObject, amount: number)
 	local arrived = 0
 	for i = 1, n do
 		task.delay(0.35 + i * 0.05, function()
-			local size = math.random(26, 38)
-			local c = UIKit.Coin(size, fxLayer)
+			local c = copy("FlyingCoin") :: GuiObject?
+			if not c then
+				return
+			end
+			local base = c.Size
+			local size = 0.8 + math.random() * 0.4
 			c.AnchorPoint = Vector2.new(0.5, 0.5)
 			c.ZIndex = 50
 			for _, d in c:GetDescendants() do
@@ -973,8 +789,8 @@ local function coinFountain(from: GuiObject, amount: number)
 					d.ZIndex = 51
 				end
 			end
-			local burst = Vector2.new(math.random(-130, 130), math.random(-120, -30))
-			local mid = a + burst
+			c.Parent = fxLayer
+			local mid = a + Vector2.new(math.random(-130, 130), math.random(-120, -30))
 			local t0 = os.clock()
 			local dur = 0.55 + math.random() * 0.25
 			local conn: RBXScriptConnection
@@ -984,8 +800,8 @@ local function coinFountain(from: GuiObject, amount: number)
 				local p = a:Lerp(mid, e):Lerp(mid:Lerp(b, e), e)
 				c.Position = UDim2.fromOffset(p.X, p.Y)
 				c.Rotation = (1 - t) * 180
-				local s = 1 - 0.35 * t
-				c.Size = UDim2.fromOffset(size * s, size * s)
+				local s = size * (1 - 0.35 * t)
+				c.Size = UDim2.fromOffset(base.X.Offset * s, base.Y.Offset * s)
 				if t >= 1 then
 					conn:Disconnect()
 					c:Destroy()
@@ -1004,62 +820,66 @@ local function coinFountain(from: GuiObject, amount: number)
 end
 
 local function onBanked(amount: number, spotName: string, bonus: number, size: number)
-	local group, panel = card("BANKED!", T.GreenTop, T.Green)
-	local row = new("Frame", { Size = UDim2.new(1, 0, 0, 64), Position = UDim2.fromOffset(0, 72), BackgroundTransparency = 1, Parent = panel })
-	new("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-		Padding = UDim.new(0, 10),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = row,
-	})
-	local coin = UIKit.Coin(54, row)
-	coin.LayoutOrder = 1
-	local label = UIKit.Label({ Text = "+0", TextSize = 56, Stroke = 5, Size = UDim2.fromOffset(0, 60), Parent = row })
-	label.AutomaticSize = Enum.AutomaticSize.X
-	label.LayoutOrder = 2
-	local where = if spotName ~= "" then "Landed on " .. titleName(spotName) else "Landed"
-	UIKit.Label({ Text = where .. "  •  size " .. UIKit.Number(size), TextSize = 19, Stroke = 2.5, Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 142), Parent = panel })
-	if bonus > 1 then
-		local ribbon = UIKit.Panel({ Name = "Bonus", Size = UDim2.fromOffset(210, 36), Position = UDim2.new(0.5, 0, 1, 2), AnchorPoint = Vector2.new(0.5, 0.5), Color = T.Gold, Top = T.GoldTop, Radius = 12, Outline = 3.5, Parent = panel })
-		ribbon.Rotation = -3
-		ribbon.ZIndex = 5
-		UIKit.Label({ Text = "FIRST LANDING x" .. bonus, TextSize = 20, Stroke = 3, ZIndex = 6, Parent = ribbon })
+	local group, panel = showCard("BankedCard")
+	if not group or not panel then
+		return
 	end
-	-- count the card number up quickly, then send the coins flying
-	local t0 = os.clock()
-	local conn: RBXScriptConnection
-	conn = RunService.RenderStepped:Connect(function()
-		local t = math.clamp((os.clock() - t0) / 0.5, 0, 1)
-		label.Text = "+" .. UIKit.Number(amount * (1 - (1 - t) ^ 3))
-		if t >= 1 or not label.Parent then
-			conn:Disconnect()
+	local label = find(panel, "Row.Amount") :: TextLabel?
+	local where = find(panel, "Where") :: TextLabel?
+	if where then
+		where.Text = (if spotName ~= "" then "Landed on " .. titleName(spotName) else "Landed") .. "  •  size " .. UIKit.Number(size)
+	end
+	local ribbon = find(panel, "Bonus") :: GuiObject?
+	if ribbon then
+		ribbon.Visible = bonus > 1
+		local text = find(ribbon, "Text") :: TextLabel?
+		if text then
+			text.Text = "FIRST LANDING x" .. bonus
 		end
-	end)
-	coinFountain(coin, amount)
+	end
+	if label then
+		-- count the number up quickly, then send the coins flying
+		local t0 = os.clock()
+		local conn: RBXScriptConnection
+		conn = RunService.RenderStepped:Connect(function()
+			local t = math.clamp((os.clock() - t0) / 0.5, 0, 1)
+			label.Text = "+" .. UIKit.Number(amount * (1 - (1 - t) ^ 3))
+			if t >= 1 or not label.Parent then
+				conn:Disconnect()
+			end
+		end)
+	end
+	local coin = find(panel, "Row.Coin") :: GuiObject?
+	coinFountain(coin or group, amount)
 	dismiss(group, 2.8)
 end
 
 local function onPopped(size: number, lost: number)
-	local group, panel = card("POPPED!", Color3.fromHex("6B4A7A"), Color3.fromHex("3A1830"))
-	UIKit.Label({ Text = "Popped at size " .. UIKit.Number(size), TextSize = 24, Stroke = 3, Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 74), Parent = panel })
-	local row = new("Frame", { Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 106), BackgroundTransparency = 1, Parent = panel })
-	new("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-		Padding = UDim.new(0, 8),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = row,
-	})
-	local coin = UIKit.Coin(38, row)
-	coin.LayoutOrder = 1
-	local lostLabel = UIKit.Label({ Text = "-" .. UIKit.Number(lost) .. " lost", TextSize = 36, Stroke = 4, Color = Color3.fromHex("FFD0D0"), Size = UDim2.fromOffset(0, 44), Parent = row })
-	lostLabel.AutomaticSize = Enum.AutomaticSize.X
-	lostLabel.LayoutOrder = 2
-	UIKit.Label({ Text = "Land sooner next time!", TextSize = 17, Stroke = 2.5, Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 160), Parent = panel })
+	local group, panel = showCard("PoppedCard")
+	if not group or not panel then
+		return
+	end
+	local line = find(panel, "SizeLine") :: TextLabel?
+	if line then
+		line.Text = "Popped at size " .. UIKit.Number(size)
+	end
+	local lostLabel = find(panel, "Row.Lost") :: TextLabel?
+	if lostLabel then
+		lostLabel.Text = "-" .. UIKit.Number(lost) .. " lost"
+	end
 	dismiss(group, 3.4)
+end
+
+-- pressed E / LAND out of range: say exactly why
+local function onLandDenied(status: string, spot: any?, off: number)
+	local name = if spot then titleName(spot.Label or spot.Name) else "an island"
+	if status == "high" then
+		HUDController.Toast(`Too high by {UIKit.Number(off)}m - hold SPACE to drop onto {name}`, T.Orange)
+	elseif status == "low" then
+		HUDController.Toast(`Too low by {UIKit.Number(off)}m - float up beside {name}`, T.Orange)
+	else
+		HUDController.Toast(`Drift closer to {name} to land`)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -1079,13 +899,35 @@ end
 
 local function refreshKeys()
 	local last = UserInputService:GetLastInputType()
-	local keyboard = last == Enum.UserInputType.Keyboard or last.Name:find("Mouse") ~= nil
-	if not UserInputService.KeyboardEnabled then
-		keyboard = false
-	end
+	local keyboard = UserInputService.KeyboardEnabled and (last == Enum.UserInputType.Keyboard or last.Name:find("Mouse") ~= nil)
 	for _, chip in keyChips do
 		chip.Visible = keyboard
 	end
+end
+
+-- the edited HUD from StarterGui, or the default one
+local function acquireGui(playerGui: Instance): ScreenGui
+	if StarterGui:FindFirstChild("BalloonHUD") then
+		local found = playerGui:WaitForChild("BalloonHUD", 10) :: ScreenGui?
+		if found then
+			return found
+		end
+	end
+	local existing = playerGui:FindFirstChild("BalloonHUD") :: ScreenGui?
+	if existing then
+		return existing
+	end
+	local built = HUDTemplate.Build({ Spots = (function()
+		local list = {}
+		for _, spot in Flight.GetSpots() do
+			if spot.Name ~= FlightConfig.Home.Name then
+				table.insert(list, spot)
+			end
+		end
+		return list
+	end)() })
+	built.Parent = playerGui
+	return built
 end
 
 export type StartOptions = {
@@ -1096,56 +938,73 @@ export type StartOptions = {
 
 function HUDController.Start(opts: StartOptions)
 	local shared = opts.Shared
-	UIKit = require(shared:WaitForChild("UI"):WaitForChild("UIKit") :: ModuleScript) :: any
+	local ui = shared:WaitForChild("UI")
+	UIKit = require(ui:WaitForChild("UIKit") :: ModuleScript) :: any
+	HUDTemplate = require(ui:WaitForChild("HUDTemplate") :: ModuleScript) :: any
 	T = UIKit.Theme
-	new = UIKit.new
+	HP_ON, HP_OFF = HUDTemplate.HPOn, HUDTemplate.HPOff
 	local config = shared:WaitForChild("Config")
 	FlightConfig = require(config:WaitForChild("FlightConfig") :: ModuleScript) :: any
 	Flight = opts.Flight
 	Net = opts.RemoteParent:WaitForChild("FlightNet") :: RemoteEvent
 
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-	local old = playerGui:FindFirstChild("BalloonHUD")
-	if old then
-		old:Destroy()
-	end
-	gui = new("ScreenGui", {
-		Name = "BalloonHUD",
-		ResetOnSpawn = false,
-		IgnoreGuiInset = true,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		DisplayOrder = 5,
-		Parent = playerGui,
-	})
-	boardFolder = new("Folder", { Name = "BalloonHUDWorld", Parent = playerGui })
-	fxLayer = new("Frame", { Name = "FX", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 50, Parent = gui })
+	gui = acquireGui(playerGui)
+	gui.ResetOnSpawn = false
+	gui.Enabled = true
 
-	buildCoins()
-	buildGauge()
-	buildActions()
-	buildMarkers()
-	cardSlot = anchor("Cards", UDim2.fromOffset(460, 250), UDim2.fromScale(0.5, 0.34), Vector2.new(0.5, 0.5))
-	toastSlot = anchor("Toasts", UDim2.fromOffset(520, 56), UDim2.new(0.5, 0, 1, -200), Vector2.new(0.5, 0.5))
+	-- templates are copied at runtime; keep them out of the live screen
+	local t = gui:FindFirstChild("Templates") :: Folder?
+	if not t then
+		warn("[HUD] BalloonHUD has no Templates folder - reinstall it with HUDTemplate.Install()")
+		t = Instance.new("Folder")
+	end
+	templates = t :: Folder
+	templates.Parent = nil
+
+	worldFolder = Instance.new("Folder")
+	worldFolder.Name = "BalloonHUDWorld"
+	worldFolder.Parent = playerGui
+	local fx = Instance.new("Frame")
+	fx.Name = "FX"
+	fx.Size = UDim2.fromScale(1, 1)
+	fx.BackgroundTransparency = 1
+	fx.ZIndex = 50
+	fx.Parent = gui
+	fxLayer = fx
+
+	for _, d in gui:GetDescendants() do
+		if d:IsA("UIScale") and d.Name == "ViewportScale" then
+			table.insert(viewportScales, d)
+		elseif d:IsA("GuiObject") and d.Name == "Key" then
+			table.insert(keyChips, d)
+		end
+	end
+	UIKit.BindStripes(gui)
+
+	bindCoins()
+	bindGauge()
+	bindActions()
+	bindMarkers()
+	cardSlot = find(gui, "Cards") or gui
+	toastSlot = find(gui, "Toasts") or gui
 
 	rescale()
-	local cam = workspace.CurrentCamera
-	if cam then
-		cam:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
-	end
-	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
-		rescale()
+	local function watchCamera()
 		local c = workspace.CurrentCamera
 		if c then
 			c:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 		end
-	end)
+		rescale()
+	end
+	watchCamera()
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
 	refreshKeys()
 	UserInputService.LastInputTypeChanged:Connect(refreshKeys)
 
 	coins.shown = num(LocalPlayer, "Coins", 0)
 	coins.target = coins.shown
 
-	local maxToastFor = -1
 	Net.OnClientEvent:Connect(function(kind: string, ...)
 		if kind == "Banked" then
 			local amount, spotName, bonus, size = ...
@@ -1157,8 +1016,9 @@ function HUDController.Start(opts: StartOptions)
 			HUDController.Toast((...))
 		end
 	end)
+	Flight.LandDenied.Event:Connect(onLandDenied)
 
-	local launches = 0
+	local launches, maxToastFor = 0, -1
 	LocalPlayer:GetAttributeChangedSignal("FlightState"):Connect(function()
 		if state() == "Flying" and LocalPlayer:GetAttribute("Size") == 1 then
 			launches += 1

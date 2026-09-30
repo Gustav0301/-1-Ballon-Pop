@@ -36,9 +36,10 @@ All numbers are in `src/shared/Config/FlightConfig.lua`.
 
 ## Landing
 
-- Land on any sky island: be within its radius + 6 studs horizontally, from 10 below to 22 above its top, then hold E for **2.0 s**. Growth pauses while you land, but hazards can still hit you.
+- Land on any sky island: be within its radius + 6 studs horizontally, from 10 below to 45 above its top, then hold E for **2.0 s**. Growth pauses while you land, but hazards can still hit you.
+- The island markers tell you what to do: green **LAND HERE!**, orange **DROP DOWN!** with how many studs too high (hold Space), or **FLOAT UP** when you're too low. Pressing E out of range pops a toast explaining why.
 - **The start map counts too.** Let out enough air to get under ~60 studs and you can land anywhere on the grass. Without this, a player who misses every island could never bank.
-- **First landing is easy:** 0.6 s instead of 2 s, a much bigger landing zone (+16 studs sideways, up to 45 above), **x2 coins**, and hazards leave you alone for the first 12 seconds of each flight until you've landed once (4 seconds after that).
+- **First landing is easy:** 0.6 s instead of 2 s, a much bigger landing zone (+16 studs sideways, up to 70 above), **x2 coins**, and hazards leave you alone for the first 12 seconds of each flight until you've landed once (4 seconds after that).
 - The server checks every landing (range, state, timer) and then puts you on the island's landing pad.
 
 ## Server authority
@@ -67,7 +68,7 @@ All numbers are in `src/shared/Config/FlightConfig.lua`.
 - **Buttons:** JUMP TO FLY on the ground, a big green LAND button with a hold-progress fill, and a blue LET OUT AIR button. Key chips (E, SPACE) show only on keyboard.
 - **Cards:** BANKED! with a coin fountain into the counter (and a FIRST LANDING x2 ribbon), and POPPED! with your size and the coins you lost. There are also toasts ("MAX SIZE! Land to bank it").
 
-Everything is built through `src/shared/UI/UIKit.lua` (panels, stripes, chunky buttons, coin, key chips), so every later menu matches.
+**You can edit the HUD in Studio:** see `docs/HUD_EDITING.md`. Everything is built through `src/shared/UI/UIKit.lua` (panels, stripes, chunky buttons, coin, key chips), so every later menu matches.
 
 ## Studio-only
 

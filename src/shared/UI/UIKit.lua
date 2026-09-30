@@ -117,7 +117,17 @@ function UIKit.Stripes(frame: GuiObject, color: Color3?, strength: number?, band
 	if corner then
 		UIKit.Corner(overlay, corner.CornerRadius)
 	end
-	local gradient = new("UIGradient", { Transparency = NumberSequence.new(points), Parent = overlay })
+	new("UIGradient", { Transparency = NumberSequence.new(points), Parent = overlay })
+	UIKit.BindStripes(overlay)
+	return overlay
+end
+
+-- keep a stripes overlay at 45 degrees as its frame changes shape (call again on copies)
+local function bindOneStripes(overlay: GuiObject)
+	local gradient = overlay:FindFirstChildOfClass("UIGradient")
+	if not gradient then
+		return
+	end
 	local function angle()
 		local s = overlay.AbsoluteSize
 		if s.X > 0 and s.Y > 0 then
@@ -126,7 +136,18 @@ function UIKit.Stripes(frame: GuiObject, color: Color3?, strength: number?, band
 	end
 	overlay:GetPropertyChangedSignal("AbsoluteSize"):Connect(angle)
 	angle()
-	return overlay
+end
+
+-- `root` itself if it is a stripes overlay, or every "Stripes" frame under it
+function UIKit.BindStripes(root: Instance)
+	if root.Name == "Stripes" and root:IsA("GuiObject") then
+		bindOneStripes(root)
+	end
+	for _, d in root:GetDescendants() do
+		if d.Name == "Stripes" and d:IsA("GuiObject") then
+			bindOneStripes(d)
+		end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -286,7 +307,7 @@ function UIKit.Button(p: ButtonProps): Button
 		Parent = face,
 	})
 	UIKit.Corner(shine, UDim.new(1, 0))
-	local hit = new("TextButton", {
+	new("TextButton", {
 		Name = "Hit",
 		Size = UDim2.new(1, 0, 1, depth),
 		BackgroundTransparency = 1,
@@ -295,6 +316,24 @@ function UIKit.Button(p: ButtonProps): Button
 		AutoButtonColor = false,
 		Parent = frame,
 	})
+	scale.Name = "Hover"
+	return UIKit.BindButton(frame)
+end
+
+-- Hooks up the press / hover animation on a button built by UIKit.Button (also one that
+-- was saved in StarterGui and edited). Needs children "Face", "Hit" and a UIScale "Hover";
+-- "Lip" is optional (its Y offset is how far the face presses down).
+function UIKit.BindButton(frame: Frame): Button
+	local face = frame:WaitForChild("Face") :: Frame
+	local hit = frame:WaitForChild("Hit") :: TextButton
+	local scale = frame:FindFirstChild("Hover") :: UIScale?
+	if not scale then
+		scale = new("UIScale", { Name = "Hover", Parent = frame })
+	end
+	local hover = scale :: UIScale
+	local lip = frame:FindFirstChild("Lip") :: GuiObject?
+	local depth = if lip then lip.Position.Y.Offset else 6
+	local rest = face.Position
 
 	local pressed = false
 	local function press(on: boolean)
@@ -303,7 +342,7 @@ function UIKit.Button(p: ButtonProps): Button
 		end
 		pressed = on
 		local info = TweenInfo.new(if on then 0.06 else 0.18, if on then Enum.EasingStyle.Quad else Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-		TweenService:Create(face, info, { Position = UDim2.fromOffset(0, if on then depth - 1 else 0) }):Play()
+		TweenService:Create(face, info, { Position = if on then rest + UDim2.fromOffset(0, depth - 1) else rest }):Play()
 	end
 	hit.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -315,16 +354,14 @@ function UIKit.Button(p: ButtonProps): Button
 			press(false)
 		end
 	end)
+	hit.MouseEnter:Connect(function()
+		TweenService:Create(hover, TweenInfo.new(0.12), { Scale = 1.04 }):Play()
+	end)
 	hit.MouseLeave:Connect(function()
 		press(false)
+		TweenService:Create(hover, TweenInfo.new(0.12), { Scale = 1 }):Play()
 	end)
-	hit.MouseEnter:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.04 }):Play()
-	end)
-	hit.MouseLeave:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
-	end)
-	return { Frame = frame, Face = face, Hit = hit, Scale = scale }
+	return { Frame = frame, Face = face, Hit = hit, Scale = hover }
 end
 
 -- A small keyboard key chip ("E", "SPACE") shown on PC next to actions.

@@ -43,6 +43,7 @@ local zoom = 0
 local defaultMinZoom = 0.5
 
 FlightController.Changed = Instance.new("BindableEvent") -- fires when the landable spot changes
+FlightController.LandDenied = Instance.new("BindableEvent") -- (status, spot, studs) when E is pressed out of range
 FlightController.Spot = nil :: any? -- the spot you can land on right now
 FlightController.Nearest = nil :: any? -- nearest island (for the arrow)
 
@@ -74,8 +75,32 @@ function FlightController.SetLetOut(on: boolean)
 	Net:FireServer("LetOut", on and flying())
 end
 
+-- Why can't I land? Returns ("high" | "low" | "far", island, studs) for the island you're
+-- closest to landing on.
+function FlightController.LandHint(): (string, any?, number)
+	local root = hrp
+	if not root then
+		return "far", nil, 0
+	end
+	local first = LocalPlayer:GetAttribute("FirstLanding") == true
+	local best, bestSpot, bestOff = "far", nil, math.huge
+	for _, spot in Spots do
+		local status, off = FlightConfig.LandStatus(spot, root.Position, first)
+		if status ~= "far" and off < bestOff then
+			best, bestSpot, bestOff = status, spot, off
+		end
+	end
+	if not bestSpot then
+		return "far", FlightController.Nearest, 0
+	end
+	return best, bestSpot, bestOff
+end
+
 function FlightController.SetLanding(on: boolean)
 	if on and not FlightController.Spot then
+		if flying() then
+			FlightController.LandDenied:Fire(FlightController.LandHint())
+		end
 		return
 	end
 	if on == landHeld then
