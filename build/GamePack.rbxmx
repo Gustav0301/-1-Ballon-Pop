@@ -8956,6 +8956,7 @@ local windGoal = Vector3.zero
 local windAt = 0
 local letOutHeld = false
 local landHeld = false
+local keysBound = false
 local lastLaunch = 0
 local zoom = 0
 local defaultMinZoom = 0.5
@@ -9106,25 +9107,31 @@ local function applyState()
 		h.WalkSpeed = 0
 		setJump(h, false)
 		h.AutoRotate = false
-		ContextActionService:BindActionAtPriority("BalloonLetOut", function(_, inputState)
-			FlightController.SetLetOut(inputState == Enum.UserInputState.Begin)
-			return Enum.ContextActionResult.Sink
-		end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
-		ContextActionService:BindActionAtPriority("BalloonLand", function(_, inputState)
-			if inputState == Enum.UserInputState.Begin then
-				FlightController.SetLanding(true)
-			elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
-				FlightController.SetLanding(false)
-			end
-			return Enum.ContextActionResult.Sink
-		end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.E, Enum.KeyCode.ButtonX)
-		if s == "Flying" then
-			landHeld = false
+		-- Bind the keys ONCE per flight. Re-binding while E is held (e.g. when the state
+		-- flips Flying -> Landing) makes Roblox send a Cancel, which used to let go of
+		-- LAND the moment landing started.
+		if not keysBound then
+			keysBound = true
+			ContextActionService:BindActionAtPriority("BalloonLetOut", function(_, inputState)
+				FlightController.SetLetOut(inputState == Enum.UserInputState.Begin)
+				return Enum.ContextActionResult.Sink
+			end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+			ContextActionService:BindActionAtPriority("BalloonLand", function(_, inputState)
+				if inputState == Enum.UserInputState.Begin then
+					FlightController.SetLanding(true)
+				elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+					FlightController.SetLanding(false)
+				end
+				return Enum.ContextActionResult.Sink
+			end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.E, Enum.KeyCode.ButtonX)
 		end
 	else
 		removeMovers()
-		ContextActionService:UnbindAction("BalloonLetOut")
-		ContextActionService:UnbindAction("BalloonLand")
+		if keysBound then
+			keysBound = false
+			ContextActionService:UnbindAction("BalloonLetOut")
+			ContextActionService:UnbindAction("BalloonLand")
+		end
 		letOutHeld = false
 		landHeld = false
 		if s == "Falling" then
