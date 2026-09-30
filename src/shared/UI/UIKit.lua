@@ -494,6 +494,24 @@ function UIKit.Number(n: number): string
 	return (if n < 0 then "-" else "") .. out
 end
 
+-- Short prices: 950, 2.5K, 40K, 1M, 2.5B
+function UIKit.Short(n: number): string
+	local abs = math.abs(n)
+	local function fmt(v: number, suffix: string): string
+		local s = if v >= 100 then string.format("%d", math.floor(v)) else string.format("%.1f", math.floor(v * 10) / 10)
+		s = s:gsub("%.0$", "")
+		return s .. suffix
+	end
+	if abs >= 1e9 then
+		return fmt(n / 1e9, "B")
+	elseif abs >= 1e6 then
+		return fmt(n / 1e6, "M")
+	elseif abs >= 1e3 then
+		return fmt(n / 1e3, "K")
+	end
+	return tostring(math.floor(n))
+end
+
 function UIKit.Tween(inst: Instance, time: number, props: { [string]: any }, style: Enum.EasingStyle?, dir: Enum.EasingDirection?): Tween
 	local tween = TweenService:Create(inst, TweenInfo.new(time, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
 	tween:Play()

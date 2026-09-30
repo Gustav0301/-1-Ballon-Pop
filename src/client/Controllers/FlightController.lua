@@ -47,6 +47,7 @@ FlightController.Changed = Instance.new("BindableEvent") -- fires when the landa
 FlightController.LandDenied = Instance.new("BindableEvent") -- (status, spot, studs) when E is pressed out of range
 FlightController.Spot = nil :: any? -- the spot you can land on right now
 FlightController.Nearest = nil :: any? -- nearest island (for the arrow)
+FlightController.LettingOut = false -- holding Space / LET OUT AIR right now
 
 local function state(): string
 	return (LocalPlayer:GetAttribute("FlightState") :: string?) or "Ground"
@@ -73,6 +74,7 @@ function FlightController.SetLetOut(on: boolean)
 		return
 	end
 	letOutHeld = on
+	FlightController.LettingOut = on and flying()
 	Net:FireServer("LetOut", on and flying())
 end
 
@@ -215,6 +217,7 @@ local function applyState()
 			ContextActionService:UnbindAction("BalloonLand")
 		end
 		letOutHeld = false
+		FlightController.LettingOut = false
 		landHeld = false
 		if s == "Falling" then
 			-- no parachute: straight down, arms flailing

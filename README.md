@@ -10,4 +10,6 @@ Roblox game (Luau, Rojo). Hold a balloon that grows +1 size every second, float 
 - `docs/MAP.md` - the Balloon Festival start map (`build/StartMap.rbxmx`)
 - `docs/FLIGHT.md` - flying (drifty steering), landing, saving (ProfileStore) and the HUD
 - `docs/HUD_EDITING.md` - install the HUD in StarterGui and restyle it in Studio
+- `docs/MENU_EDITING.md` - Balloon Shop (restocking), Upgrades, My Balloons, the top bar, and editing them
+- `docs/SOUNDS.md` - the generated sound pack (`sounds/`), uploading, music sources
 - `build/GamePack.rbxmx` - drag-and-drop package with the whole game code: flying, saves, HUD, hazards, balloons (rebuild with `python3 tools/build_rbxmx.py`)

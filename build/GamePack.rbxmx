@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Folder" referent="RBX00000028"><Properties><string name="Name">GamePack</string></Properties><Item class="Folder" referent="RBX00000016"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000004"><Properties><string name="Name">Balloons</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">BalloonBuilder</string><ProtectedString name="Source"><![CDATA[--!strict
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Folder" referent="RBX0000002F"><Properties><string name="Name">GamePack</string></Properties><Item class="Folder" referent="RBX00000019"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000004"><Properties><string name="Name">Balloons</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">BalloonBuilder</string><ProtectedString name="Source"><![CDATA[--!strict
 -- BalloonBuilder: turns the generated voxel data in BalloonModels into a real stud Model.
 --
 --   local model = BalloonBuilder.Build("Gumball", { Anchored = false, CFrame = cf, Scale = 1.5 })
@@ -1695,7 +1695,7 @@ BalloonModels.Cluck = {
 }
 
 return BalloonModels
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000009"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">BalloonConfig</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000000B"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">BalloonConfig</string><ProtectedString name="Source"><![CDATA[--!strict
 -- BalloonConfig: every balloon type from section 3.2 of the game prompt.
 --
 -- Height uses decision A (2026-09-30): height target = 40 * size^0.6 * Lift.
@@ -2124,7 +2124,129 @@ local IslandConfig: { Islands: { Island } } = {
 }
 
 return IslandConfig
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000012"><Properties><string name="Name">Hazards</string></Properties><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">StudKit</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">ShopConfig</string><ProtectedString name="Source"><![CDATA[--!strict
+-- ShopConfig: the Balloon Shop (section 3.3), balloon upgrades (section 3.4) and the
+-- stalls on the start map. Starting values - tune freely.
+
+local ShopConfig = {}
+
+ShopConfig.RestockEvery = 300 -- seconds (5 minutes), same for everyone in the server
+
+-- Studio play-tests only: every balloon is in stock, so you can see the whole shop.
+-- (Live servers always roll the stock.) Type "/coins 1000000" in chat for test money.
+ShopConfig.StudioEverything = true
+
+-- Price per balloon, inside the prompt's tier ranges. Not listed = not sold in the shop
+-- (Cluck is the Secret balloon from Balloon Rain).
+-- stylua: ignore
+ShopConfig.Prices = {
+	Gumball = 100,       Bubble = 250,        Ember = 500,
+	Spike = 2_000,       Popcorn = 5_000,     Jelly = 10_000,
+	Buzz = 50_000,       Frost = 150_000,
+	Volt = 1_000_000,    Thorn = 2_000_000,   Clock = 3_000_000,
+	Flame = 25_000_000,  Iron = 40_000_000,   Whale = 60_000_000,
+	Void = 500_000_000,  Sun = 750_000_000,   Crown = 1_000_000_000,
+} :: { [string]: number }
+
+-- chance a balloon of this tier is in a restock, and how many you can buy of it
+-- stylua: ignore
+ShopConfig.Stock = {
+	Common    = { Chance = 0.7,   Count = { 3, 8 } }, -- Gumball is always in stock
+	Uncommon  = { Chance = 0.4,   Count = { 2, 4 } },
+	Rare      = { Chance = 0.2,   Count = { 1, 2 } },
+	Epic      = { Chance = 0.05,  Count = { 1, 1 } },
+	Legendary = { Chance = 0.01,  Count = { 1, 1 } },
+	Mythic    = { Chance = 0.002, Count = { 1, 1 } },
+} :: { [string]: { Chance: number, Count: { number } } }
+ShopConfig.AlwaysInStock = { Gumball = true }
+ShopConfig.AnnounceTiers = { Legendary = true, Mythic = true } -- server message when in stock
+
+-- upgrades: cost = UpgradeBase[tier] x 1.15 ^ level, levels 1 to 50
+-- stylua: ignore
+ShopConfig.UpgradeBase = {
+	Common = 40, Uncommon = 400, Rare = 4_000, Epic = 60_000,
+	Legendary = 1_000_000, Mythic = 20_000_000, Secret = 20_000_000,
+} :: { [string]: number }
+ShopConfig.MaxLevel = 50
+ShopConfig.UpgradeGrowth = 1.15
+
+function ShopConfig.UpgradeCost(tier: string, level: number): number
+	local base = ShopConfig.UpgradeBase[tier] or ShopConfig.UpgradeBase.Common
+	return math.floor(base * ShopConfig.UpgradeGrowth ^ level)
+end
+
+-- The stalls on the start map (tools/map/build_start_map.py): where each one stands,
+-- which way it faces (towards the plaza centre) and its build scale.
+--   Prompt: how far in front of the stall's centre the ProximityPrompt sits
+--   Stand:  how far in front you're put when you teleport there
+-- stylua: ignore
+ShopConfig.Stalls = {
+	Shop     = { Pos = Vector3.new(-84, 0, -6),  Scale = 1.5,  Prompt = 5,  PromptY = 4.5, Stand = 19, Action = "Open Shop",     Object = "Balloon Shop" },
+	Upgrades = { Pos = Vector3.new(54, 0, -58),  Scale = 1.35, Prompt = 9,  PromptY = 4,   Stand = 16, Action = "Upgrade",       Object = "Upgrades" },
+	Index    = { Pos = Vector3.new(94, 0, 8),    Scale = 1.45, Prompt = 9,  PromptY = 4,   Stand = 16, Action = "Open Balloons", Object = "Balloon Index" },
+} :: { [string]: { Pos: Vector3, Scale: number, Prompt: number, PromptY: number, Stand: number, Action: string, Object: string } }
+ShopConfig.Spawn = Vector3.new(0, 7, 6)
+
+-- a point `depth` studs (in the stall's own units) in front of a stall, `y` studs up
+function ShopConfig.StallPoint(name: string, depth: number, y: number): Vector3
+	local stall = ShopConfig.Stalls[name]
+	local flat = Vector3.new(stall.Pos.X, 0, stall.Pos.Z)
+	local toCentre = if flat.Magnitude > 0.01 then -flat.Unit else Vector3.new(0, 0, -1)
+	return stall.Pos + toCentre * depth * stall.Scale + Vector3.new(0, y, 0)
+end
+
+-- where the teleport puts you: in front of the stall, looking at it
+function ShopConfig.StandCFrame(name: string): CFrame
+	local stall = ShopConfig.Stalls[name]
+	local at = ShopConfig.StallPoint(name, stall.Stand, 3.5)
+	local look = Vector3.new(stall.Pos.X, at.Y, stall.Pos.Z)
+	return CFrame.lookAt(at, look)
+end
+
+return ShopConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">SoundConfig</string><ProtectedString name="Source"><![CDATA[--!strict
+-- SoundConfig: every sound in the game. Paste an asset id into Id ("rbxassetid://123")
+-- and it plays; empty ids are silent, so nothing breaks before sounds are uploaded.
+-- The matching generated files are in sounds/ (see docs/SOUNDS.md for uploading).
+
+export type Sound = { Id: string, Volume: number, Pitch: number?, Vary: number?, Loop: boolean? }
+
+local SoundConfig = {}
+
+-- stylua: ignore
+SoundConfig.Sounds = {
+	-- flying
+	Launch    = { Id = "", Volume = 0.6, Vary = 0.05 },  -- whoosh + stretchy inflate when you take off
+	Tick      = { Id = "", Volume = 0.18, Vary = 0.0 },  -- soft coin tick while unbanked coins grow (pitch rises with size)
+	LetOut    = { Id = "", Volume = 0.35, Loop = true }, -- air hissing out while you hold Space
+	LandStart = { Id = "", Volume = 0.5 },               -- landing started
+	Bank      = { Id = "", Volume = 0.7 },               -- coins cascading into the counter
+	CoinIn    = { Id = "", Volume = 0.25, Vary = 0.12 }, -- each coin of the fountain arriving
+	Max       = { Id = "", Volume = 0.55 },              -- hit max size
+	Hit       = { Id = "", Volume = 0.7, Vary = 0.08 },  -- your balloon got hit
+	Pop       = { Id = "", Volume = 0.9, Vary = 0.1 },   -- a balloon pops (3D, bigger = lower)
+	Fall      = { Id = "", Volume = 0.45 },              -- falling whistle after a pop
+	-- menus
+	Click     = { Id = "", Volume = 0.45, Vary = 0.05 },
+	Open      = { Id = "", Volume = 0.45 },
+	Close     = { Id = "", Volume = 0.4 },
+	Buy       = { Id = "", Volume = 0.6 },
+	Upgrade   = { Id = "", Volume = 0.6 },
+	Equip     = { Id = "", Volume = 0.5 },
+	Error     = { Id = "", Volume = 0.45 },
+	Teleport  = { Id = "", Volume = 0.5 },
+	Restock   = { Id = "", Volume = 0.45 },
+	Fanfare   = { Id = "", Volume = 0.6 },               -- a Legendary / Mythic is in stock
+	-- music (crossfades between the two)
+	MusicGround = { Id = "", Volume = 0.3, Loop = true },
+	MusicSky    = { Id = "", Volume = 0.3, Loop = true },
+} :: { [string]: Sound }
+
+SoundConfig.MusicFade = 2.5 -- seconds to crossfade between ground and sky music
+SoundConfig.SkyMusicAbove = 60 -- studs above the grass where the sky music takes over
+
+return SoundConfig
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000014"><Properties><string name="Name">Hazards</string></Properties><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">StudKit</string><ProtectedString name="Source"><![CDATA[--!strict
 -- StudKit: builds classic stud-style Parts and a light "rig" for procedurally
 -- animated hazards. Rigs are anchored Parts moved together with BulkMoveTo, so
 -- animation is smooth and never touches physics.
@@ -2344,7 +2466,7 @@ end
 StudKit.RigClass = Rig
 
 return StudKit
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">Target</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">Target</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Target: where is a player's balloon? Server and client both use this, so hit
 -- checks and visuals agree. When FlightService exists, point Target.Resolver at it.
 
@@ -2395,7 +2517,7 @@ function Target.GetBalloon(player: Player?): (Vector3?, number?)
 end
 
 return Target
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">VFX</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">VFX</string><ProtectedString name="Source"><![CDATA[--!strict
 -- VFX: client-side effect toolkit for hazards, in the game's stud style.
 -- Everything is built from Neon/Plastic Parts, Trails and PointLights, so it needs
 -- no uploaded textures and imports into any place 1:1. Particles are real little
@@ -3120,7 +3242,7 @@ function VFX.BindCamera()
 end
 
 return VFX
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000011"><Properties><string name="Name">Visuals</string></Properties><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">Nimbo</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000013"><Properties><string name="Name">Visuals</string></Properties><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Nimbo</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Nimbo (Cloud Shelf) - signature attack: PIN DRIZZLE
 -- Drift over -> soak (swell up, darken, suck in water cubes) -> mark a danger column
 -- and three shrinking target squares -> rain Neon pins through the column -> wring out.
@@ -3346,7 +3468,7 @@ function Nimbo.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Nimbo
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Pinwheel</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Pinwheel</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Pinwheel (Cloud Shelf) - signature attack: SAW BLOOM
 -- Spin-up with flung cube sparks -> 4 vanes detach and bloom out in a spiral around the
 -- balloon -> clamp at 4 points with a flashing square frame -> snap shut through the
@@ -3642,7 +3764,7 @@ function Pinwheel.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Pinwheel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Plane</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Plane</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Plane (Meadow Sky) - signature attack: CREASE CUTTER
 -- Glide -> unfold into a spinning sheet while a lime crease grid draws itself ->
 -- refold into a razor dart -> square sonic rings + speed lines -> the cut splits in two.
@@ -3884,7 +4006,7 @@ function Plane.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Plane
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Sparrow</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Sparrow</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Sparrow (Meadow Sky) - signature attack: CORKSCREW DIVE
 -- Lock-on reticle -> beak glint -> wings tuck -> barrel-roll dive through the balloon,
 -- drilling a helix of yellow Neon cubes and three square drill rings -> hit burst -> pull-through.
@@ -4085,7 +4207,7 @@ function Sparrow.Attack(rig: StudKit.Rig, ctx: any)
 end
 
 return Sparrow
-]]></ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX00000015"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">HUDTemplate</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX00000018"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">HUDTemplate</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HUDTemplate: builds the flight HUD as a normal ScreenGui ("BalloonHUD") so it can live
 -- in StarterGui and be edited in Studio like any other UI.
 --
@@ -4163,24 +4285,28 @@ end
 
 local function arrowDown(parent: Instance, size: number, z: number): Frame
 	local holder = new("Frame", { Name = "Arrow", Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1, ZIndex = z, Parent = parent })
-	local function bar(w: number, h: number, x: number, y: number, rot: number)
+	-- outlines first, white on top, so the three bars read as one arrow
+	local function bar(w: number, h: number, x: number, y: number, rot: number, outline: boolean)
+		local pad = if outline then 6 else 0
 		local b = new("Frame", {
-			Size = UDim2.fromOffset(w, h),
+			Name = if outline then "Edge" else "Bar",
+			Size = UDim2.fromOffset(w + pad, h + pad),
 			Position = UDim2.fromOffset(x, y),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Rotation = rot,
-			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundColor3 = if outline then T.Outline else Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
-			ZIndex = z,
+			ZIndex = if outline then z else z + 1,
 			Parent = holder,
 		})
 		UIKit.Corner(b, UDim.new(1, 0))
-		UIKit.Stroke(b, 3)
 	end
 	local s = size
-	bar(s * 0.2, s * 0.62, s * 0.5, s * 0.36, 0)
-	bar(s * 0.2, s * 0.5, s * 0.36, s * 0.62, -45)
-	bar(s * 0.2, s * 0.5, s * 0.64, s * 0.62, 45)
+	for _, outline in { true, false } do
+		bar(s * 0.2, s * 0.62, s * 0.5, s * 0.36, 0, outline)
+		bar(s * 0.2, s * 0.5, s * 0.36, s * 0.62, -45, outline)
+		bar(s * 0.2, s * 0.5, s * 0.64, s * 0.62, 45, outline)
+	end
 	return holder
 end
 
@@ -4188,7 +4314,8 @@ end
 -- screen pieces
 
 local function buildCoins(gui: Instance)
-	local root = anchor(gui, "Coins", UDim2.fromOffset(270, 64), UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
+	-- under the top bar (BalloonMenus.TopBar)
+	local root = anchor(gui, "Coins", UDim2.fromOffset(270, 64), UDim2.new(0.5, 0, 0, 100), Vector2.new(0.5, 0))
 	local holder = new("Frame", { Name = "Holder", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = root })
 	new("UIScale", { Name = "Pop", Parent = holder })
 	UIKit.Panel({ Name = "Lip", Size = UDim2.new(1, -22, 0, 52), Position = UDim2.fromOffset(22, 11), Color = T.GoldLip, Radius = 26, Parent = holder })
@@ -4470,7 +4597,373 @@ function HUDTemplate.Install(): ScreenGui
 end
 
 return HUDTemplate
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">UIKit</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">MenuTemplate</string><ProtectedString name="Source"><![CDATA[--!strict
+-- MenuTemplate: builds the menus as a normal ScreenGui ("BalloonMenus") you can put in
+-- StarterGui and edit in Studio, like the HUD:
+--   require(workspace.GamePack.Shared.UI.MenuTemplate).Install()          -- drag-in pack
+--   require(game.ReplicatedStorage.Shared.UI.MenuTemplate).Install()      -- Rojo
+--
+--   TopBar     BALLOONS / SHOP / SPAWN / UPGRADES buttons (Grow a Garden style, studded)
+--   Shop       the restocking Balloon Shop (Shop GUI reference)
+--   Upgrades   level your balloons up
+--   Balloons   your collection: equip, and the ones you haven't found yet
+--   Templates  ShopCard, UpgradeCard, BalloonCard (copied once per balloon)
+--
+-- MenuController finds pieces by name (docs/MENU_EDITING.md lists them).
+
+local UIKit = require(script.Parent.UIKit)
+
+local MenuTemplate = {}
+
+local T = UIKit.Theme
+local new = UIKit.new
+
+local WHITE = Color3.new(1, 1, 1)
+
+local function lift(obj: Instance, by: number)
+	for _, d in obj:GetDescendants() do
+		if d:IsA("GuiObject") then
+			d.ZIndex += by
+		end
+	end
+	if obj:IsA("GuiObject") then
+		obj.ZIndex += by
+	end
+end
+
+local function anchor(gui: Instance, name: string, size: UDim2, pos: UDim2, ap: Vector2): Frame
+	local frame = new("Frame", { Name = name, Size = size, Position = pos, AnchorPoint = ap, BackgroundTransparency = 1, Parent = gui })
+	new("UIScale", { Name = "ViewportScale", Parent = frame })
+	return frame
+end
+
+--------------------------------------------------------------------------------
+-- studded plate (the Grow a Garden button look): little inset studs in a grid
+
+local function studs(parent: GuiObject, w: number, h: number, dark: Color3, light: Color3, z: number, top: number?)
+	local holder = new("Frame", { Name = "Studs", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = z, Parent = parent })
+	local size, gap = 12, 24
+	local cols = math.max(1, math.floor((w - 8) / gap))
+	local rows = math.max(1, math.floor((h - 8 - (top or 0)) / gap))
+	local x0 = (w - (cols - 1) * gap - size) / 2
+	local y0 = (top or 0) + (h - (top or 0) - (rows - 1) * gap - size) / 2
+	for r = 0, rows - 1 do
+		for c = 0, cols - 1 do
+			local x, y = x0 + c * gap, y0 + r * gap
+			local lit = new("Frame", { Size = UDim2.fromOffset(size, size), Position = UDim2.fromOffset(x + 2, y + 2), BackgroundColor3 = light, BorderSizePixel = 0, ZIndex = z, Parent = holder })
+			UIKit.Corner(lit, UDim.new(0, 3))
+			local stud = new("Frame", { Size = UDim2.fromOffset(size, size), Position = UDim2.fromOffset(x, y), BackgroundColor3 = dark, BorderSizePixel = 0, ZIndex = z, Parent = holder })
+			UIKit.Corner(stud, UDim.new(0, 3))
+		end
+	end
+	return holder
+end
+
+export type TopButtonProps = {
+	Name: string,
+	Text: string,
+	Width: number,
+	Height: number,
+	Base: Color3,
+	Dark: Color3,
+	Light: Color3,
+	Border: Color3,
+	Grass: boolean?,
+	TextSize: number?,
+	Parent: Instance,
+	Order: number,
+}
+
+local function topButton(p: TopButtonProps): Frame
+	local w, h = p.Width, p.Height
+	local frame = new("Frame", { Name = p.Name, Size = UDim2.fromOffset(w, h + 5), BackgroundTransparency = 1, LayoutOrder = p.Order, Parent = p.Parent })
+	new("UIScale", { Name = "Hover", Parent = frame })
+	local lip = new("Frame", { Name = "Lip", Size = UDim2.fromOffset(w, h), Position = UDim2.fromOffset(0, 5), BackgroundColor3 = p.Dark, BorderSizePixel = 0, Parent = frame })
+	UIKit.Corner(lip, UDim.new(0, 5))
+	local face = new("Frame", { Name = "Face", Size = UDim2.fromOffset(w, h), BackgroundColor3 = p.Base, BorderSizePixel = 0, ZIndex = 2, Parent = frame })
+	UIKit.Corner(face, UDim.new(0, 5))
+	new("UIStroke", { Thickness = 3, Color = p.Border, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = face })
+	local grassH = if p.Grass then 13 else 0
+	studs(face, w, h, p.Dark, p.Light, 2, grassH)
+	if p.Grass then
+		-- a strip of grass along the top, with lighter blades
+		local grass = new("Frame", { Name = "Grass", Size = UDim2.new(1, 0, 0, grassH), BackgroundColor3 = Color3.fromHex("5BC43B"), BorderSizePixel = 0, ZIndex = 3, Parent = face })
+		UIKit.Corner(grass, UDim.new(0, 4))
+		local fill = new("Frame", { Size = UDim2.new(1, 0, 0, 5), Position = UDim2.new(0, 0, 1, -5), BackgroundColor3 = Color3.fromHex("5BC43B"), BorderSizePixel = 0, ZIndex = 3, Parent = grass })
+		local _ = fill
+		for i = 0, math.floor(w / 18) do
+			new("Frame", { Size = UDim2.fromOffset(9, 4), Position = UDim2.fromOffset(4 + i * 18, 2), BackgroundColor3 = Color3.fromHex("86E35F"), BorderSizePixel = 0, ZIndex = 4, Parent = grass })
+			new("Frame", { Size = UDim2.fromOffset(6, 5), Position = UDim2.fromOffset(12 + i * 18, grassH - 2), BackgroundColor3 = Color3.fromHex("4AAE31"), BorderSizePixel = 0, ZIndex = 4, Parent = grass })
+		end
+	end
+	UIKit.Label({ Name = "Text", Text = p.Text, TextSize = p.TextSize or 34, Stroke = 4, ZIndex = 6, Position = UDim2.fromOffset(0, grassH / 2), Parent = face })
+	new("TextButton", { Name = "Hit", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 20, AutoButtonColor = false, Parent = frame })
+	return frame
+end
+
+-- a tiny balloon-cluster icon for the square BALLOONS button
+local function bouquet(parent: Instance, z: number)
+	local holder = new("Frame", { Name = "Icon", Size = UDim2.fromOffset(44, 44), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, ZIndex = z, Parent = parent })
+	local specs: { { x: number, y: number, color: Color3 } } = {
+		{ x = -11, y = 4, color = T.Blue },
+		{ x = 11, y = 4, color = T.Gold },
+		{ x = 0, y = -4, color = T.Red },
+	}
+	for i, spec in specs do
+		local b = UIKit.BalloonIcon(22, spec.color, holder)
+		b.Position = UDim2.new(0.5, spec.x - 11, 0.5, spec.y - 14)
+		lift(b, z + i)
+	end
+	return holder
+end
+
+local function buildTopBar(gui: Instance)
+	local root = anchor(gui, "TopBar", UDim2.fromOffset(820, 84), UDim2.new(0.5, 0, 0, 10), Vector2.new(0.5, 0))
+	local row = new("Frame", { Name = "Row", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = root })
+	new("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, 16),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = row,
+	})
+	local balloons = topButton({ Name = "Balloons", Text = "", Width = 64, Height = 64, Base = Color3.fromHex("9B7BFF"), Dark = Color3.fromHex("7E5CF0"), Light = Color3.fromHex("B7A2FF"), Border = Color3.fromHex("C9B8FF"), Parent = row, Order = 1 })
+	bouquet(balloons:FindFirstChild("Face") :: Instance, 8)
+	topButton({ Name = "Shop", Text = "SHOP", Width = 190, Height = 64, Base = Color3.fromHex("2E9BF0"), Dark = Color3.fromHex("1F7FD0"), Light = Color3.fromHex("5DB8FF"), Border = Color3.fromHex("7CCBFF"), Parent = row, Order = 2 })
+	topButton({ Name = "Spawn", Text = "SPAWN", Width = 250, Height = 78, Base = Color3.fromHex("8B4A2B"), Dark = Color3.fromHex("6E3720"), Light = Color3.fromHex("A5603A"), Border = Color3.fromHex("86D95E"), Grass = true, TextSize = 40, Parent = row, Order = 3 })
+	topButton({ Name = "Upgrades", Text = "UPGRADES", Width = 230, Height = 64, Base = Color3.fromHex("E3161C"), Dark = Color3.fromHex("BC0F14"), Light = Color3.fromHex("FF4148"), Border = Color3.fromHex("FF6A6E"), Parent = row, Order = 4 })
+end
+
+--------------------------------------------------------------------------------
+-- windows (the Shop GUI reference: red frame, striped header, big X, header art)
+
+local function closeButton(parent: Instance): Frame
+	local btn = UIKit.Button({ Name = "Close", Size = UDim2.fromOffset(66, 62), Position = UDim2.new(1, 14, 0, -14), AnchorPoint = Vector2.new(1, 0), Face = T.Red, Top = T.RedTop, Lip = T.RedDark, Radius = 14, Parent = parent })
+	btn.Frame.ZIndex = 10
+	-- the X: both outlines first, then both white bars on top, so it reads as one shape
+	for _, rot in { 45, -45 } do
+		local edge = new("Frame", { Name = "XEdge", Size = UDim2.fromOffset(47, 18), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Rotation = rot, BackgroundColor3 = T.Outline, BorderSizePixel = 0, ZIndex = 5, Parent = btn.Face })
+		UIKit.Corner(edge, UDim.new(0, 7))
+	end
+	for _, rot in { 45, -45 } do
+		local bar = new("Frame", { Name = "XBar", Size = UDim2.fromOffset(40, 11), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Rotation = rot, BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 6, Parent = btn.Face })
+		UIKit.Corner(bar, UDim.new(0, 4))
+	end
+	lift(btn.Frame, 10)
+	return btn.Frame
+end
+
+local function window(gui: Instance, name: string, title: string, width: number, height: number): Frame
+	local root = anchor(gui, name, UDim2.fromOffset(width + 60, height + 60), UDim2.fromScale(0.5, 0.57), Vector2.new(0.5, 0.5))
+	root.Visible = false
+	local win = UIKit.Panel({ Name = "Window", Size = UDim2.fromOffset(width, height), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Color = T.Red, Radius = 20, Outline = 4.5, Parent = root })
+	new("UIScale", { Name = "Pop", Parent = win })
+	local header = UIKit.Panel({ Name = "Header", Size = UDim2.new(1, 0, 0, 74), Color = T.Red, Top = T.RedTop, Radius = 20, Outline = 4.5, Stripes = true, Parent = win })
+	UIKit.Label({ Name = "Title", Text = title, TextSize = 46, Stroke = 5, ZIndex = 3, Position = UDim2.fromOffset(20, -2), Parent = header })
+	-- header art breaking out of the top-left corner (filled with balloon models at runtime)
+	local icon = new("ViewportFrame", { Name = "Icon", Size = UDim2.fromOffset(130, 130), Position = UDim2.fromOffset(-40, -58), BackgroundTransparency = 1, ZIndex = 8, Parent = win })
+	icon:SetAttribute("Balloons", "Gumball,Volt,Frost")
+	closeButton(win)
+	-- sub bar under the header (restock timer / found count)
+	local sub = UIKit.Panel({ Name = "Sub", Size = UDim2.fromOffset(300, 34), Position = UDim2.new(0.5, 0, 0, 84), AnchorPoint = Vector2.new(0.5, 0), Color = T.Dark, Radius = 17, Outline = 3, Parent = win })
+	UIKit.Label({ Name = "Text", Text = "NEW STOCK IN 4:59", TextSize = 19, Stroke = 3, ZIndex = 2, Parent = sub })
+	-- the list
+	local list = new("ScrollingFrame", {
+		Name = "List",
+		Size = UDim2.new(1, -36, 1, -178),
+		Position = UDim2.fromOffset(18, 130),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 14,
+		ScrollBarImageColor3 = T.Orange,
+		ScrollBarImageTransparency = 0,
+		VerticalScrollBarInset = Enum.ScrollBarInset.Always,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+		BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+		Parent = win,
+	})
+	new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 6), Parent = list })
+	-- footer strip
+	local footer = new("Frame", { Name = "Footer", Size = UDim2.new(1, -8, 0, 34), Position = UDim2.new(0.5, 0, 1, -4), AnchorPoint = Vector2.new(0.5, 1), BackgroundColor3 = T.RedDark, BorderSizePixel = 0, Parent = win })
+	UIKit.Corner(footer, UDim.new(0, 16))
+	UIKit.Label({ Name = "Text", Text = "SCROLL TO EXPLORE  •  BALLOONS & ABILITIES", TextSize = 15, Stroke = 2.5, Parent = footer })
+	return win
+end
+
+local function buildShop(gui: Instance)
+	local win = window(gui, "Shop", "Balloon Shop", 660, 500)
+	local list = win:FindFirstChild("List") :: Instance
+	new("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = list })
+	local footer: any = win:FindFirstChild("Footer")
+	footer.Text.Text = "SCROLL TO EXPLORE  •  RESTOCKS EVERY 5 MINUTES"
+end
+
+local function upArrow(parent: Instance, z: number)
+	local holder = new("Frame", { Name = "UpArrow", Size = UDim2.fromOffset(84, 96), Position = UDim2.fromOffset(-24, -46), BackgroundTransparency = 1, ZIndex = z, Parent = parent })
+	local head = new("Frame", { Size = UDim2.fromOffset(58, 58), Position = UDim2.new(0.5, 0, 0, 34), AnchorPoint = Vector2.new(0.5, 0.5), Rotation = 45, BackgroundColor3 = T.Green, BorderSizePixel = 0, ZIndex = z, Parent = holder })
+	UIKit.Corner(head, UDim.new(0, 8))
+	UIKit.Stroke(head, 4.5)
+	UIKit.Gloss(head, T.GreenTop, T.Green, 0.5)
+	local stem = new("Frame", { Size = UDim2.fromOffset(32, 46), Position = UDim2.new(0.5, 0, 0, 48), AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = T.Green, BorderSizePixel = 0, ZIndex = z + 1, Parent = holder })
+	UIKit.Corner(stem, UDim.new(0, 6))
+	UIKit.Stroke(stem, 4.5)
+	UIKit.Gloss(stem, T.Green, T.GreenLip, 0.8)
+	return holder
+end
+
+local function buildUpgrades(gui: Instance)
+	local win = window(gui, "Upgrades", "Upgrades", 660, 500)
+	local icon = win:FindFirstChild("Icon") :: Instance
+	icon:Destroy()
+	upArrow(win, 8)
+	local list = win:FindFirstChild("List") :: Instance
+	new("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = list })
+	local sub: any = win:FindFirstChild("Sub")
+	sub.Text.Text = "EVERY LEVEL: +2% SIZE  +1% GROWTH  +1% EARN"
+	sub.Size = UDim2.fromOffset(460, 34)
+	local footer: any = win:FindFirstChild("Footer")
+	footer.Text.Text = "LV 10 & 30: +1 HP  •  LV 20: +1 SLOT  •  LV 50: GOLDEN EDGE"
+end
+
+local function buildBalloons(gui: Instance)
+	local win = window(gui, "Balloons", "My Balloons", 700, 510)
+	local icon = win:FindFirstChild("Icon") :: Instance
+	icon:SetAttribute("Balloons", "Gumball")
+	local list = win:FindFirstChild("List") :: Instance
+	new("UIGridLayout", { CellSize = UDim2.fromOffset(150, 196), CellPadding = UDim2.fromOffset(12, 12), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = list })
+	local sub: any = win:FindFirstChild("Sub")
+	sub.Text.Text = "FOUND 3 / 17"
+	local footer: any = win:FindFirstChild("Footer")
+	footer.Text.Text = "TAP A BALLOON TO EQUIP IT  •  FIND THEM ALL IN THE SHOP"
+end
+
+--------------------------------------------------------------------------------
+-- card templates
+
+local function artBox(parent: Instance, size: number, x: number, y: number): Frame
+	local box = new("Frame", { Name = "ArtBox", Size = UDim2.fromOffset(size, size), Position = UDim2.fromOffset(x, y), BackgroundColor3 = WHITE, BackgroundTransparency = 0.78, BorderSizePixel = 0, ZIndex = 2, Parent = parent })
+	UIKit.Corner(box, UDim.new(0, 14))
+	new("UIStroke", { Thickness = 2.5, Color = T.Outline, Transparency = 0.35, Parent = box })
+	new("ViewportFrame", { Name = "Art", Size = UDim2.new(1, 8, 1, 8), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, ZIndex = 3, Parent = box })
+	return box
+end
+
+local function card(parent: Instance, name: string, w: number, h: number): Frame
+	local c = UIKit.Panel({ Name = name, Size = UDim2.fromOffset(w, h), Color = T.Blue, Top = T.BlueTop, Radius = 16, Outline = 3.5, Parent = parent })
+	c.Visible = false
+	c:SetAttribute("TierTinted", true) -- the controller recolours it by the balloon's tier
+	return c
+end
+
+local function priceButton(parent: Instance, name: string, text: string, w: number): Frame
+	local btn = UIKit.Button({ Name = name, Size = UDim2.fromOffset(w, 54), Position = UDim2.new(1, -14, 1, -18), AnchorPoint = Vector2.new(1, 1), Face = T.Green, Top = T.GreenTop, Lip = T.GreenLip, Radius = 14, Parent = parent })
+	btn.Frame.ZIndex = 4
+	local row = new("Frame", { Name = "Row", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 4, Parent = btn.Face })
+	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = row })
+	local coin = UIKit.Coin(30, row)
+	coin.LayoutOrder = 1
+	local label = UIKit.Label({ Name = "Price", Text = text, TextSize = 28, Stroke = 3.5, Size = UDim2.fromOffset(0, 40), Parent = row })
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.LayoutOrder = 2
+	lift(btn.Frame, 4)
+	return btn.Frame
+end
+
+local function chip(parent: Instance, name: string, text: string, color: Color3, pos: UDim2, w: number): Frame
+	local c = UIKit.Panel({ Name = name, Size = UDim2.fromOffset(w, 26), Position = pos, Color = color, Radius = 8, Outline = 2.5, Parent = parent })
+	c.ZIndex = 3
+	UIKit.Label({ Name = "Text", Text = text, TextSize = 15, Stroke = 2.5, ZIndex = 4, Parent = c })
+	return c
+end
+
+local function buildShopCard(folder: Instance)
+	local c = card(folder, "ShopCard", 600, 128)
+	artBox(c, 108, 10, 10)
+	UIKit.Label({ Name = "Name", Text = "VOLT", TextSize = 32, Stroke = 4, XAlign = Enum.TextXAlignment.Left, Size = UDim2.fromOffset(280, 36), Position = UDim2.fromOffset(132, 10), ZIndex = 3, Parent = c })
+	chip(c, "Tier", "EPIC", T.Dark, UDim2.fromOffset(132, 50), 96)
+	UIKit.Label({ Name = "Stats", Text = "MAX 700  •  GROW 1.8/s  •  HP 7  •  EARN x3", TextSize = 15, Stroke = 2.5, XAlign = Enum.TextXAlignment.Left, Size = UDim2.fromOffset(300, 20), Position = UDim2.fromOffset(132, 84), ZIndex = 3, Parent = c })
+	UIKit.Label({ Name = "Special", Text = "Absorbs lightning and stores it as bonus coins", TextSize = 13, Stroke = 2, XAlign = Enum.TextXAlignment.Left, Size = UDim2.fromOffset(300, 16), Position = UDim2.fromOffset(132, 104), ZIndex = 3, Parent = c })
+	local newTag = UIKit.Panel({ Name = "New", Size = UDim2.fromOffset(56, 26), Position = UDim2.fromOffset(2, 2), Color = T.Gold, Top = T.GoldTop, Radius = 8, Outline = 2.5, Parent = c })
+	newTag.Rotation = -10
+	newTag.ZIndex = 6
+	UIKit.Label({ Name = "Text", Text = "NEW!", TextSize = 16, Stroke = 2.5, ZIndex = 7, Parent = newTag })
+	UIKit.Label({ Name = "Left", Text = "x3 IN STOCK", TextSize = 17, Stroke = 2.5, Size = UDim2.fromOffset(160, 20), Position = UDim2.new(1, -94, 0, 16), AnchorPoint = Vector2.new(0.5, 0), ZIndex = 3, Parent = c })
+	UIKit.Label({ Name = "Owned", Text = "OWNED x1", TextSize = 13, Stroke = 2, Color = Color3.fromHex("D8FFD0"), Size = UDim2.fromOffset(160, 16), Position = UDim2.new(1, -94, 0, 38), AnchorPoint = Vector2.new(0.5, 0), ZIndex = 3, Parent = c })
+	priceButton(c, "Buy", "1M", 160)
+end
+
+local function buildUpgradeCard(folder: Instance)
+	local c = card(folder, "UpgradeCard", 600, 128)
+	artBox(c, 108, 10, 10)
+	UIKit.Label({ Name = "Name", Text = "GUMBALL", TextSize = 30, Stroke = 4, XAlign = Enum.TextXAlignment.Left, Size = UDim2.fromOffset(240, 34), Position = UDim2.fromOffset(132, 8), ZIndex = 3, Parent = c })
+	chip(c, "Level", "LV 3", T.GoldLip, UDim2.fromOffset(132, 46), 74)
+	chip(c, "Equipped", "EQUIPPED", T.GreenLip, UDim2.fromOffset(214, 46), 104)
+	UIKit.Label({ Name = "Stats", Text = "SIZE 104 → 106   •   EARN x1.02 → x1.03", TextSize = 15, Stroke = 2.5, XAlign = Enum.TextXAlignment.Left, Size = UDim2.fromOffset(300, 20), Position = UDim2.fromOffset(132, 80), ZIndex = 3, Parent = c })
+	UIKit.Label({ Name = "Next", Text = "LV 10: +1 TOUGHNESS", TextSize = 14, Stroke = 2.5, Color = Color3.fromHex("FFE27A"), XAlign = Enum.TextXAlignment.Left, Size = UDim2.fromOffset(300, 18), Position = UDim2.fromOffset(132, 101), ZIndex = 3, Parent = c })
+	priceButton(c, "Upgrade", "61", 168)
+end
+
+local function buildBalloonCard(folder: Instance)
+	local c = card(folder, "BalloonCard", 150, 196)
+	artBox(c, 120, 15, 12)
+	UIKit.Label({ Name = "Name", Text = "GUMBALL", TextSize = 20, Stroke = 3, Size = UDim2.new(1, -8, 0, 24), Position = UDim2.fromOffset(4, 134), ZIndex = 3, Parent = c })
+	local level = UIKit.Panel({ Name = "Level", Size = UDim2.fromOffset(58, 24), Position = UDim2.fromOffset(6, 6), Color = T.GoldLip, Radius = 8, Outline = 2.5, Parent = c })
+	level.ZIndex = 6
+	UIKit.Label({ Name = "Text", Text = "LV 1", TextSize = 14, Stroke = 2.5, ZIndex = 7, Parent = level })
+	local btn = UIKit.Button({ Name = "Equip", Size = UDim2.fromOffset(122, 32), Position = UDim2.new(0.5, 0, 1, -10), AnchorPoint = Vector2.new(0.5, 1), Face = T.Green, Top = T.GreenTop, Lip = T.GreenLip, Radius = 10, LipDepth = 4, Parent = c })
+	UIKit.Label({ Name = "Text", Text = "EQUIP", TextSize = 18, Stroke = 3, ZIndex = 4, Parent = btn.Face })
+	lift(btn.Frame, 3)
+end
+
+--------------------------------------------------------------------------------
+
+function MenuTemplate.Build(): ScreenGui
+	local gui = new("ScreenGui", {
+		Name = "BalloonMenus",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = 10,
+	})
+	gui:SetAttribute("MenuVersion", 1)
+	buildTopBar(gui)
+	buildShop(gui)
+	buildUpgrades(gui)
+	buildBalloons(gui)
+	local templates = new("Folder", { Name = "Templates", Parent = gui })
+	buildShopCard(templates)
+	buildUpgradeCard(templates)
+	buildBalloonCard(templates)
+	return gui
+end
+
+-- Studio command bar: an editable copy in StarterGui (an existing one is kept as
+-- "BalloonMenus_Old" and switched off, so edits are never lost).
+function MenuTemplate.Install(): ScreenGui
+	local StarterGui = game:GetService("StarterGui")
+	local old = StarterGui:FindFirstChild("BalloonMenus")
+	if old then
+		local prev = StarterGui:FindFirstChild("BalloonMenus_Old")
+		if prev then
+			prev:Destroy()
+		end
+		old.Name = "BalloonMenus_Old"
+		if old:IsA("ScreenGui") then
+			old.Enabled = false
+		end
+	end
+	local gui = MenuTemplate.Build()
+	gui.Parent = StarterGui
+	print("[MenuTemplate] BalloonMenus installed in StarterGui - edit away. Keep the names (docs/MENU_EDITING.md).")
+	return gui
+end
+
+return MenuTemplate
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">UIKit</string><ProtectedString name="Source"><![CDATA[--!strict
 -- UIKit: the building blocks for every menu, in the Shop style (docs/UI_STYLE.md):
 -- bright red panels with a thick dark outline, diagonal lighter stripes on headers,
 -- big white rounded type with a dark stroke, chunky buttons with a darker "lip" under
@@ -4966,6 +5459,24 @@ function UIKit.Number(n: number): string
 	return (if n < 0 then "-" else "") .. out
 end
 
+-- Short prices: 950, 2.5K, 40K, 1M, 2.5B
+function UIKit.Short(n: number): string
+	local abs = math.abs(n)
+	local function fmt(v: number, suffix: string): string
+		local s = if v >= 100 then string.format("%d", math.floor(v)) else string.format("%.1f", math.floor(v * 10) / 10)
+		s = s:gsub("%.0$", "")
+		return s .. suffix
+	end
+	if abs >= 1e9 then
+		return fmt(n / 1e9, "B")
+	elseif abs >= 1e6 then
+		return fmt(n / 1e6, "M")
+	elseif abs >= 1e3 then
+		return fmt(n / 1e3, "K")
+	end
+	return tostring(math.floor(n))
+end
+
 function UIKit.Tween(inst: Instance, time: number, props: { [string]: any }, style: Enum.EasingStyle?, dir: Enum.EasingDirection?): Tween
 	local tween = TweenService:Create(inst, TweenInfo.new(time, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
 	tween:Play()
@@ -4979,7 +5490,7 @@ function UIKit.Pop(scale: UIScale, amount: number?)
 end
 
 return UIKit
-]]></ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX00000020"><Properties><string name="Name">Server</string></Properties><Item class="Folder" referent="RBX00000018"><Properties><string name="Name">Packages</string></Properties><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">ProfileStore</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX00000025"><Properties><string name="Name">Server</string></Properties><Item class="Folder" referent="RBX0000001B"><Properties><string name="Name">Packages</string></Properties><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">ProfileStore</string><ProtectedString name="Source"><![CDATA[--[[
 MAD STUDIO (by loleris)
 
 -[ProfileStore]---------------------------------------
@@ -7221,7 +7732,269 @@ task.spawn(function()
 
 end)
 
-return ProfileStore]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000001F"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!strict
+return ProfileStore]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000024"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">BalloonService</string><ProtectedString name="Source"><![CDATA[--!strict
+-- BalloonService: your balloons (inventory, equip, upgrade), the stalls on the start map
+-- (ProximityPrompts + top-bar teleports) and the menus' remote.
+--
+--   BalloonNet (RemoteFunction, client -> server, every call rate limited):
+--     "Sync"                  -> snapshot
+--     "Buy", kind             -> ok, message, snapshot
+--     "Equip", uid            -> ok, message, snapshot
+--     "Upgrade", uid          -> ok, message, snapshot
+--     "Teleport", place       -> ok, message        (Shop / Spawn / Upgrades / Index)
+--   BalloonSync (RemoteEvent, server -> client):
+--     "Snapshot", snapshot    after anything changes (and on join / restock)
+--     "Announce", text        server message (a Legendary is in stock, ...)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local DataService = require(script.Parent.DataService)
+local ShopService = require(script.Parent.ShopService)
+local FlightService = require(script.Parent.FlightService)
+
+local BalloonService = {}
+
+local BalloonConfig: any
+local ShopConfig: any
+local Sync: RemoteEvent
+local lastCall: { [Player]: number } = {}
+local lastTeleport: { [Player]: number } = {}
+
+export type Snapshot = {
+	balloons: { { uid: string, type: string, level: number, stars: number } },
+	equipped: string?,
+	found: { [string]: boolean },
+	shop: any,
+}
+
+function BalloonService.Snapshot(player: Player): Snapshot?
+	local data = DataService.Get(player)
+	if not data then
+		return nil
+	end
+	local list = {}
+	for uid, b in data.balloons do
+		table.insert(list, { uid = uid, type = b.type, level = b.level, stars = b.stars or 0 })
+	end
+	-- best first: tier order, then level
+	table.sort(list, function(a, b)
+		local oa = (BalloonConfig.Types[a.type] or {}).Order or 99
+		local ob = (BalloonConfig.Types[b.type] or {}).Order or 99
+		if oa ~= ob then
+			return oa > ob
+		end
+		if a.level ~= b.level then
+			return a.level > b.level
+		end
+		return a.uid < b.uid
+	end)
+	return {
+		balloons = list,
+		equipped = data.equipped.primary,
+		found = table.clone(data.index.balloons),
+		shop = ShopService.View(player),
+	}
+end
+
+local function push(player: Player)
+	local snap = BalloonService.Snapshot(player)
+	if snap then
+		Sync:FireClient(player, "Snapshot", snap)
+	end
+end
+
+function BalloonService.Equip(player: Player, uid: string): (boolean, string)
+	local data = DataService.Get(player)
+	local entry = data and data.balloons[uid]
+	if not data or not entry then
+		return false, "You don't own that balloon"
+	end
+	data.equipped.primary = uid
+	FlightService.Refresh(player)
+	local flying = FlightService.GetState(player) ~= "Ground"
+	return true, if flying then `{entry.type} equipped - you'll hold it next flight` else `{entry.type} equipped!`
+end
+
+function BalloonService.Upgrade(player: Player, uid: string): (boolean, string)
+	local data = DataService.Get(player)
+	local entry = data and data.balloons[uid]
+	if not data or not entry then
+		return false, "You don't own that balloon"
+	end
+	local t = BalloonConfig.Types[entry.type]
+	if not t then
+		return false, "Unknown balloon"
+	end
+	if entry.level >= ShopConfig.MaxLevel then
+		return false, "Already max level!"
+	end
+	local cost = ShopConfig.UpgradeCost(t.Tier, entry.level)
+	if data.coins < cost then
+		return false, "Not enough coins"
+	end
+	DataService.AddCoins(player, -cost)
+	entry.level += 1
+	if data.equipped.primary == uid then
+		FlightService.Refresh(player)
+	end
+	local milestone = if entry.level == 10 or entry.level == 30
+		then " +1 Toughness!"
+		elseif entry.level == 20 then " +1 mutation slot!"
+		elseif entry.level == 50 then " GOLDEN EDGE!"
+		else ""
+	return true, `{entry.type} is now level {entry.level}!{milestone}`
+end
+
+function BalloonService.Teleport(player: Player, place: string): (boolean, string)
+	if FlightService.GetState(player) ~= "Ground" then
+		return false, "Land first!"
+	end
+	if os.clock() - (lastTeleport[player] or 0) < 1.5 then
+		return false, ""
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not character or not humanoid or humanoid.Health <= 0 then
+		return false, ""
+	end
+	local cf: CFrame
+	if place == "Spawn" then
+		cf = CFrame.lookAt(ShopConfig.Spawn, ShopConfig.Spawn + Vector3.new(0, 0, -1))
+	elseif ShopConfig.Stalls[place] then
+		cf = ShopConfig.StandCFrame(place)
+	else
+		return false, ""
+	end
+	lastTeleport[player] = os.clock()
+	character:PivotTo(cf)
+	return true, ""
+end
+
+--------------------------------------------------------------------------------
+-- stall prompts (the menu opens on the client when the prompt is triggered)
+
+local function buildPrompts()
+	local folder = workspace:FindFirstChild("StallPrompts") or Instance.new("Folder")
+	folder.Name = "StallPrompts"
+	folder.Parent = workspace
+	for name, stall in ShopConfig.Stalls do
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.Transparency = 1
+		part.Size = Vector3.new(2, 2, 2)
+		part.Position = ShopConfig.StallPoint(name, stall.Prompt, stall.PromptY)
+		part.Parent = folder
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "Open" .. name
+		prompt.ActionText = stall.Action
+		prompt.ObjectText = stall.Object
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.MaxActivationDistance = 16
+		prompt.RequiresLineOfSight = false
+		prompt.HoldDuration = 0
+		prompt:SetAttribute("Menu", name)
+		prompt.Parent = part
+	end
+end
+
+--------------------------------------------------------------------------------
+
+local LIMIT = 0.2
+
+local function onInvoke(player: Player, kind: unknown, arg: unknown): ...any
+	if type(kind) ~= "string" then
+		return false, ""
+	end
+	local now = os.clock()
+	if kind ~= "Sync" and now - (lastCall[player] or 0) < LIMIT then
+		return false, "Slow down!"
+	end
+	lastCall[player] = now
+	if kind == "Sync" then
+		return BalloonService.Snapshot(player)
+	end
+	if type(arg) ~= "string" or #arg > 40 then
+		return false, ""
+	end
+	local ok, msg
+	if kind == "Buy" then
+		ok, msg = ShopService.Buy(player, arg)
+	elseif kind == "Equip" then
+		ok, msg = BalloonService.Equip(player, arg)
+	elseif kind == "Upgrade" then
+		ok, msg = BalloonService.Upgrade(player, arg)
+	elseif kind == "Teleport" then
+		return BalloonService.Teleport(player, arg)
+	else
+		return false, ""
+	end
+	return ok, msg, BalloonService.Snapshot(player)
+end
+
+export type StartOptions = { Shared: Instance, RemoteParent: Instance }
+
+function BalloonService.Start(opts: StartOptions)
+	local shared: any = opts.Shared
+	BalloonConfig = require(shared.Config.BalloonConfig) :: any
+	ShopConfig = require(shared.Config.ShopConfig) :: any
+
+	local net = Instance.new("RemoteFunction")
+	net.Name = "BalloonNet"
+	net.OnServerInvoke = onInvoke
+	net.Parent = opts.RemoteParent
+	local sync = Instance.new("RemoteEvent")
+	sync.Name = "BalloonSync"
+	sync.Parent = opts.RemoteParent
+	Sync = sync
+
+	ShopService.Start(opts.Shared)
+	ShopService.Changed.Event:Connect(function(player: Player?)
+		if player then
+			push(player)
+		else
+			for _, p in Players:GetPlayers() do
+				push(p)
+			end
+		end
+	end)
+	ShopService.Announce.Event:Connect(function(text: string)
+		Sync:FireAllClients("Announce", text)
+	end)
+	DataService.Loaded.Event:Connect(function(player: Player)
+		push(player)
+	end)
+	buildPrompts()
+
+	Players.PlayerRemoving:Connect(function(player)
+		lastCall[player] = nil
+		lastTeleport[player] = nil
+	end)
+
+	-- Studio only: "/coins 1000000" in chat for test money
+	if RunService:IsStudio() then
+		local function listen(player: Player)
+			player.Chatted:Connect(function(msg)
+				local amount = tonumber(msg:match("^/coins%s+(%d+)"))
+				if amount then
+					DataService.AddCoins(player, amount)
+					push(player)
+				end
+			end)
+		end
+		for _, p in Players:GetPlayers() do
+			listen(p)
+		end
+		Players.PlayerAdded:Connect(listen)
+	end
+end
+
+return BalloonService
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!strict
 -- DataService: player saves through ProfileStore (session locked, auto-saving).
 -- Save schema v1 from section 17 of the game prompt, plus a small `tutorial` table.
 -- Flight state (size, unbanked coins) is never saved: leaving mid-flight counts as a pop.
@@ -7390,7 +8163,7 @@ DataService.GiveBalloon = function(player: Player, kind: string): string?
 end
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">DemoBalloon</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">DemoBalloon</string><ProtectedString name="Source"><![CDATA[--!strict
 -- DemoBalloon: only used when HazardConfig.Demo.Enabled is true.
 -- Gives every character a stud balloon over their head (Gumball to start; the gallery's
 -- "Try it" prompts swap it), with HP from the balloon's Toughness. Applies hazard hits,
@@ -7603,7 +8376,7 @@ function DemoBalloon.Start(cfg: any, _target: any, service: any, remote: RemoteE
 end
 
 return DemoBalloon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">FlightService</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">FlightService</string><ProtectedString name="Source"><![CDATA[--!strict
 -- FlightService: one flight, server authoritative (sections 2, 16 and 17 of the prompt).
 --
 --   Ground --jump--> Flying --hold E near an island--> Landing --2 s--> banked, Ground
@@ -8057,6 +8830,9 @@ end
 -- Re-read the equipped balloon (after an equip / upgrade). Only takes effect on the ground.
 function FlightService.Refresh(player: Player)
 	local f = flights[player]
+	if f then
+		f.devKind = nil -- a real equip beats the Studio gallery's "Try it"
+	end
 	if f and f.state == "Ground" then
 		toGround(player, f)
 	end
@@ -8335,7 +9111,7 @@ function FlightService.Start(opts: StartOptions)
 end
 
 return FlightService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HazardService: server-authoritative hazards for Meadow Sky and Cloud Shelf.
 --
 -- The server owns each hazard as an invisible anchored root Part in workspace.Hazards
@@ -8786,7 +9562,7 @@ function HazardService.Start(opts: StartOptions)
 end
 
 return HazardService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">ServerMain</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">ServerMain</string><ProtectedString name="Source"><![CDATA[--!strict
 -- ServerMain: starts every server system in order. Called by GameBootstrap (Rojo) or by
 -- the GamePack's Start script (drag-in build), with the Shared folder's location.
 
@@ -8813,10 +9589,131 @@ function ServerMain.Start(opts: StartOptions)
 	end)
 	HazardService.Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent, Demo = false })
 	FlightService.Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent })
+	require(services.BalloonService).Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent })
 end
 
 return ServerMain
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">WorldLook</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">ShopService</string><ProtectedString name="Source"><![CDATA[--!strict
+-- ShopService: the restocking Balloon Shop (section 3.3), server authoritative.
+--
+-- Every 5 minutes the whole server gets a new stock roll, seeded by the server's start
+-- time + the restock number, so everyone sees the same balloons. Each player has their
+-- own quantity of each (nobody can buy out a Legendary before you get there). A server
+-- message goes out when a Legendary or Mythic is in stock.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local DataService = require(script.Parent.DataService)
+
+local ShopService = {}
+
+ShopService.Changed = Instance.new("BindableEvent") -- (player?) shop view changed (nil = everyone)
+ShopService.Announce = Instance.new("BindableEvent") -- (text) server-wide message
+
+local ShopConfig: any
+local BalloonConfig: any
+local seed = 0
+local startedAt = 0
+local index = -1
+local stock: { [string]: number } = {} -- kind -> count per player this restock
+local bought: { [Player]: { [string]: number } } = {}
+
+export type Item = { kind: string, price: number, left: number, stock: number }
+
+local function roll(i: number): { [string]: number }
+	local out = {}
+	local rng = Random.new(seed + i * 7919)
+	local studio = RunService:IsStudio() and ShopConfig.StudioEverything
+	for _, kind in BalloonConfig.Ordered() do
+		local price = ShopConfig.Prices[kind]
+		local t = BalloonConfig.Types[kind]
+		local rule = t and ShopConfig.Stock[t.Tier]
+		if price and rule then
+			local count = rule.Count
+			local n = rng:NextInteger(count[1], count[2])
+			if studio or ShopConfig.AlwaysInStock[kind] or rng:NextNumber() < rule.Chance then
+				out[kind] = n
+			end
+		end
+	end
+	return out
+end
+
+local function restock(i: number)
+	index = i
+	stock = roll(i)
+	table.clear(bought)
+	for kind in stock do
+		local t = BalloonConfig.Types[kind]
+		if t and ShopConfig.AnnounceTiers[t.Tier] then
+			ShopService.Announce:Fire(`A {string.upper(t.Tier)} {kind} balloon is in the Balloon Shop!`)
+		end
+	end
+	ShopService.Changed:Fire(nil)
+end
+
+function ShopService.EndsAt(): number
+	return startedAt + (index + 1) * ShopConfig.RestockEvery
+end
+
+-- What this player sees: every balloon in stock, in Index order, with how many are left.
+function ShopService.View(player: Player): { index: number, endsAt: number, items: { Item } }
+	local items = {}
+	local mine = bought[player] or {}
+	for _, kind in BalloonConfig.Ordered() do
+		local n = stock[kind]
+		if n then
+			table.insert(items, { kind = kind, price = ShopConfig.Prices[kind], left = math.max(0, n - (mine[kind] or 0)), stock = n })
+		end
+	end
+	return { index = index, endsAt = ShopService.EndsAt(), items = items }
+end
+
+-- Returns (ok, message).
+function ShopService.Buy(player: Player, kind: string): (boolean, string)
+	local data = DataService.Get(player)
+	if not data then
+		return false, "Still loading your data"
+	end
+	local n = stock[kind]
+	local price = ShopConfig.Prices[kind]
+	if not n or not price then
+		return false, "Not in stock"
+	end
+	local mine = bought[player] or {}
+	bought[player] = mine
+	if (mine[kind] or 0) >= n then
+		return false, "Sold out - new stock soon!"
+	end
+	if data.coins < price then
+		return false, "Not enough coins"
+	end
+	DataService.AddCoins(player, -price)
+	mine[kind] = (mine[kind] or 0) + 1
+	DataService.GiveBalloon(player, kind)
+	return true, `You got a {kind} balloon!`
+end
+
+function ShopService.Start(shared: Instance)
+	ShopConfig = require((shared :: any).Config.ShopConfig) :: any
+	BalloonConfig = require((shared :: any).Config.BalloonConfig) :: any
+	startedAt = math.floor(workspace:GetServerTimeNow())
+	seed = startedAt
+	restock(0)
+	Players.PlayerRemoving:Connect(function(player)
+		bought[player] = nil
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(math.max(0.5, ShopService.EndsAt() - workspace:GetServerTimeNow()))
+			restock(index + 1)
+		end
+	end)
+end
+
+return ShopService
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">WorldLook</string><ProtectedString name="Source"><![CDATA[--!strict
 -- WorldLook: the bright "Balloon Festival" sky from the reference art.
 -- Warm early-afternoon sun, a soft blue haze that hides the horizon edge, gentle bloom so
 -- Neon glows, a little extra colour, and dynamic stud-friendly clouds.
@@ -8893,7 +9790,7 @@ function WorldLook.Apply()
 end
 
 return WorldLook
-]]></ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX00000026"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX0000002D"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source"><![CDATA[--!strict
 -- ClientMain: starts every client controller. Called by GameBootstrap (Rojo) or by the
 -- GamePack's Run script (drag-in build).
 
@@ -8908,15 +9805,20 @@ function ClientMain.Start(opts: StartOptions)
 	require(script.Parent.HazardFXController).Start(opts)
 	local Flight = require(script.Parent.FlightController)
 	Flight.Start(opts)
-	require(script.Parent.HUDController).Start({
+	local Sound = require(script.Parent.SoundController)
+	Sound.Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent, Flight = Flight })
+	local HUD = require(script.Parent.HUDController)
+	HUD.Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent, Flight = Flight, Sound = Sound })
+	require(script.Parent.MenuController).Start({
 		Shared = opts.Shared,
 		RemoteParent = opts.RemoteParent,
-		Flight = Flight,
+		HUD = HUD,
+		Sound = Sound,
 	})
 end
 
 return ClientMain
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">FlightController</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">FlightController</string><ProtectedString name="Source"><![CDATA[--!strict
 -- FlightController: how flying feels (the client half of FlightService).
 --
 -- Drifty steering: WASD / the thumbstick push you around with momentum, you keep sliding
@@ -8965,6 +9867,7 @@ FlightController.Changed = Instance.new("BindableEvent") -- fires when the landa
 FlightController.LandDenied = Instance.new("BindableEvent") -- (status, spot, studs) when E is pressed out of range
 FlightController.Spot = nil :: any? -- the spot you can land on right now
 FlightController.Nearest = nil :: any? -- nearest island (for the arrow)
+FlightController.LettingOut = false -- holding Space / LET OUT AIR right now
 
 local function state(): string
 	return (LocalPlayer:GetAttribute("FlightState") :: string?) or "Ground"
@@ -8991,6 +9894,7 @@ function FlightController.SetLetOut(on: boolean)
 		return
 	end
 	letOutHeld = on
+	FlightController.LettingOut = on and flying()
 	Net:FireServer("LetOut", on and flying())
 end
 
@@ -9133,6 +10037,7 @@ local function applyState()
 			ContextActionService:UnbindAction("BalloonLand")
 		end
 		letOutHeld = false
+		FlightController.LettingOut = false
 		landHeld = false
 		if s == "Falling" then
 			-- no parachute: straight down, arms flailing
@@ -9401,7 +10306,7 @@ function FlightController.Start(opts: StartOptions)
 end
 
 return FlightController
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">HUDController</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">HUDController</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HUDController: brings the flight HUD to life (docs/UI_STYLE.md, docs/HUD_EDITING.md).
 --
 -- The HUD itself is a normal ScreenGui called "BalloonHUD". If you've installed one in
@@ -9431,6 +10336,7 @@ local T: any
 local FlightConfig: any
 local Flight: any
 local Net: RemoteEvent
+local Sound: any
 
 local gui: ScreenGui
 local templates: Folder
@@ -10209,6 +11115,9 @@ local function coinFountain(from: GuiObject, amount: number)
 					conn:Disconnect()
 					c:Destroy()
 					arrived += 1
+					if Sound then
+						Sound.Play("CoinIn", { Pitch = 0.9 + 0.5 * arrived / n })
+					end
 					coins.target = startCoins + (finalCoins - startCoins) * arrived / n
 					if coins.scale then
 						UIKit.Pop(coins.scale, 0.12)
@@ -10337,6 +11246,7 @@ export type StartOptions = {
 	Shared: Instance,
 	RemoteParent: Instance,
 	Flight: any,
+	Sound: any?,
 }
 
 function HUDController.Start(opts: StartOptions)
@@ -10349,6 +11259,7 @@ function HUDController.Start(opts: StartOptions)
 	local config = shared:WaitForChild("Config")
 	FlightConfig = require(config:WaitForChild("FlightConfig") :: ModuleScript) :: any
 	Flight = opts.Flight
+	Sound = opts.Sound
 	Net = opts.RemoteParent:WaitForChild("FlightNet") :: RemoteEvent
 
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -10445,7 +11356,7 @@ function HUDController.Start(opts: StartOptions)
 end
 
 return HUDController
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">HazardFXController</string><ProtectedString name="Source"><![CDATA[--!strict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">HazardFXController</string><ProtectedString name="Source"><![CDATA[--!strict
 -- HazardFXController: builds a stud model for every hazard root the server creates,
 -- animates it every frame, and plays attacks in sync with the server's messages:
 --   "Begin"(id, targetUserId, serverTime)   attack starts (all clients, synced by server time)
@@ -10788,14 +11699,950 @@ function HazardFXController.Start(opts: StartOptions)
 end
 
 return HazardFXController
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000025"><Properties><string name="Name">Run</string><bool name="Disabled">true</bool><token name="RunContext">2</token><ProtectedString name="Source"><![CDATA[-- Client runner for the game pack (enabled by the pack's Start script).
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">MenuController</string><ProtectedString name="Source"><![CDATA[--!strict
+-- MenuController: the top bar (BALLOONS / SHOP / SPAWN / UPGRADES) and the three windows
+-- (Balloon Shop, Upgrades, My Balloons). Like the HUD, the look lives in a ScreenGui
+-- ("BalloonMenus") you can edit in Studio - this file fills it in and makes it work.
+--
+-- Walk up to a stall and press E (or tap) to open its window; the top-bar buttons
+-- teleport you to the stalls (Grow a Garden style). Every purchase, upgrade and equip is
+-- checked on the server (BalloonService / ShopService).
+
+local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local TextChatService = game:GetService("TextChatService")
+local UserInputService = game:GetService("UserInputService")
+
+local MenuController = {}
+
+local LocalPlayer = Players.LocalPlayer
+
+local UIKit: any
+local T: any
+local BalloonConfig: any
+local ShopConfig: any
+local BalloonBuilder: any
+local Net: RemoteFunction
+local HUD: any
+local Sound: any
+
+local gui: ScreenGui
+local templates: Folder
+local snapshot: any = nil
+local viewportScales: { UIScale } = {}
+
+type Window = { name: string, root: GuiObject, win: GuiObject, pop: UIScale?, list: ScrollingFrame, sub: TextLabel?, cards: { [string]: GuiObject }, stall: string? }
+local windows: { [string]: Window } = {}
+local openName: string? = nil
+
+--------------------------------------------------------------------------------
+-- helpers
+
+local function find(root: Instance, path: string): any
+	local node: Instance? = root
+	for part in path:gmatch("[^%.]+") do
+		node = node and node:FindFirstChild(part)
+	end
+	return node
+end
+
+local function state(): string
+	return (LocalPlayer:GetAttribute("FlightState") :: string?) or "Ground"
+end
+
+local function coins(): number
+	return (LocalPlayer:GetAttribute("Coins") :: number?) or 0
+end
+
+local function tint(frame: Instance?, color: Color3)
+	local g = frame and frame:FindFirstChildOfClass("UIGradient")
+	if g then
+		local top = color:Lerp(Color3.new(1, 1, 1), 0.28)
+		local base = color:Lerp(Color3.new(0, 0, 0), 0.18)
+		g.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, top), ColorSequenceKeypoint.new(0.55, base), ColorSequenceKeypoint.new(1, base) })
+	end
+end
+
+local function toast(text: string, color: Color3?)
+	if HUD and text ~= "" then
+		HUD.Toast(text, color)
+	end
+end
+
+local function statLine(stats: any): string
+	return `MAX {UIKit.Number(stats.MaxSize)}  •  GROW {string.format("%.1f", stats.Growth)}/s  •  HP {stats.Toughness}  •  EARN x{string.format("%.3g", stats.Earn)}`
+end
+
+--------------------------------------------------------------------------------
+-- 3D balloon art in ViewportFrames (models are built once and cloned)
+
+local modelCache: { [string]: Model } = {}
+
+local function modelFor(kind: string): Model?
+	local cached = modelCache[kind]
+	if not cached then
+		if not BalloonBuilder.Has(kind) then
+			return nil
+		end
+		cached = BalloonBuilder.Build(kind, { Anchored = true, CFrame = CFrame.new() })
+		modelCache[kind] = cached
+	end
+	return (cached :: Model):Clone()
+end
+
+local function fillViewport(vp: ViewportFrame, kinds: { string }, silhouette: boolean?)
+	for _, child in vp:GetChildren() do
+		if child:IsA("Model") or child:IsA("Camera") then
+			child:Destroy()
+		end
+	end
+	local models = {}
+	local spread = { Vector3.new(0, 0, 0), Vector3.new(-6.5, -2.5, 1.5), Vector3.new(6.5, -2.5, 1.5) }
+	for i, kind in kinds do
+		local m = modelFor(kind)
+		if m then
+			local off = spread[i] or Vector3.zero
+			m:PivotTo(CFrame.new(off) * CFrame.Angles(0, math.rad(if i == 1 then 18 else (if i == 2 then 35 else -5)), 0))
+			m.Parent = vp
+			table.insert(models, m)
+		end
+	end
+	if #models == 0 then
+		return
+	end
+	-- frame everything: bounding box of all models
+	local minV, maxV = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+	for _, m in models do
+		local cf, size = m:GetBoundingBox()
+		local half = size / 2
+		minV = minV:Min(cf.Position - half)
+		maxV = maxV:Max(cf.Position + half)
+	end
+	local centre = (minV + maxV) / 2
+	local extent = (maxV - minV).Magnitude / 2
+	local cam = Instance.new("Camera")
+	cam.FieldOfView = 30
+	local dist = extent / math.tan(math.rad(cam.FieldOfView / 2)) * 1.02
+	cam.CFrame = CFrame.lookAt(centre + Vector3.new(0.3, 0.22, -1).Unit * dist, centre)
+	cam.Parent = vp
+	vp.CurrentCamera = cam
+	vp.Ambient = Color3.fromRGB(190, 190, 205)
+	vp.LightColor = Color3.new(1, 1, 1)
+	vp.LightDirection = Vector3.new(-0.6, -1, 0.8)
+	vp.ImageColor3 = if silhouette then Color3.fromRGB(20, 12, 30) else Color3.new(1, 1, 1)
+	vp.ImageTransparency = if silhouette then 0.35 else 0
+end
+
+--------------------------------------------------------------------------------
+-- server calls
+
+local function call(kind: string, arg: string?): (boolean, string)
+	local ok, a, b, c = pcall(function()
+		return Net:InvokeServer(kind, arg)
+	end)
+	if not ok then
+		return false, "Couldn't reach the server"
+	end
+	if c ~= nil then
+		snapshot = c
+	end
+	return a == true, (b :: string?) or ""
+end
+
+--------------------------------------------------------------------------------
+-- windows
+
+local renderers: { [string]: (Window) -> () } = {}
+
+local function renderOpen()
+	if openName then
+		local w = windows[openName]
+		local render = renderers[openName]
+		if w and render then
+			render(w)
+		end
+	end
+end
+
+local function openWindow(name: string, stall: string?)
+	local w = windows[name]
+	if not w then
+		return
+	end
+	for other, ow in windows do
+		if other ~= name then
+			ow.root.Visible = false
+		end
+	end
+	w.stall = stall
+	local was = w.root.Visible
+	w.root.Visible = true
+	openName = name
+	if not was then
+		Sound.Play("Open")
+		if w.pop then
+			w.pop.Scale = 0.6
+			UIKit.Tween(w.pop, 0.34, { Scale = 1 }, Enum.EasingStyle.Back)
+		end
+	end
+	renderOpen()
+end
+
+local function closeAll(silent: boolean?)
+	local any = false
+	for _, w in windows do
+		if w.root.Visible then
+			any = true
+		end
+		w.root.Visible = false
+	end
+	openName = nil
+	if any and not silent then
+		Sound.Play("Close")
+	end
+end
+
+local function bindButton(frame: GuiObject?, onClick: () -> ())
+	if not frame then
+		return
+	end
+	local hit = frame:FindFirstChild("Hit") :: TextButton?
+	if frame:FindFirstChild("Face") and frame:FindFirstChild("Hit") then
+		UIKit.BindButton(frame)
+	end
+	if hit then
+		hit.Activated:Connect(function()
+			Sound.Play("Click")
+			onClick()
+		end)
+	end
+end
+
+-- keeps one card per key, re-using existing ones (so their 3D art is built only once)
+local function cardFor(w: Window, key: string, template: string, order: number): (GuiObject?, boolean)
+	local card = w.cards[key]
+	local fresh = false
+	if not card then
+		local t = templates:FindFirstChild(template)
+		if not t then
+			return nil, false
+		end
+		local c = t:Clone() :: GuiObject
+		c.Name = key
+		c.Visible = true
+		UIKit.BindStripes(c)
+		c.Parent = w.list
+		w.cards[key] = c
+		card = c
+		fresh = true
+	end
+	(card :: GuiObject).LayoutOrder = order
+	return card, fresh
+end
+
+local function dropUnused(w: Window, keep: { [string]: boolean })
+	for key, card in w.cards do
+		if not keep[key] then
+			card:Destroy()
+			w.cards[key] = nil
+		end
+	end
+end
+
+local function setButton(frame: any, enabled: boolean, text: string?)
+	if not frame then
+		return
+	end
+	local face = frame:FindFirstChild("Face")
+	if face then
+		local g = face:FindFirstChildOfClass("UIGradient")
+		if g then
+			local top = if enabled then T.GreenTop else Color3.fromHex("C9C3D6")
+			local base = if enabled then T.Green else Color3.fromHex("8C8499")
+			g.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, top), ColorSequenceKeypoint.new(0.5, base), ColorSequenceKeypoint.new(1, base) })
+		end
+	end
+	if text then
+		local label = find(frame, "Face.Row.Price") or find(frame, "Face.Text")
+		if label then
+			label.Text = text
+		end
+	end
+end
+
+-- a price button that can't be bought at all (sold out / max): no coin, smaller words
+local function setPriceMode(frame: any, price: boolean)
+	local coin = frame and find(frame, "Face.Row.Coin")
+	local label = frame and find(frame, "Face.Row.Price")
+	if coin then
+		coin.Visible = price
+	end
+	if label then
+		if label:GetAttribute("BaseSize") == nil then
+			label:SetAttribute("BaseSize", label.TextSize)
+		end
+		local base = label:GetAttribute("BaseSize") :: number
+		label.TextSize = if price then base else math.floor(base * 0.78)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Balloon Shop
+
+renderers.Shop = function(w: Window)
+	local shop = snapshot and snapshot.shop
+	if not shop then
+		return
+	end
+	local owned: { [string]: number } = {}
+	for _, b in snapshot.balloons do
+		owned[b.type] = (owned[b.type] or 0) + 1
+	end
+	local keep = {}
+	for i, item in shop.items do
+		local kind = item.kind
+		local t = BalloonConfig.Types[kind]
+		local card, fresh = cardFor(w, kind, "ShopCard", i)
+		if card and t then
+			keep[kind] = true
+			local color = BalloonConfig.TierColors[t.Tier] or T.Blue
+			if fresh then
+				tint(card, color)
+				local art = find(card, "ArtBox.Art")
+				if art then
+					fillViewport(art, { kind })
+				end
+				local tierChip = find(card, "Tier")
+				if tierChip then
+					tierChip.BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.45)
+					find(tierChip, "Text").Text = string.upper(t.Tier)
+				end
+				find(card, "Name").Text = string.upper(kind)
+				find(card, "Stats").Text = statLine(BalloonConfig.StatsFor(kind, 1))
+				local special = find(card, "Special")
+				if special then
+					special.Text = t.Special
+				end
+				bindButton(find(card, "Buy"), function()
+					local ok, msg = call("Buy", kind)
+					Sound.Play(if ok then "Buy" else "Error")
+					toast(msg, if ok then T.GreenLip else nil)
+					renderOpen()
+				end)
+			end
+			local newTag = find(card, "New")
+			if newTag then
+				newTag.Visible = not snapshot.found[kind]
+			end
+			local left = find(card, "Left")
+			if left then
+				left.Text = if item.left > 0 then `x{item.left} IN STOCK` else "SOLD OUT"
+			end
+			local ownedLabel = find(card, "Owned")
+			if ownedLabel then
+				ownedLabel.Text = if owned[kind] then `OWNED x{owned[kind]}` else ""
+			end
+			setButton(find(card, "Buy"), item.left > 0 and coins() >= item.price, if item.left > 0 then UIKit.Short(item.price) else "SOLD OUT")
+			setPriceMode(find(card, "Buy"), item.left > 0)
+		end
+	end
+	dropUnused(w, keep)
+end
+
+--------------------------------------------------------------------------------
+-- Upgrades
+
+local MILESTONES = { [10] = "+1 TOUGHNESS", [20] = "+1 MUTATION SLOT", [30] = "+1 TOUGHNESS", [40] = "SPECIAL UPGRADED", [50] = "GOLDEN EDGE (+25% EARN)" }
+
+local function nextMilestone(level: number): string
+	for _, at in { 10, 20, 30, 40, 50 } do
+		if level < at then
+			return `LV {at}: {MILESTONES[at]}`
+		end
+	end
+	return "MAX LEVEL - GOLDEN EDGE!"
+end
+
+renderers.Upgrades = function(w: Window)
+	if not snapshot then
+		return
+	end
+	local keep = {}
+	for i, b in snapshot.balloons do
+		local t = BalloonConfig.Types[b.type]
+		local card, fresh = cardFor(w, b.uid, "UpgradeCard", i)
+		if card and t then
+			keep[b.uid] = true
+			if fresh then
+				tint(card, BalloonConfig.TierColors[t.Tier] or T.Blue)
+				local art = find(card, "ArtBox.Art")
+				if art then
+					fillViewport(art, { b.type })
+				end
+				find(card, "Name").Text = string.upper(b.type)
+				local uid = b.uid
+				bindButton(find(card, "Upgrade"), function()
+					local ok, msg = call("Upgrade", uid)
+					Sound.Play(if ok then "Upgrade" else "Error")
+					toast(msg, if ok then T.GoldLip else nil)
+					renderOpen()
+				end)
+			end
+			local level = find(card, "Level.Text")
+			if level then
+				level.Text = `LV {b.level}`
+			end
+			local eq = find(card, "Equipped")
+			if eq then
+				eq.Visible = snapshot.equipped == b.uid
+			end
+			local now = BalloonConfig.StatsFor(b.type, b.level)
+			local maxed = b.level >= ShopConfig.MaxLevel
+			local stats = find(card, "Stats")
+			if stats then
+				if maxed then
+					stats.Text = `SIZE {UIKit.Number(now.MaxSize)}   •   EARN x{string.format("%.2f", now.Earn)}`
+				else
+					local nxt = BalloonConfig.StatsFor(b.type, b.level + 1)
+					stats.Text = `SIZE {UIKit.Number(now.MaxSize)} → {UIKit.Number(nxt.MaxSize)}   •   EARN x{string.format("%.2f", now.Earn)} → x{string.format("%.2f", nxt.Earn)}`
+				end
+			end
+			local nextLabel = find(card, "Next")
+			if nextLabel then
+				nextLabel.Text = nextMilestone(b.level)
+			end
+			local cost = ShopConfig.UpgradeCost(t.Tier, b.level)
+			setButton(find(card, "Upgrade"), not maxed and coins() >= cost, if maxed then "MAX" else UIKit.Short(cost))
+			setPriceMode(find(card, "Upgrade"), not maxed)
+		end
+	end
+	dropUnused(w, keep)
+end
+
+--------------------------------------------------------------------------------
+-- My Balloons (collection + equip)
+
+renderers.Balloons = function(w: Window)
+	if not snapshot then
+		return
+	end
+	local keep = {}
+	local order = 0
+	local sold = 0
+	local found = 0
+	for _, b in snapshot.balloons do
+		order += 1
+		local t = BalloonConfig.Types[b.type]
+		local card, fresh = cardFor(w, b.uid, "BalloonCard", order)
+		if card and t then
+			keep[b.uid] = true
+			if fresh then
+				tint(card, BalloonConfig.TierColors[t.Tier] or T.Blue)
+				local art = find(card, "ArtBox.Art")
+				if art then
+					fillViewport(art, { b.type })
+				end
+				find(card, "Name").Text = string.upper(b.type)
+				local uid = b.uid
+				bindButton(find(card, "Equip"), function()
+					if snapshot and snapshot.equipped == uid then
+						return
+					end
+					local ok, msg = call("Equip", uid)
+					Sound.Play(if ok then "Equip" else "Error")
+					toast(msg, if ok then T.GreenLip else nil)
+					renderOpen()
+				end)
+			end
+			local level = find(card, "Level.Text")
+			if level then
+				level.Text = `LV {b.level}`
+			end
+			local equipped = snapshot.equipped == b.uid
+			local btn = find(card, "Equip")
+			if btn then
+				btn.Visible = true
+				setButton(btn, not equipped, if equipped then "EQUIPPED" else "EQUIP")
+			end
+		end
+	end
+	-- balloons you haven't found yet, as dark silhouettes
+	for _, kind in BalloonConfig.Ordered() do
+		if ShopConfig.Prices[kind] then
+			sold += 1
+			if snapshot.found[kind] then
+				found += 1
+			else
+				order += 1
+				local key = "unfound_" .. kind
+				local card, fresh = cardFor(w, key, "BalloonCard", 1000 + order)
+				if card then
+					keep[key] = true
+					if fresh then
+						tint(card, Color3.fromHex("55506A"))
+						local art = find(card, "ArtBox.Art")
+						if art then
+							fillViewport(art, { kind }, true)
+						end
+						find(card, "Name").Text = "???"
+						local lvl = find(card, "Level")
+						if lvl then
+							lvl.Visible = false
+						end
+						local btn = find(card, "Equip")
+						if btn then
+							btn.Visible = false
+						end
+					end
+				end
+			end
+		end
+	end
+	dropUnused(w, keep)
+	if w.sub then
+		w.sub.Text = `FOUND {found} / {sold}`
+	end
+end
+
+--------------------------------------------------------------------------------
+-- start
+
+local function acquireGui(playerGui: Instance, MenuTemplate: any): ScreenGui
+	if StarterGui:FindFirstChild("BalloonMenus") then
+		local found = playerGui:WaitForChild("BalloonMenus", 10) :: ScreenGui?
+		if found then
+			return found
+		end
+	end
+	local existing = playerGui:FindFirstChild("BalloonMenus") :: ScreenGui?
+	if existing then
+		return existing
+	end
+	local built = MenuTemplate.Build()
+	built.Parent = playerGui
+	return built
+end
+
+local function rescale()
+	local cam = workspace.CurrentCamera
+	if not cam then
+		return
+	end
+	local vp = cam.ViewportSize
+	local s = math.clamp(math.min(vp.X / 1280, vp.Y / 760), 0.55, 1.25)
+	for _, sc in viewportScales do
+		sc.Scale = s
+	end
+end
+
+export type StartOptions = { Shared: Instance, RemoteParent: Instance, HUD: any, Sound: any }
+
+function MenuController.Start(opts: StartOptions)
+	local shared = opts.Shared
+	local ui = shared:WaitForChild("UI")
+	UIKit = require(ui:WaitForChild("UIKit") :: ModuleScript) :: any
+	local MenuTemplate = require(ui:WaitForChild("MenuTemplate") :: ModuleScript) :: any
+	T = UIKit.Theme
+	local config = shared:WaitForChild("Config")
+	BalloonConfig = require(config:WaitForChild("BalloonConfig") :: ModuleScript) :: any
+	ShopConfig = require(config:WaitForChild("ShopConfig") :: ModuleScript) :: any
+	BalloonBuilder = require(shared:WaitForChild("Balloons"):WaitForChild("BalloonBuilder") :: ModuleScript) :: any
+	HUD = opts.HUD
+	Sound = opts.Sound
+	Net = opts.RemoteParent:WaitForChild("BalloonNet") :: RemoteFunction
+	local sync = opts.RemoteParent:WaitForChild("BalloonSync") :: RemoteEvent
+
+	gui = acquireGui(LocalPlayer:WaitForChild("PlayerGui"), MenuTemplate)
+	gui.ResetOnSpawn = false
+	gui.Enabled = true
+	local t = gui:FindFirstChild("Templates") :: Folder?
+	if not t then
+		warn("[Menus] BalloonMenus has no Templates folder - reinstall it with MenuTemplate.Install()")
+		t = Instance.new("Folder")
+	end
+	templates = t :: Folder
+	templates.Parent = nil
+	for _, d in gui:GetDescendants() do
+		if d:IsA("UIScale") and d.Name == "ViewportScale" then
+			table.insert(viewportScales, d)
+		end
+	end
+	UIKit.BindStripes(gui)
+
+	-- windows
+	for _, name in { "Shop", "Upgrades", "Balloons" } do
+		local root = find(gui, name)
+		local win = root and root:FindFirstChild("Window")
+		local list = win and win:FindFirstChild("List")
+		if root and win and list then
+			local w: Window = { name = name, root = root, win = win, pop = win:FindFirstChild("Pop"), list = list, sub = find(win, "Sub.Text"), cards = {}, stall = nil }
+			windows[name] = w
+			root.Visible = false
+			bindButton(win:FindFirstChild("Close"), function()
+				closeAll()
+			end)
+			local icon = win:FindFirstChild("Icon")
+			if icon and icon:IsA("ViewportFrame") then
+				local kinds = {}
+				for kind in string.gmatch(tostring(icon:GetAttribute("Balloons") or "Gumball"), "[^,%s]+") do
+					table.insert(kinds, kind)
+				end
+				task.spawn(fillViewport, icon, kinds)
+			end
+		end
+	end
+
+	-- top bar
+	local bar = find(gui, "TopBar")
+	local function teleport(place: string)
+		closeAll(true)
+		local ok, msg = call("Teleport", place)
+		if ok then
+			Sound.Play("Teleport")
+		elseif msg ~= "" then
+			Sound.Play("Error")
+			toast(msg)
+		end
+	end
+	if bar then
+		bindButton(find(bar, "Row.Balloons"), function()
+			if openName == "Balloons" then
+				closeAll()
+			else
+				openWindow("Balloons")
+			end
+		end)
+		bindButton(find(bar, "Row.Shop"), function()
+			teleport("Shop")
+		end)
+		bindButton(find(bar, "Row.Spawn"), function()
+			teleport("Spawn")
+		end)
+		bindButton(find(bar, "Row.Upgrades"), function()
+			teleport("Upgrades")
+		end)
+	end
+
+	-- stall prompts
+	local stallMenus = { Shop = "Shop", Upgrades = "Upgrades", Index = "Balloons" }
+	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
+		if player ~= LocalPlayer then
+			return
+		end
+		local stall = prompt:GetAttribute("Menu")
+		local menu = if type(stall) == "string" then stallMenus[stall] else nil
+		if menu and state() == "Ground" then
+			openWindow(menu, stall :: string)
+		end
+	end)
+
+	-- server pushes
+	sync.OnClientEvent:Connect(function(kind: string, payload: any)
+		if kind == "Snapshot" then
+			local restocked = snapshot and snapshot.shop and payload.shop and payload.shop.index ~= snapshot.shop.index
+			snapshot = payload
+			if restocked then
+				Sound.Play("Restock")
+				if openName == "Shop" then
+					toast("The Balloon Shop restocked!")
+				end
+			end
+			renderOpen()
+		elseif kind == "Announce" then
+			Sound.Play("Fanfare")
+			toast(payload, T.GoldLip)
+			pcall(function()
+				local channels = TextChatService:FindFirstChild("TextChannels")
+				local general = channels and channels:FindFirstChild("RBXGeneral") :: TextChannel?
+				if general then
+					general:DisplaySystemMessage(`<font color="#FFC83D"><b>{payload}</b></font>`)
+				end
+			end)
+		end
+	end)
+	task.spawn(function()
+		local ok, snap = pcall(function()
+			return Net:InvokeServer("Sync")
+		end)
+		if ok and snap then
+			snapshot = snap
+			renderOpen()
+		end
+	end)
+
+	-- close with Escape-like keys, when you fly, or when you walk away from the stall
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if not processed and (input.KeyCode == Enum.KeyCode.Backspace or input.KeyCode == Enum.KeyCode.ButtonB) and openName then
+			closeAll()
+		end
+	end)
+	LocalPlayer:GetAttributeChangedSignal("Coins"):Connect(renderOpen)
+
+	rescale()
+	local function watchCamera()
+		local c = workspace.CurrentCamera
+		if c then
+			c:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
+		end
+		rescale()
+	end
+	watchCamera()
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+
+	local tick = 0
+	RunService.RenderStepped:Connect(function(dt)
+		local s = state()
+		if bar then
+			bar.Visible = s == "Ground"
+		end
+		if s ~= "Ground" and openName and openName ~= "Balloons" then
+			closeAll()
+		end
+		tick += dt
+		if tick < 0.2 then
+			return
+		end
+		tick = 0
+		local w = openName and windows[openName]
+		if not w then
+			return
+		end
+		-- walked away from the stall?
+		if w.stall then
+			local character = LocalPlayer.Character
+			local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local stall = ShopConfig.Stalls[w.stall]
+			if hrp and stall then
+				local spot = ShopConfig.StallPoint(w.stall, stall.Prompt, 0)
+				if (Vector3.new(hrp.Position.X, 0, hrp.Position.Z) - Vector3.new(spot.X, 0, spot.Z)).Magnitude > 32 then
+					closeAll()
+					return
+				end
+			end
+		end
+		-- restock countdown
+		if w.name == "Shop" and w.sub and snapshot and snapshot.shop then
+			local left = math.max(0, math.floor(snapshot.shop.endsAt - workspace:GetServerTimeNow()))
+			w.sub.Text = string.format("NEW STOCK IN %d:%02d", left // 60, left % 60)
+		end
+	end)
+end
+
+return MenuController
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">SoundController</string><ProtectedString name="Source"><![CDATA[--!strict
+-- SoundController: plays SoundConfig sounds on game events, so the rest of the code only
+-- has to call Sound.Play("Buy") for menu clicks. It listens itself to: your flight state,
+-- FlightNet (banked), HazardFX (hits, pops), and plays the ground / sky music.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+
+local SoundController = {}
+
+local LocalPlayer = Players.LocalPlayer
+
+local Config: any
+local folder: Folder
+local loops: { [string]: Sound } = {}
+local music: { [string]: Sound } = {}
+local Flight: any
+
+local function def(name: string): any?
+	local d = Config and Config.Sounds[name]
+	if not d or d.Id == nil or d.Id == "" then
+		return nil
+	end
+	return d
+end
+
+local function make(d: any, parent: Instance): Sound
+	local s = Instance.new("Sound")
+	s.SoundId = d.Id
+	s.Volume = d.Volume
+	s.PlaybackSpeed = d.Pitch or 1
+	s.Looped = d.Loop == true
+	s.Parent = parent
+	return s
+end
+
+-- Play a sound once. opts.Pitch multiplies the pitch; opts.At plays it in 3D there.
+function SoundController.Play(name: string, opts: { Pitch: number?, At: Vector3?, Volume: number? }?)
+	local d = def(name)
+	if not d then
+		return
+	end
+	local o: any = opts or {}
+	local parent: Instance = folder
+	local holder: Part? = nil
+	if o.At then
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Transparency = 1
+		p.Size = Vector3.one
+		p.Position = o.At
+		p.Parent = workspace
+		holder = p
+		parent = p
+	end
+	local s = make(d, parent)
+	local vary = d.Vary or 0
+	s.PlaybackSpeed = (d.Pitch or 1) * (o.Pitch or 1) * (1 + (math.random() * 2 - 1) * vary)
+	s.Volume = d.Volume * (o.Volume or 1)
+	if holder then
+		s.RollOffMaxDistance = 400
+		s.RollOffMinDistance = 20
+	end
+	s:Play()
+	s.Ended:Once(function()
+		(holder or s):Destroy()
+	end)
+	task.delay(10, function()
+		if (holder or s).Parent then
+			(holder or s):Destroy()
+		end
+	end)
+end
+
+-- Start / stop a looping sound (e.g. LetOut).
+function SoundController.Loop(name: string, on: boolean)
+	local existing = loops[name]
+	if on and not existing then
+		local d = def(name)
+		if not d then
+			return
+		end
+		local created = make(d, folder)
+		created.Looped = true
+		loops[name] = created
+		created:Play()
+	elseif not on and existing then
+		loops[name] = nil
+		local fade = TweenService:Create(existing, TweenInfo.new(0.15), { Volume = 0 })
+		fade:Play()
+		fade.Completed:Once(function()
+			existing:Destroy()
+		end)
+	end
+end
+
+local function setMusic(which: string)
+	for name, s in music do
+		local d = def(name)
+		local target = if name == which and d then d.Volume else 0
+		TweenService:Create(s, TweenInfo.new(Config.MusicFade), { Volume = target }):Play()
+	end
+end
+
+export type StartOptions = { Shared: Instance, RemoteParent: Instance, Flight: any }
+
+function SoundController.Start(opts: StartOptions)
+	Config = require(opts.Shared:WaitForChild("Config"):WaitForChild("SoundConfig") :: ModuleScript) :: any
+	Flight = opts.Flight
+	local f = Instance.new("Folder")
+	f.Name = "BalloonSounds"
+	f.Parent = SoundService
+	folder = f
+
+	-- music: both tracks run, we crossfade the volume
+	for _, name in { "MusicGround", "MusicSky" } do
+		local d = def(name)
+		if d then
+			local s = make(d, folder)
+			s.Volume = 0
+			s.Looped = true
+			s:Play()
+			music[name] = s
+		end
+	end
+	local current = ""
+
+	-- flight state changes
+	local last = LocalPlayer:GetAttribute("FlightState")
+	LocalPlayer:GetAttributeChangedSignal("FlightState"):Connect(function()
+		local s = LocalPlayer:GetAttribute("FlightState")
+		if s == "Flying" and last == "Ground" then
+			SoundController.Play("Launch")
+		elseif s == "Landing" then
+			SoundController.Play("LandStart")
+		elseif s == "Falling" then
+			SoundController.Play("Fall")
+		end
+		last = s
+	end)
+	LocalPlayer:GetAttributeChangedSignal("Maxed"):Connect(function()
+		if LocalPlayer:GetAttribute("Maxed") == true then
+			SoundController.Play("Max")
+		end
+	end)
+
+	local flightNet = opts.RemoteParent:WaitForChild("FlightNet") :: RemoteEvent
+	flightNet.OnClientEvent:Connect(function(kind: string)
+		if kind == "Banked" then
+			SoundController.Play("Bank")
+		end
+	end)
+	task.spawn(function()
+		local fx = opts.RemoteParent:WaitForChild("HazardFX", 30) :: RemoteEvent?
+		if not fx then
+			return
+		end
+		fx.OnClientEvent:Connect(function(kind: string, ...)
+			local args = { ... }
+			if kind == "Hit" and args[2] == LocalPlayer.UserId then
+				SoundController.Play("Hit")
+			elseif kind == "Pop" then
+				local pos: Vector3 = args[2]
+				local player = Players:GetPlayerByUserId(args[1])
+				local size = if player then (player:GetAttribute("Size") :: number?) or 1 else 1
+				-- bigger balloons pop deeper
+				SoundController.Play("Pop", { At = pos, Pitch = math.clamp(1.25 - math.log10(math.max(size, 1)) * 0.2, 0.6, 1.25) })
+			end
+		end)
+	end)
+
+	-- per frame: coin ticks while you earn, the let-out hiss, and the music
+	local lastTick, lastUnbanked = 0, 0
+	RunService.Heartbeat:Connect(function()
+		local s = LocalPlayer:GetAttribute("FlightState")
+		local flying = s == "Flying" or s == "Landing"
+		SoundController.Loop("LetOut", flying and Flight ~= nil and Flight.LettingOut == true)
+
+		local unbanked = (LocalPlayer:GetAttribute("Unbanked") :: number?) or 0
+		local now = os.clock()
+		if flying and unbanked > lastUnbanked and now - lastTick > 0.9 then
+			lastTick = now
+			local size = (LocalPlayer:GetAttribute("Size") :: number?) or 1
+			SoundController.Play("Tick", { Pitch = 0.9 + math.min(0.6, size / 400) })
+		end
+		lastUnbanked = unbanked
+
+		local character = LocalPlayer.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local high = hrp ~= nil and hrp.Position.Y > Config.SkyMusicAbove
+		local want = if flying or high then "MusicSky" else "MusicGround"
+		if want ~= current then
+			current = want
+			setMusic(want)
+		end
+	end)
+end
+
+return SoundController
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002C"><Properties><string name="Name">Run</string><bool name="Disabled">true</bool><token name="RunContext">2</token><ProtectedString name="Source"><![CDATA[-- Client runner for the game pack (enabled by the pack's Start script).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 require(script.Parent:WaitForChild("ClientMain")).Start({
 	Shared = ReplicatedStorage:WaitForChild("GameShared"),
 	RemoteParent = ReplicatedStorage,
 })
-]]></ProtectedString></Properties></Item></Item><Item class="Script" referent="RBX00000027"><Properties><string name="Name">Start</string><bool name="Disabled">false</bool><token name="RunContext">1</token><ProtectedString name="Source"><![CDATA[-- 1+ Ballon Pop game pack: installs itself on Play and starts the server.
+]]></ProtectedString></Properties></Item></Item><Item class="Script" referent="RBX0000002E"><Properties><string name="Name">Start</string><bool name="Disabled">false</bool><token name="RunContext">1</token><ProtectedString name="Source"><![CDATA[-- 1+ Ballon Pop game pack: installs itself on Play and starts the server.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 

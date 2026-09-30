@@ -25,6 +25,7 @@ function ServerMain.Start(opts: StartOptions)
 	end)
 	HazardService.Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent, Demo = false })
 	FlightService.Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent })
+	require(services.BalloonService).Start({ Shared = opts.Shared, RemoteParent = opts.RemoteParent })
 end
 
 return ServerMain

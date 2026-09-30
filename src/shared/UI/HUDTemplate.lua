@@ -76,24 +76,28 @@ end
 
 local function arrowDown(parent: Instance, size: number, z: number): Frame
 	local holder = new("Frame", { Name = "Arrow", Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1, ZIndex = z, Parent = parent })
-	local function bar(w: number, h: number, x: number, y: number, rot: number)
+	-- outlines first, white on top, so the three bars read as one arrow
+	local function bar(w: number, h: number, x: number, y: number, rot: number, outline: boolean)
+		local pad = if outline then 6 else 0
 		local b = new("Frame", {
-			Size = UDim2.fromOffset(w, h),
+			Name = if outline then "Edge" else "Bar",
+			Size = UDim2.fromOffset(w + pad, h + pad),
 			Position = UDim2.fromOffset(x, y),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Rotation = rot,
-			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundColor3 = if outline then T.Outline else Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
-			ZIndex = z,
+			ZIndex = if outline then z else z + 1,
 			Parent = holder,
 		})
 		UIKit.Corner(b, UDim.new(1, 0))
-		UIKit.Stroke(b, 3)
 	end
 	local s = size
-	bar(s * 0.2, s * 0.62, s * 0.5, s * 0.36, 0)
-	bar(s * 0.2, s * 0.5, s * 0.36, s * 0.62, -45)
-	bar(s * 0.2, s * 0.5, s * 0.64, s * 0.62, 45)
+	for _, outline in { true, false } do
+		bar(s * 0.2, s * 0.62, s * 0.5, s * 0.36, 0, outline)
+		bar(s * 0.2, s * 0.5, s * 0.36, s * 0.62, -45, outline)
+		bar(s * 0.2, s * 0.5, s * 0.64, s * 0.62, 45, outline)
+	end
 	return holder
 end
 
@@ -101,7 +105,8 @@ end
 -- screen pieces
 
 local function buildCoins(gui: Instance)
-	local root = anchor(gui, "Coins", UDim2.fromOffset(270, 64), UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
+	-- under the top bar (BalloonMenus.TopBar)
+	local root = anchor(gui, "Coins", UDim2.fromOffset(270, 64), UDim2.new(0.5, 0, 0, 100), Vector2.new(0.5, 0))
 	local holder = new("Frame", { Name = "Holder", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = root })
 	new("UIScale", { Name = "Pop", Parent = holder })
 	UIKit.Panel({ Name = "Lip", Size = UDim2.new(1, -22, 0, 52), Position = UDim2.fromOffset(22, 11), Color = T.GoldLip, Radius = 26, Parent = holder })

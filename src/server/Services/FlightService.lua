@@ -452,6 +452,9 @@ end
 -- Re-read the equipped balloon (after an equip / upgrade). Only takes effect on the ground.
 function FlightService.Refresh(player: Player)
 	local f = flights[player]
+	if f then
+		f.devKind = nil -- a real equip beats the Studio gallery's "Try it"
+	end
 	if f and f.state == "Ground" then
 		toGround(player, f)
 	end

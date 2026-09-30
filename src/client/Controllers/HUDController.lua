@@ -28,6 +28,7 @@ local T: any
 local FlightConfig: any
 local Flight: any
 local Net: RemoteEvent
+local Sound: any
 
 local gui: ScreenGui
 local templates: Folder
@@ -806,6 +807,9 @@ local function coinFountain(from: GuiObject, amount: number)
 					conn:Disconnect()
 					c:Destroy()
 					arrived += 1
+					if Sound then
+						Sound.Play("CoinIn", { Pitch = 0.9 + 0.5 * arrived / n })
+					end
 					coins.target = startCoins + (finalCoins - startCoins) * arrived / n
 					if coins.scale then
 						UIKit.Pop(coins.scale, 0.12)
@@ -934,6 +938,7 @@ export type StartOptions = {
 	Shared: Instance,
 	RemoteParent: Instance,
 	Flight: any,
+	Sound: any?,
 }
 
 function HUDController.Start(opts: StartOptions)
@@ -946,6 +951,7 @@ function HUDController.Start(opts: StartOptions)
 	local config = shared:WaitForChild("Config")
 	FlightConfig = require(config:WaitForChild("FlightConfig") :: ModuleScript) :: any
 	Flight = opts.Flight
+	Sound = opts.Sound
 	Net = opts.RemoteParent:WaitForChild("FlightNet") :: RemoteEvent
 
 	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
