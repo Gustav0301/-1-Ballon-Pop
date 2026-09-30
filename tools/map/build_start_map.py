@@ -157,6 +157,10 @@ FONT = {
     "D": ["##.", "#.#", "#.#", "#.#", "##."], "E": ["###", "#..", "##.", "#..", "###"],
     "I": ["###", ".#.", ".#.", ".#.", "###"], "N": ["#..#", "##.#", "#.##", "#..#", "#..#"],
     "X": ["#.#", "#.#", ".#.", "#.#", "#.#"],
+    "M": ["#...#", "##.##", "#.#.#", "#...#", "#...#"], "W": ["#...#", "#...#", "#.#.#", "##.##", "#...#"],
+    "L": ["#..", "#..", "#..", "#..", "###"], "B": ["##.", "#.#", "##.", "#.#", "##."],
+    "T": ["###", ".#.", ".#.", ".#.", ".#."], "C": ["###", "#..", "#..", "#..", "###"],
+    "K": ["#.#", "#.#", "##.", "#.#", "#.#"], "Y": ["#.#", "#.#", ".#.", ".#.", ".#."],
 }
 
 
@@ -762,6 +766,9 @@ def build_border():
                     span(g, T(), C["grass"], lx, lx + 8, h + 4, h + 5, lz, lz + 8)
                 elif rng.random() < 0.5:
                     pine("Trees", cx + cell / 2 + rng.uniform(-4, 4), cz + cell / 2 + rng.uniform(-4, 4), y=h, s=rng.uniform(0.9, 1.3))
+    # invisible walls so nobody walks out over the mountains (flight limits come with FlightService)
+    for x0, x1, z0, z1 in ((-163, -161, -163, 163), (161, 163, -163, 163), (-163, 163, -163, -161), (-163, 163, 161, 163)):
+        S.add("Boundary", "B", "FFFFFF", (x1 - x0, 120, z1 - z0), ((x0 + x1) / 2, 60, (z0 + z1) / 2), I3, "S", 1.0, True, "InvisibleWall")
     # grassland to the horizon (max Part size is 2048)
     far = "Horizon"
     for x0, x1, z0, z1 in ((-2048, 0, -2048, -224), (0, 2048, -2048, -224), (-2048, 0, 224, 2048), (0, 2048, 224, 2048),
@@ -928,16 +935,17 @@ def part_xml(p):
     return f'<Item class="{cls}" referent="{ref()}"><Properties>{"".join(props)}</Properties>{children}</Item>'
 
 
-def export():
+def export(name="StartMap", out=None):
+    out = out or OUT
     groups = []
     for name, parts in S.groups.items():
         items = "".join(part_xml(p) for p in parts)
         groups.append(f'<Item class="Model" referent="{ref()}"><Properties><string name="Name">{name}</string></Properties>{items}</Item>')
     xml = ('<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
            'xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External>'
-           f'<Item class="Model" referent="{ref()}"><Properties><string name="Name">StartMap</string></Properties>{"".join(groups)}</Item></roblox>\n')
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w") as f:
+           f'<Item class="Model" referent="{ref()}"><Properties><string name="Name">{name}</string></Properties>{"".join(groups)}</Item></roblox>\n')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w") as f:
         f.write(xml)
     return len(xml)
 

@@ -16,7 +16,7 @@ from xml.sax.saxutils import escape
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "build", "HazardPack.rbxmx")
 
-START = """-- 1+ Ballon Pop hazard pack: installs itself on Play and starts the hazards.
+START = """-- 1+ Ballon Pop pack: installs itself on Play, applies the festival sky and starts the hazards.
 -- Set DEMO = false once FlightService gives players real balloons.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -37,6 +37,8 @@ client.Name = "HazardClient"
 client.Parent = ReplicatedStorage
 local run = client:WaitForChild("Run") :: Script
 run.Enabled = true
+
+require(server:WaitForChild("WorldLook")).Apply()
 
 require(server:WaitForChild("HazardService")).Start({
 	Shared = shared,
