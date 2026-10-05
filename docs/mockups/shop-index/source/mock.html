@@ -1,0 +1,225 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Fredoka One';src:url(fredoka.woff2) format('woff2');}
+@font-face{font-family:'Montserrat';font-weight:800;src:url(montserrat800.woff2) format('woff2');}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#14101f;font-family:'Fredoka One',sans-serif;padding:40px;display:flex;gap:80px;align-items:flex-start}
+.screen{width:1212px;position:relative;padding:6px}
+/* stroked white text like the Figma layers */
+.t{color:#fff;-webkit-text-stroke:var(--sw,8px) #000;paint-order:stroke fill;text-shadow:0 var(--sy,4px) 0 rgba(0,0,0,.28);line-height:1.1;white-space:nowrap}
+.mono{font-family:'Montserrat';font-weight:800}
+/* chunky block: black outline, darker lip at the bottom, gradient face with studs */
+.block{position:absolute;background:var(--lip);outline:5px solid #000;}
+.block>.face{position:absolute;left:0;top:0;right:0;bottom:var(--L,18px);background:linear-gradient(180deg,var(--top),var(--bot));box-shadow:inset 0 0 0 4px var(--edge);overflow:hidden}
+.block>.face::after{content:"";position:absolute;inset:4px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><rect x='7' y='7' width='16' height='16' rx='3' fill='white' fill-opacity='.08'/><path d='M7.5 21V10a3 3 0 0 1 3-3H21' stroke='white' stroke-opacity='.42' stroke-width='2' fill='none'/><path d='M22.5 9v11a3 3 0 0 1-3 3H9' stroke='black' stroke-opacity='.22' stroke-width='2' fill='none'/></svg>");pointer-events:none}
+.in{position:absolute;z-index:2}
+.tag{display:inline-block;font-size:21px;padding:2px 12px 5px;border:3px solid #000;border-radius:8px;margin-right:8px;--sw:5px;--sy:2px}
+.tags.small .tag{font-size:17px;padding:1px 9px 4px;margin-right:6px}
+.perm{background:#3fa9ff}.cos{background:#ff4fa3}.cons{background:#ff8a1f}.soon{background:#8d86a3}.new{background:#3fd46a}
+.list{font-size:27px;line-height:35px;--sw:6px}
+.list .own{color:#cfc8de;text-decoration:line-through;text-decoration-thickness:3px}
+.ph{position:absolute;z-index:2;border:4px dashed rgba(255,255,255,.85);border-radius:22px;background:rgba(255,255,255,.16);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px}
+.ph b{font-weight:normal;font-size:38px;--sw:6px}
+.ph i{font-style:normal;font-size:19px;--sw:4px;white-space:normal;max-width:90%}
+.buy{position:absolute;z-index:3;width:250px;height:84px;--L:8px}
+.buy .lbl{position:absolute;left:0;right:0;top:4px;height:68px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:56px;z-index:2;--sw:7px}
+.rbx{width:44px;height:46px;flex:none}
+.sec{position:absolute;left:22px;display:flex;align-items:baseline;gap:22px}
+.sec h2{font-weight:normal;font-size:58px;--sw:10px;--sy:5px}
+.sec p{font-size:26px;color:#e6dcff;--sw:5px;--sy:2px}
+.note{position:absolute;left:1240px;width:300px;color:#ffe58a;font-size:22px;line-height:28px;border-left:4px solid #ffe58a;padding-left:12px}
+.tab{position:absolute;width:300px;height:86px;--L:10px}
+.tab .lbl{position:absolute;left:0;right:0;top:6px;height:66px;display:flex;align-items:center;justify-content:center;font-size:42px;z-index:2;--sw:8px}
+/* index card */
+.card{width:272px;height:376px}
+.lv{position:absolute;z-index:3;left:12px;top:12px;background:#9a5216;border:3px solid #000;border-radius:10px;box-shadow:inset 0 0 0 3px #e38a35;padding:3px 12px 6px;font-size:26px;--sw:6px;--sy:2px}
+.rar{position:absolute;z-index:3;right:12px;top:14px;border:3px solid #000;border-radius:8px;padding:1px 9px 4px;font-size:17px;--sw:4px;--sy:2px}
+.artwin{position:absolute;z-index:2;left:36px;top:58px;width:200px;height:190px;border-radius:20px;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.55),rgba(255,255,255,.08) 62%,rgba(0,0,0,0) 72%);display:flex;align-items:center;justify-content:center}
+.artwin img{width:184px;height:184px;image-rendering:pixelated}
+img[src*=_sil]{filter:brightness(.55) drop-shadow(0 0 1.5px rgba(190,170,255,.9)) drop-shadow(0 0 1px rgba(190,170,255,.9))}
+.nm{position:absolute;z-index:2;left:10px;right:10px;top:258px;height:46px;display:flex;align-items:center;justify-content:center;font-size:38px;--sw:8px}
+.eq{position:absolute;z-index:3;left:20px;top:300px;width:232px;height:54px;--L:7px}
+.eq .lbl{position:absolute;left:0;right:0;top:0;height:47px;display:flex;align-items:center;justify-content:center;font-size:31px;z-index:2;--sw:6px;--sy:2px}
+.hint{position:absolute;z-index:2;left:20px;top:304px;width:232px;height:44px;border-radius:10px;background:rgba(0,0,0,.35);border:3px solid rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font-size:21px;--sw:4px;--sy:2px;color:#e6dcff}
+.prog{position:absolute;height:44px;width:330px;background:#1a1030;border:4px solid #000;border-radius:12px;overflow:hidden}
+.prog .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#7dff9e,#21a83b);box-shadow:inset 0 -5px 0 rgba(0,0,0,.25)}
+.prog .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;--sw:5px;--sy:2px}
+.mt .nm{top:226px;font-size:34px}
+.mt .sub{position:absolute;z-index:2;left:0;right:0;top:268px;text-align:center;font-size:20px;--sw:4px;--sy:2px;color:#ffe58a}
+</style></head>
+<body>
+<div class="screen" id="shop"></div>
+<div class="screen" id="index1"></div>
+<div class="screen" id="index2"></div>
+<script>
+const RBX='<svg class="rbx" viewBox="0 0 58 61"><path d="M29 3 53 16.5v28L29 58 5 44.5v-28z" fill="#fff" stroke="#000" stroke-width="5" stroke-linejoin="round" transform="rotate(15 29 30.5)"/><rect x="21" y="22.5" width="16" height="16" rx="2" fill="#fff" stroke="#000" stroke-width="5" transform="rotate(15 29 30.5)"/></svg>';
+const FITS=[];function fit(e,max){FITS.push([e,max]);return e;}
+window.runFits=()=>{for(const [e,max] of FITS){let f=parseFloat(getComputedStyle(e).fontSize);while(e.scrollWidth>max&&f>12){f-=1;e.style.fontSize=f+'px';}}};
+function block(p,x,y,w,h,c,cls='',L=18){const d=document.createElement('div');d.className='block '+cls;Object.assign(d.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
+ d.style.setProperty('--top',c[0]);d.style.setProperty('--bot',c[1]);d.style.setProperty('--edge',c[2]);d.style.setProperty('--lip',c[3]);d.style.setProperty('--L',L+'px');
+ d.innerHTML='<div class="face"></div>';p.appendChild(d);return d;}
+function el(p,html,x,y,cls,style=''){const d=document.createElement('div');d.className='in '+(cls||'');d.style.cssText=`left:${x}px;top:${y}px;`+style;d.innerHTML=html;p.appendChild(d);return d;}
+const GREEN=['#46ff86','#20951e','#46ff86','#197d29'], GREY=['#d9d4e6','#8f88a3','#eeeaf6','#5c566e'];
+function buy(p,x,y,price='???',dis=false,w=250){const b=block(p,x,y,w,84,dis?GREY:GREEN,'buy',8);b.style.width=w+'px';b.insertAdjacentHTML('beforeend',`<div class="lbl t mono">${dis?'<span style="font-size:46px">SOON</span>':RBX+price}</div>`);return b;}
+function tags(p,list,x,y,small){const m={PERMANENT:'perm','COSMETIC ONLY':'cos',CONSUMABLE:'cons','WAITS FOR MUTATIONS':'soon','3 NEW ITEMS':'new'};
+ return el(p,list.map(t=>`<span class="tag t ${m[t]}">${t}</span>`).join(''),x,y,'tags'+(small?' small':''));}
+function ph(p,x,y,w,h,label){const d=document.createElement('div');d.className='ph';d.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px`;d.innerHTML=`<b class="t">ART</b><i class="t">${label}</i>`;p.appendChild(d);}
+function header(S,title,col){
+ const h=block(S,0,0,1040,171,col,'',17);el(h,title,26,18,'t mono','font-size:96px;--sw:10px');
+ const x=block(S,1045,0,157,171,['#ff8181','#c62828','#ff8181','#7a1515'],'',17);el(x,'X',40,18,'t mono','font-size:96px;--sw:10px');}
+
+/* ================= SHOP ================= */
+(function(){
+const S=document.getElementById('shop');
+header(S,'SHOP',['#bc2ccf','#c7b7f0','#ef8ecc','#b8abec']);
+const B=block(S,0,192,1202,5000,['#4a2d80','#24143f','#7a5bc0','#150b26'],'',0);
+el(B,'',1180,20,'','width:14px;height:4480px;border-radius:7px;background:rgba(0,0,0,.35)');
+el(B,'',1180,20,'','width:14px;height:200px;border-radius:7px;background:#ffd34a;border:2px solid #000');
+function sec(y,t,s){el(B,`<h2 class="t">${t}</h2><p class="t">${s}</p>`,22,y,'sec');return y+92;}
+let y=24;
+// 1 bundles
+y=sec(y,'BUNDLES','Looks only. Your balloons keep their stats.');
+const BU=[
+ ['Royal Treasury',['#ffd34a','#8a2bd6','#ffe58a','#4b1475'],['3 balloon looks','Crown string','Gem sparkle trail','Gold brick pop','Crown emblem'],'Gold crown and gems'],
+ ['Galaxy Vault',['#7b6cff','#24145e','#a99dff','#140a3a'],['3 balloon looks','Star string','Comet trail','Star ring pop','Planet emblem'],'Your galaxy chest art'],
+ ['Solar Ascension',['#fff2b8','#ff9d1c','#fff8d8','#8a4a05'],['3 balloon looks','Sun string','Sun spark trail','Sunburst pop','Sun emblem'],'Golden sun'],
+ ['Inferno Forge',['#ff7a2a','#3a0e08','#ffa36b','#1c0503'],['3 balloon looks','Ember chain','Ember cube trail','Lava burst pop','Flame emblem'],'Lava and flames'],
+ ['Frozen Diamond',['#c8f6ff','#3a8fe0','#eafcff','#1b4f86'],['3 balloon looks','Crystal chain','Snowflake trail','Ice shatter pop','Snowflake emblem'],'Ice crystal'],
+ ['Thunder Emperor',['#4aa8ff','#0f2a7a','#ffd84a','#0a1640'],['3 balloon looks','Lightning cable','Spark trail','Lightning pop','Lightning emblem'],'Lightning bolt'],
+];
+BU.forEach((b,i)=>{const c=block(B,16+(i%2)*587,y+Math.floor(i/2)*464,563,440,b[1]);
+ fit(el(c,b[0],24,14,'t','font-size:50px;--sw:10px'),510);tags(c,['PERMANENT','COSMETIC ONLY'],24,84);
+ el(c,b[2].map(s=>'• '+s).join('<br>'),26,132,'t list');buy(c,24,328);ph(c,334,118,208,208,b[3]);});
+y+=3*440+2*24+48;
+// 2 packs
+y=sec(y,'ACCESSORY PACKS','No duplicates. You only pay for what is new.');
+const PK=[
+ ['Royal Accessories',['#ffd34a','#8a2bd6','#ffe58a','#4b1475'],['<span class=own>Crown string</span>','Gem trail','Gold pop','Crown emblem'],'Crown',true],
+ ['Solar Accessories',['#fff2b8','#ff9d1c','#fff8d8','#8a4a05'],['Sun string','Sun trail','Sunburst pop','Sun emblem'],'Sun'],
+ ['Inferno Accessories',['#ff7a2a','#3a0e08','#ffa36b','#1c0503'],['Ember chain','Ember trail','Lava pop','Flame emblem'],'Flame'],
+ ['Thunder Accessories',['#4aa8ff','#0f2a7a','#ffd84a','#0a1640'],['Lightning cable','Spark trail','Lightning pop','Bolt emblem'],'Bolt'],
+ ['Galaxy FX',['#7b6cff','#24145e','#a99dff','#140a3a'],['Star string','Comet trail','Starburst pop'],'Comet'],
+ ['Frozen FX',['#c8f6ff','#3a8fe0','#eafcff','#1b4f86'],['Crystal string','Ice pop'],'Snowflake'],
+];
+PK.forEach((b,i)=>{const c=block(B,16+(i%3)*391,y+Math.floor(i/3)*384,368,360,b[1]);
+ fit(el(c,b[0],20,14,'t','font-size:36px;--sw:8px'),328);tags(c,b[4]?['3 NEW ITEMS']:['PERMANENT','COSMETIC ONLY'],20,66,true);
+ el(c,b[2].map(s=>'• '+s).join('<br>'),22,108,'t list','font-size:24px;line-height:32px');ph(c,226,112,122,122,b[3]);buy(c,20,252,'???',false,230);});
+y+=2*384;
+{const c=block(B,16,y,1150,270,['#ff6a3d','#4a0f12','#ffa07a','#22060a']);
+ el(c,'Inferno Rider Pack',24,14,'t','font-size:50px;--sw:10px');tags(c,['PERMANENT','COSMETIC ONLY'],24,84);
+ el(c,'• Swatter skin (looks only, not a weapon)<br>• Ember string<br>• Ember trail',26,130,'t list');buy(c,700,150);ph(c,960,26,166,166,'Ember swatter');}
+y+=270+48;
+// 3 vault + storm kit
+y=sec(y,'MUTATION VAULT &amp; STORM KIT','Items you use up.');
+{const c=block(B,16,y,563,420,['#f946ff','#4a0f72','#fb8cff','#2a0742']);
+ el(c,'Mutation Vault',24,14,'t','font-size:50px;--sw:10px');tags(c,['CONSUMABLE','WAITS FOR MUTATIONS'],24,84,true);
+ el(c,'• 3 Mutation Jars<br>• Keeps new mutations<br>&nbsp;&nbsp;when you pop<br>• Does not save coins',26,128,'t list');buy(c,24,316,'???',true);ph(c,330,110,212,212,'Your jars art');}
+{const c=block(B,603,y,563,420,['#5fd0ff','#123d7a','#a8e6ff','#0a2246']);
+ el(c,'Storm Kit',24,14,'t','font-size:50px;--sw:10px');tags(c,['CONSUMABLE'],24,84,true);
+ el(c,'• 10 Patches<br>• Each heals 1 HP<br>• 3 s between uses',26,128,'t list');buy(c,24,316);ph(c,330,110,212,212,'Patch box');}
+y+=420+48;
+// 4 mini offers
+y=sec(y,'MINI OFFERS','Small and quick.');
+const MO=[
+ ['Mutation Jar',['#f946ff','#73198f','#f946ff','#4a0f5c'],['1 Mutation Jar','Saves pending','mutations once'],'Your jar art',true],
+ ['Quick Repair',['#ff9f46','#95441e','#ff9f46','#5a2509'],['3 Patches','Heal mid-flight'],'Your repair art'],
+ ['Coin Pouch',['#ffcf45','#95801e','#ffe58a','#5c4a08'],['Coins (amount','shown here)','Not counted','in records'],'Coin pouch'],
+];
+MO.forEach((b,i)=>{const c=block(B,16+i*391,y,368,360,b[1]);
+ el(c,b[0],20,14,'t','font-size:38px;--sw:8px');tags(c,['CONSUMABLE'],20,66,true);
+ el(c,b[2].map((s,j)=>(j==0||(b[0]=='Coin Pouch'&&j==2)||(b[0]=='Quick Repair')?'• ':'&nbsp;&nbsp;')+s).join('<br>'),22,108,'t list','font-size:24px;line-height:32px');ph(c,226,112,122,122,b[3]);buy(c,20,252,'???',!!b[4],230);});
+y+=360+48;
+// 5 gamepasses
+y=sec(y,'GAMEPASSES','Yours forever.');
+const GP=[
+ ['x2 Coins','Double coins','forever',['#ffe14a','#c27a00','#fff1a0','#6a4100']],
+ ['Duo Slot','Hold two','balloons',['#ff7ac8','#a3226e','#ffb3dd','#5a0d3a']],
+ ['+1 Rider','One more','rider slot',['#ffae5a','#b35314','#ffd0a0','#5e2a06']],
+ ['Auto Land','Lands for you','on islands',['#6dff8f','#1f8f3c','#b5ffc6','#0f4a1e']],
+ ['VIP','VIP trail and','chat tag',['#c48bff','#5a22a8','#e0c4ff','#2e0f5c']],
+ ['Lucky','x1.5','mutation luck',['#b6ff5a','#4f9a12','#dcffb0','#264d06']],
+ ['Shop Alerts','Tells you when','Legendary stock',['#6ad7ff','#1a6fb3','#b8ecff','#0b3a60']],
+];
+GP.forEach((g,i)=>{const r=Math.floor(i/4),k=i%4;const x=r==0?16+k*293:16+146+k*293;const c=block(B,x,y+r*390,272,370,g[3]);
+ ph(c,81,16,110,110,'Icon');el(c,g[0],0,136,'t','font-size:36px;--sw:8px;width:272px;text-align:center');
+ el(c,g[1]+'<br>'+g[2],0,184,'t','font-size:22px;--sw:5px;line-height:27px;width:272px;text-align:center;color:#fff8e0');
+ buy(c,26,268,'???',false,220);});
+y+=2*390;
+B.style.height=(y+20)+'px';S.style.height=(192+y+30)+'px';
+})();
+
+/* ================= INDEX: BALLOONS TAB ================= */
+const TIER={Common:['#c9cfdc','#6f778a','#e6e9f0','#3b4150','#a0a7b8'],Uncommon:['#8ff08f','#2f8f2f','#c4ffc4','#155015','#5bd15b'],Rare:['#7cc7ff','#1c63b8','#bfe4ff','#0b305e','#3fa9ff'],Epic:['#d39cff','#6b2bb8','#ead1ff','#36115e','#b266ff'],Legendary:['#ffe066','#c28400','#fff0b0','#5e3f00','#ffc21a'],Mythic:['#ff8fb4','#b81d55','#ffc4d8','#5e0a2a','#ff3f7f'],Secret:['#ffffff','#9b93b3','#ffffff','#4a4366','#ffffff']};
+const LOCK=['#3a3156','#1f1834','#5a4f80','#120d22'];
+const BAL=[['Gumball','Common'],['Bubble','Common'],['Ember','Common'],['Spike','Uncommon'],['Popcorn','Uncommon'],['Jelly','Uncommon'],['Buzz','Rare'],['Frost','Rare'],['Volt','Epic'],['Thorn','Epic'],['Clock','Epic'],['Flame','Legendary'],['Whale','Legendary'],['Iron','Legendary'],['Void','Mythic'],['Sun','Mythic'],['Crown','Mythic'],['Cluck','Secret']];
+const SOLD={Gumball:'Ground',Bubble:'Ground',Ember:'Ground',Spike:'Cloud Shelf',Popcorn:'Cloud Shelf',Jelly:'Kite Fields',Buzz:'Kite Fields',Frost:'Windways',Volt:'Thunderhead',Thorn:'Thunderhead',Clock:'Hail Belt',Flame:'Hail Belt',Whale:'Stratosphere',Iron:'Stratosphere',Void:'Moon Hub',Sun:'Moon Hub',Crown:'Sky Boss',Cluck:'???'};
+const OWN={Gumball:[31,'EQUIP'],Bubble:[1,'EQUIPPED'],Ember:[5,'EQUIP'],Spike:[2,'EQUIP'],Popcorn:[1,'EQUIP']};
+function indexFrame(id,active,found,total,bonus){
+ const S=document.getElementById(id);
+ header(S,'INDEX',['#5ad1ff','#2a6fe0','#a8e8ff','#1c4a9a']);
+ const B=block(S,0,192,1202,100,['#2f4f9a','#16244d','#5a7fd0','#0a1430'],'',0);
+ const t1=block(B,22,24,300,86,active==0?['#ffe14a','#ffae00','#fff1a0','#8a5200']:['#8a74c0','#5a4590','#a896d8','#2e2050'],'tab',10);
+ t1.insertAdjacentHTML('beforeend','<div class="lbl t" style="'+(active==0?'':'color:#ddd3f5')+'">BALLOONS</div>');
+ const t2=block(B,346,24,300,86,active==1?['#ffe14a','#ffae00','#fff1a0','#8a5200']:['#8a74c0','#5a4590','#a896d8','#2e2050'],'tab',10);
+ t2.insertAdjacentHTML('beforeend','<div class="lbl t" style="'+(active==1?'':'color:#ddd3f5')+'">MUTATIONS</div>');
+ el(B,`<div class="fill" style="width:${Math.round(found/total*100)}%"></div><div class="lbl t">FOUND ${found} / ${total}</div>`,682,38,'prog');
+ el(B,`<span class="tag t new" style="font-size:22px">${bonus}</span>`,1030,40,'tags');
+ return [S,B];}
+(function(){
+ const [S,B]=indexFrame('index1',0,5,18,'+5% COINS');
+ el(B,'',1180,140,'','width:14px;height:2060px;border-radius:7px;background:rgba(0,0,0,.35)');
+ el(B,'',1180,140,'','width:14px;height:600px;border-radius:7px;background:#ffd34a;border:2px solid #000');
+ BAL.forEach(([n,t],i)=>{const x=16+(i%4)*292,y=140+Math.floor(i/4)*416;const o=OWN[n];
+  const c=block(B,x,y,272,392,o?TIER[t]:LOCK,'card',16);
+  if(o) el(c,'LV'+o[0],12,12,'lv t');
+  el(c,t.toUpperCase(),0,0,'rar t',`left:auto;right:12px;background:${TIER[t][4]};${t=='Secret'?'color:#4a4366;-webkit-text-stroke:0':''}`);
+  el(c,`<img src="img/${n}${o?'':'_sil'}.png">`,0,0,'artwin',`left:36px;top:58px;${o?'':'background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.18),rgba(255,255,255,0) 70%)'}`);
+  fit(el(c,o?n.toUpperCase():'???',0,0,'nm t',`left:10px;top:260px;width:252px`),252);
+  if(o){const e=block(c,20,316,232,54,o[1]=='EQUIP'?GREEN:GREY,'eq',7);e.insertAdjacentHTML('beforeend',`<div class="lbl t">${o[1]}</div>`);}
+  else el(c,n=='Cluck'?'Secret balloon':'Sold: '+SOLD[n],0,0,'hint t','left:20px;top:318px');
+ });
+ B.style.height=(140+5*416+10)+'px';S.style.height=(192+140+5*416+20)+'px';
+})();
+
+/* ================= INDEX: MUTATIONS TAB ================= */
+(function(){
+ const [S,B]=indexFrame('index2',1,4,42,'+4% COINS');
+ const MR={Common:'#a0a7b8',Uncommon:'#5bd15b',Rare:'#3fa9ff',Epic:'#b266ff',Legendary:'#ffc21a',Mythic:'#ff3f7f'};
+ const MUL={Common:'x1.2',Uncommon:'x1.5',Rare:'x2',Epic:'x3.5',Legendary:'x6',Mythic:'x12'};
+ function sec(y,t,s){el(B,`<h2 class="t">${t}</h2><p class="t">${s}</p>`,22,y,'sec');return y+88;}
+ function tile(x,y,name,rar,img,filter,found,w=272,h=320){
+  const c=block(B,x,y,w,h,found?TIER[rar]:LOCK,'card mt',16);c.style.height=h+'px';
+  el(c,rar.toUpperCase(),0,0,'rar t',`left:auto;right:12px;background:${MR[rar]}`);
+  el(c,`<img src="img/${img}${found?'':'_sil'}.png" style="width:150px;height:150px;${found?'filter:'+filter:''}">`,0,0,'artwin',`left:${(w-170)/2}px;top:46px;width:170px;height:170px`);
+  el(c,found?name.toUpperCase():'???',10,226,'nm t',`width:${w-20}px`);
+  el(c,found?MUL[rar]+' coins':'Not found yet',0,268,'sub t',`width:${w}px`);return c;}
+ let y=140;
+ y=sec(y,'ANY BALLOON','8 mutations every balloon can roll.');
+ const U=[['Chrome','Common','grayscale(1) brightness(1.45) contrast(1.25)',1],['Shadow','Common','brightness(.42) saturate(.5) drop-shadow(0 0 10px #7b3cff)',1],['Stripes','Common','',0],['Neon','Uncommon','saturate(2.2) brightness(1.35) drop-shadow(0 0 10px #ff4fff)',1],['Sparkle','Uncommon','',0],['Steel','Uncommon','',0],['Gold','Rare','',0],['Rainbow','Rare','',0]];
+ U.forEach((u,i)=>tile(16+(i%4)*292,y+Math.floor(i/4)*344,u[0],u[1],'Gumball',u[2],u[3]));
+ y+=2*344+30;
+ y=sec(y,'BALLOON MUTATIONS','Each balloon has its own. Find them all.');
+ const R=[['Gumball','Common',[['Sour','Uncommon',1],['Tough','Rare',0]]],['Bubble','Common',[['Thick','Uncommon',0],['Shield','Rare',0]]],['Ember','Common',[['Wisp','Uncommon',0],['Ghost','Epic',0]]],['Spike','Uncommon',[['Sharp','Uncommon',0],['Venom','Epic',0]]]];
+ R.forEach(([b,t,ms],i)=>{const row=block(B,16,y,1150,250,['#36507f','#1b2b52','#5a7fd0','#0c1630'],'',12);
+  el(row,`<img src="img/${b}.png" style="width:150px;height:150px;image-rendering:pixelated">`,24,18,'');
+  el(row,b.toUpperCase(),24,172,'t','font-size:34px;--sw:7px;width:150px;text-align:center');
+  ms.forEach((m,j)=>{const c=block(row,230+j*300,18,272,210,m[2]?TIER[m[1]]:LOCK,'',12);
+   el(c,m[1].toUpperCase(),0,0,'rar t',`left:auto;right:12px;background:${MR[m[1]]}`);
+   el(c,`<img src="img/${b}${m[2]?'':'_sil'}.png" style="width:110px;height:110px;image-rendering:pixelated;${m[2]?'filter:hue-rotate(70deg) saturate(1.6) brightness(1.15)':''}">`,20,40,'');
+   el(c,m[2]?m[0].toUpperCase():'???',138,62,'t','font-size:32px;--sw:7px');
+   el(c,m[2]?MUL[m[1]]+' coins':'Not found',138,108,'t','font-size:20px;--sw:4px;color:#ffe58a');});
+  el(row,'Land to keep a new mutation.<br>Pop and it is gone.',840,70,'t','font-size:22px;--sw:5px;line-height:30px;color:#cfd9ff');
+  y+=274;});
+ el(B,'+ 14 more balloons, one row each',0,y-4,'t','font-size:28px;--sw:6px;width:1170px;text-align:center;color:#cfd9ff');
+ y+=60;
+ y=sec(y,'SECRET COMBOS','Two mutations on one balloon.');
+ for(let i=0;i<4;i++){const c=block(B,16+i*292,y,272,180,LOCK,'',12);
+  el(c,'?',0,10,'t','font-size:86px;--sw:12px;width:272px;text-align:center;color:#8f84b8');el(c,'??? + ???',0,118,'t','font-size:26px;--sw:6px;width:272px;text-align:center;color:#cfc8de');}
+ y+=180+24;
+ B.style.height=y+'px';S.style.height=(192+y+10)+'px';
+ el(B,'',1180,140,'','width:14px;height:'+(y-160)+'px;border-radius:7px;background:rgba(0,0,0,.35)');
+ el(B,'',1180,140,'','width:14px;height:500px;border-radius:7px;background:#ffd34a;border:2px solid #000');
+})();
+</script>
+</body></html>
