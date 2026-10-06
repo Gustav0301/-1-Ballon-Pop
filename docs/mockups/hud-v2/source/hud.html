@@ -1,0 +1,334 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Fredoka One';src:url(fredoka.woff2) format('woff2');}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#222;font-family:'Fredoka One',sans-serif;}
+.screen{position:relative;width:1280px;height:720px;overflow:hidden;margin:0 0 20px 0}
+.abs{position:absolute}
+/* text: white fill, dark outside stroke, hard drop shadow */
+.t{position:absolute;color:#fff;white-space:nowrap;text-align:center;line-height:1;paint-order:stroke fill;
+   -webkit-text-stroke:var(--sw,6px) var(--ts,#1a0e22);text-shadow:0 3px 0 rgba(0,0,0,.35);letter-spacing:.5px}
+.c{left:50%;top:50%;transform:translate(-50%,-50%)}
+/* stud block */
+.blk{position:absolute}
+.blk>.sh{position:absolute;left:0;right:0;border-radius:var(--r);background:rgba(10,4,20,.28)}
+.blk>.lip{position:absolute;left:0;right:0;border-radius:var(--r);border:3.5px solid #1a0e22}
+.blk>.face{position:absolute;left:0;right:0;top:0;border-radius:var(--r);border:3.5px solid #1a0e22;overflow:hidden}
+.face>.studs{position:absolute;inset:0;background-image:var(--stud);background-size:var(--ss,26px) var(--ss,26px);background-position:3px 2px}
+.face>.gloss{position:absolute;left:5px;right:5px;top:4px;height:44%;border-radius:calc(var(--r) - 5px) calc(var(--r) - 5px) 10px 10px;
+   background:linear-gradient(rgba(255,255,255,.42),rgba(255,255,255,.06))}
+.face>.inner{position:absolute;inset:0;border-radius:calc(var(--r) - 3px);box-shadow:inset 0 -5px 0 rgba(0,0,0,.14)}
+.face>*{pointer-events:none}
+.keychip{position:absolute}
+.gtext{position:absolute;white-space:nowrap;line-height:1}
+.gtext .s{position:absolute;left:0;top:0;color:transparent;-webkit-text-stroke:var(--sw) var(--ts);paint-order:stroke fill;text-shadow:0 4px 0 rgba(0,0,0,.35)}
+.gtext .f{position:relative;background:var(--g);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style></head><body>
+
+<div class="screen" id="ground"></div>
+<div class="screen" id="fly"></div>
+<div class="screen" id="parts" style="height:760px"></div>
+
+<script>
+// ---------- stud tile (stand-in for rbxassetid://6927295847) ----------
+const studSVG = `<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'>
+<ellipse cx='14' cy='15.2' rx='8.2' ry='8.2' fill='black' fill-opacity='.10'/>
+<circle cx='13' cy='13' r='8' fill='white' fill-opacity='.07'/>
+<path d='M7.2 16.2A6.6 6.6 0 0 1 16.2 7.2' stroke='white' stroke-opacity='.38' stroke-width='2.2' fill='none' stroke-linecap='round'/>
+<path d='M18.8 9.8A6.6 6.6 0 0 1 9.8 18.8' stroke='black' stroke-opacity='.15' stroke-width='2.2' fill='none' stroke-linecap='round'/>
+</svg>`;
+document.documentElement.style.setProperty('--stud', `url("data:image/svg+xml;utf8,${encodeURIComponent(studSVG)}")`);
+
+const TH = {
+  red:    {g:['#FF9A66','#FF3F66','#D41450'], lip:'#8C0B38', ts:'#4A0520'},
+  green:  {g:['#CFFF70','#45E07F','#0DAE6B'], lip:'#07744A', ts:'#053D26'},
+  blue:   {g:['#8AF5FF','#3D9EFF','#5A46F2'], lip:'#2C209A', ts:'#0D1A58'},
+  purple: {g:['#FFA8EC','#B46CFF','#6B42F0'], lip:'#3D21A2', ts:'#280E5A'},
+  gold:   {g:['#FFF48C','#FFC530','#FF8B1F'], lip:'#B0500B', ts:'#5A2400'},
+  orange: {g:['#FFDB75','#FF9E38','#FF5C3C'], lip:'#AE3514', ts:'#561700'},
+  dark:   {g:['#5E4C86','#3B2D5E','#251B40'], lip:'#130C24', ts:'#120A20'},
+  grey:   {g:['#E9ECF3','#C3C8D6','#9AA0B4'], lip:'#5F657A', ts:'#2A2D38'},
+  white:  {g:['#FFFFFF','#F1F3F9','#D5DAE8'], lip:'#8A90A6', ts:'#1a0e22'},
+  grass:  {g:['#A4F25A','#57CC3E','#2F9E2C'], lip:'#6B3A1E', ts:'#123D0C'},
+};
+function grad(th, ang=162){ const g=TH[th].g; return `linear-gradient(${ang}deg, ${g[0]} 0%, ${g[1]} 48%, ${g[2]} 100%)`; }
+function el(parent, html){ const d=document.createElement('div'); d.innerHTML=html.trim(); const n=d.firstElementChild; parent.appendChild(n); return n; }
+
+// a stud block: face + darker lip + hard shadow
+function blk(parent,{x,y,w,h,th='red',r=16,lip=6,ss=26,studs=true,gloss=true,rot=0,shadow=true,z=1,ang=162,op=1}){
+  const n = el(parent, `<div class="blk" style="left:${x}px;top:${y}px;width:${w}px;height:${h+lip}px;--r:${r}px;--ss:${ss}px;transform:rotate(${rot}deg);z-index:${z};opacity:${op}">
+    ${shadow?`<div class="sh" style="top:${lip+5}px;height:${h}px"></div>`:''}
+    <div class="lip" style="top:${lip}px;height:${h}px;background:${TH[th].lip}"></div>
+    <div class="face" style="height:${h}px;background:${grad(th,ang)}">
+      ${studs?`<div class="studs" style="opacity:${th==='dark'?0.45:1}"></div>`:''}${gloss?'<div class="gloss"></div>':''}<div class="inner"></div>
+    </div></div>`);
+  n.face = n.querySelector('.face'); return n;
+}
+function txt(parent,{text,size,x=null,y=null,ts='#1a0e22',sw=6,color='#fff',center=true,cls='',style=''}){
+  const pos = center && x===null ? 'left:50%;top:50%;transform:translate(-50%,-50%);' : `left:${x}px;top:${y}px;`+(center?'transform:translate(-50%,-50%);':'');
+  return el(parent, `<div class="t ${cls}" style="${pos}font-size:${size}px;--ts:${ts};--sw:${sw}px;color:${color};${style}">${text}</div>`);
+}
+function gtext(parent,{text,size,x,y,g,ts='#5A2400',sw=9}){
+  return el(parent, `<div class="gtext" style="left:${x}px;top:${y}px;font-size:${size}px;--g:${g};--ts:${ts};--sw:${sw}px;transform:translate(-50%,-50%)"><span class="s">${text}</span><span class="f">${text}</span></div>`);
+}
+function key(parent,{x,y,label,w=null,size=18}){
+  const ww = w || Math.max(34, label.length*11+20);
+  const k = blk(parent,{x,y,w:ww,h:32,th:'white',r:9,lip:4,studs:false,ss:18,z:30});
+  txt(k.face,{text:label,size,ts:'#fff',sw:0,color:'#2a1838',style:'text-shadow:none'});
+  return k;
+}
+const COIN = (s)=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4A0"/><stop offset=".5" stop-color="#FFC531"/><stop offset="1" stop-color="#F08A12"/></linearGradient></defs>
+<circle cx="20" cy="22" r="17" fill="#1a0e22"/><circle cx="20" cy="20" r="17" fill="#1a0e22"/><circle cx="20" cy="20" r="14" fill="url(#cg)"/>
+<circle cx="20" cy="20" r="9" fill="none" stroke="#D9790E" stroke-width="2.5"/><path d="M12 13a10 10 0 0 1 9-5" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity=".8"/></svg>`;
+const ICON = {
+  home:`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M6 20 20 7l14 13h-4v13H10V20z" fill="#fff" stroke="#1a0e22" stroke-width="3.5" stroke-linejoin="round"/><rect x="16.5" y="23" width="7" height="10" rx="1.5" fill="#57CC3E" stroke="#1a0e22" stroke-width="3"/></svg>`,
+  up:`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M20 5 34 19h-8v15H14V19H6z" fill="#fff" stroke="#1a0e22" stroke-width="3.5" stroke-linejoin="round"/></svg>`,
+  down:`<svg width="56" height="56" viewBox="0 0 56 56"><path d="M20 6h16v22h11L28 49 9 28h11z" fill="#fff" stroke="#0D1A58" stroke-width="4" stroke-linejoin="round"/></svg>`,
+  check:`<svg width="22" height="22" viewBox="0 0 22 22"><path d="M4 11.5 9 16 18 6" stroke="#0DAE6B" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  dArrow:`<svg width="22" height="22" viewBox="0 0 22 22"><path d="M11 4v13M5 11.5l6 6 6-6" stroke="#FF6A2E" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  uArrow:`<svg width="22" height="22" viewBox="0 0 22 22"><path d="M11 18V5M5 10.5l6-6 6 6" stroke="#FF6A2E" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  dot:`<svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="5" fill="#6B42F0"/></svg>`,
+  star:`<svg width="30" height="30" viewBox="0 0 30 30"><path d="M15 2.5l3.7 7.6 8.3 1.2-6 5.9 1.4 8.3L15 21.6l-7.4 3.9L9 17.2l-6-5.9 8.3-1.2z" fill="#FFE04A" stroke="#1a0e22" stroke-width="3" stroke-linejoin="round"/></svg>`,
+};
+function hpBalloon(on){ const c = on?'#FF3F66':'#7b7390'; return `<svg width="22" height="28" viewBox="0 0 22 28"><path d="M11 21l-2.5 4h5z" fill="${c}" stroke="#1a0e22" stroke-width="2.4" stroke-linejoin="round"/><ellipse cx="11" cy="11" rx="8.5" ry="9.5" fill="${c}" stroke="#1a0e22" stroke-width="2.8"/><ellipse cx="8" cy="7.5" rx="2.4" ry="3" fill="#fff" opacity="${on?.7:.35}"/></svg>`; }
+
+function sparkle(parent,x,y,s,rot=0){ el(parent, `<svg class="abs" style="left:${x}px;top:${y}px;z-index:50;transform:rotate(${rot}deg)" width="${s}" height="${s}" viewBox="0 0 20 20"><path d="M10 0C11 7 13 9 20 10 13 11 11 13 10 20 9 13 7 11 0 10 7 9 9 7 10 0z" fill="#fff" stroke="#1a0e22" stroke-width="1.6" stroke-linejoin="round"/></svg>`); }
+// ---------- scenes ----------
+function sky(scr, top, bot, clouds){
+  el(scr, `<div class="abs" style="inset:0;background:linear-gradient(${top},${bot})"></div>`);
+  for (const [x,y,s,o] of clouds){
+    const c = el(scr, `<div class="abs" style="left:${x}px;top:${y}px;opacity:${o}"></div>`);
+    const parts=[[0,18,70*s,30*s],[22*s,0,60*s,48*s],[60*s,10*s,70*s,38*s]];
+    for(const [px,py,pw,ph] of parts) el(c, `<div class="abs" style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;background:#fff;border-radius:${8*s}px;box-shadow:inset 0 -${6*s}px 0 #DCEBFA"></div>`);
+  }
+}
+
+// ---- coin counter (KEEPS its look; only the stud texture swaps) ----
+function coinBar(scr,x,y){
+  const b = blk(scr,{x:x+22,y,w:212,h:52,th:'gold',r:16,lip:5});
+  txt(b.face,{text:'128,450',size:32,ts:'#5A2400',sw:7,x:118,y:25});
+  el(scr, `<div class="abs" style="left:${x}px;top:${y-6}px;z-index:5">${COIN(64)}</div>`);
+}
+
+// ---- altitude gauge (KEEPS its look) ----
+function gauge(scr){
+  const X=1228, top=170, h=340;
+  const tag = blk(scr,{x:X-74,y:120,w:96,h:34,th:'red',r:11,lip:4,ss:20});
+  txt(tag.face,{text:'318m',size:22,ts:'#4A0520',sw:6});
+  el(scr, `<div class="abs" style="left:${X-2}px;top:${top}px;width:30px;height:${h}px;background:#2a1838;border:3.5px solid #1a0e22;border-radius:15px;overflow:hidden">
+     <div class="abs" style="left:3px;right:3px;top:3px;height:${h*0.66}px;border-radius:12px 12px 4px 4px;background:linear-gradient(#E9F1FF,#B7CCFF)"></div>
+     <div class="abs" style="left:3px;right:3px;bottom:3px;height:${h*0.33-8}px;border-radius:4px 4px 12px 12px;background:linear-gradient(#8FE3FF,#63D56E)"></div></div>`);
+  for (const [n,f] of [['SUMMIT CLOUD',.27],['RAINBOW SHELF',.62],['WINDMILL HILL',.78],['MEADOW REST',.9]]){
+    const yy = top + h*f;
+    el(scr, `<div class="abs" style="left:${X-12}px;top:${yy-3}px;width:16px;height:6px;background:#fff;border:2px solid #1a0e22;border-radius:3px"></div>`);
+    txt(scr,{text:n,size:12,x:X-20,y:yy,sw:4,center:false,style:'transform:translate(-100%,-50%)'});
+  }
+  el(scr, `<div class="abs" style="left:${X-2}px;top:${top+h*0.79-14}px;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff98a8,#FF3F66 45%,#c4103f);border:3px solid #1a0e22"></div>`);
+}
+
+// ---- GROUND ----
+const G = document.getElementById('ground');
+sky(G,'#5FB6FF','#C9E9FF',[[90,120,1,.95],[960,90,1.3,.9],[560,190,.7,.8],[1110,300,.8,.85]]);
+el(G, `<div class="abs" style="left:0;right:0;top:470px;bottom:0;background:linear-gradient(#5DC943,#3E9E2E)"></div>`);
+el(G, `<img class="abs" src="img/shop.png" style="left:160px;top:250px;width:960px">`);
+
+// top bar
+(function(){
+  const row = [
+    {n:'BALLOONS', th:'purple', w:224, icon:`<img src="img/Gumball.png" style="width:52px;height:52px;margin-top:-6px">`},
+    {n:'SHOP', th:'blue', w:160, icon:`<img src="img/basket.png" style="width:46px;height:46px">`},
+    {n:'SPAWN', th:'green', w:206, big:true, icon:ICON.home},
+    {n:'UPGRADES', th:'orange', w:214, icon:ICON.up},
+  ];
+  const gap=14; const total=row.reduce((a,b)=>a+b.w,0)+gap*(row.length-1);
+  let x=(1280-total)/2;
+  for (const b of row){
+    const h=b.big?66:58, y=b.big?10:14;
+    const k=blk(G,{x,y,w:b.w,h,th:b.th,r:16,lip:6});
+    if (b.big){ // grass cap on SPAWN
+      const cap = el(k.face, `<div class="abs" style="left:0;right:0;top:0;height:15px;background:linear-gradient(#C8FF7A,#78DE4C)"></div>`);
+      for (let i=0;i<9;i++){ const dx=8+i*22, dh=[7,11,6,10,7,12,6,9,8][i];
+        el(k.face, `<div class="abs" style="left:${dx}px;top:12px;width:13px;height:${dh}px;background:#78DE4C;border-radius:0 0 5px 5px;box-shadow:0 2px 0 rgba(20,70,10,.35)"></div>`); }
+    }
+    el(k.face, `<div class="abs" style="left:10px;top:${b.big?14:4}px;width:46px;height:${h-8-(b.big?10:0)}px;display:flex;align-items:center;justify-content:center">${b.icon}</div>`);
+    txt(k.face,{text:b.n,size:b.big?30:26,x:(b.w+50)/2,y:b.big?h/2+5:h/2-1,ts:TH[b.th].ts,sw:7});
+    x+=b.w+gap;
+  }
+})();
+
+// left column: coins (kept) + store button
+coinBar(G,18,250);
+(function(){
+  const k=blk(G,{x:18,y:330,w:96,h:96,th:'red',r:20,lip:7});
+  el(k.face, `<img class="abs" src="img/basket.png" style="left:14px;top:6px;width:62px">`);
+  txt(k.face,{text:'SHOP',size:21,x:45,y:72,ts:'#4A0520',sw:6});
+})();
+
+// toast
+(function(){
+  const k=blk(G,{x:440,y:104,w:400,h:44,th:'dark',r:22,lip:4,ss:20});
+  el(k.face, `<div class="abs" style="left:10px;top:4px">${ICON.star}</div>`);
+  txt(k.face,{text:'LEGENDARY <span style="color:#FFE04A">VOLT</span> IN STOCK!',size:20,x:210,y:20,ts:'#120A20',sw:5});
+})();
+
+// jump to fly
+(function(){
+  const w=372,h=72,x=(1280-w)/2,y=612;
+  const k=blk(G,{x,y,w,h,th:'red',r:22,lip:8});
+  el(k.face, `<img class="abs" src="img/Gumball.png" style="left:14px;top:-2px;width:68px;transform:rotate(-10deg)">`);
+  txt(k.face,{text:'JUMP TO FLY',size:36,x:212,y:34,ts:'#4A0520',sw:8});
+  key(G,{x:x+w-78,y:y-20,label:'SPACE',size:15});
+})();
+
+// ---- FLY ----
+const F = document.getElementById('fly');
+sky(F,'#3E8EF0','#A9D8FF',[[60,560,1.2,.9],[980,600,1.4,.9],[420,640,1,.85],[1120,120,.6,.6]]);
+el(F, `<img class="abs" src="img/rainbow.png" style="left:150px;top:150px;width:160px;opacity:.85">`);
+el(F, `<img class="abs" src="img/windmill.png" style="left:455px;top:330px;width:420px">`);
+coinBar(F,18,22);
+gauge(F);
+
+// island markers
+function marker(scr,{x,y,name,state,dist,hint,scale=1,op=1}){
+  const S = {land:{th:'green',icon:ICON.check,col:'#7CFFB0'}, down:{th:'orange',icon:ICON.dArrow,col:'#FFD26B'}, up:{th:'orange',icon:ICON.uArrow,col:'#FFD26B'}, far:{th:'purple',icon:ICON.dot,col:'#fff'}}[state];
+  const holder = el(scr, `<div class="abs" style="left:${x}px;top:${y}px;width:0;height:0;transform:scale(${scale});opacity:${op};z-index:20"></div>`);
+  const w = Math.max(190, name.length*14+70);
+  const k = blk(holder,{x:-w/2,y:0,w,h:40,th:S.th,r:14,lip:5,ss:20});
+  el(k.face, `<div class="abs" style="left:7px;top:5px;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid #1a0e22;display:flex;align-items:center;justify-content:center">${S.icon}</div>`);
+  txt(k.face,{text:name,size:21,x:w/2+14,y:19,ts:TH[S.th].ts,sw:6});
+  const sw2 = dist.length*10+30;
+  const sub = blk(holder,{x:-sw2/2,y:48,w:sw2,h:28,th:'dark',r:10,lip:3,ss:16,gloss:false});
+  txt(sub.face,{text:`${dist}`,size:17,x:sw2/2-3.5,y:13,ts:'#120A20',sw:5,color:S.col});
+  // pointer
+  el(holder, `<svg class="abs" style="left:-13px;top:80px" width="26" height="20" viewBox="0 0 26 20"><path d="M3 2h20L13 17z" fill="${TH[S.th].g[1]}" stroke="#1a0e22" stroke-width="3.2" stroke-linejoin="round"/></svg>`);
+  if (hint){ const hk = blk(holder,{x:-56,y:-34,w:112,h:26,th:'white',r:9,lip:3,studs:false}); txt(hk.face,{text:hint,size:15,ts:'#fff',sw:0,color:'#2a1838',style:'text-shadow:none'}); }
+  return holder;
+}
+marker(F,{x:690,y:250,name:'WINDMILL HILL',state:'land',dist:'LAND HERE! 46m',hint:null});
+marker(F,{x:232,y:110,name:'RAINBOW SHELF',state:'far',dist:'▲ 240m',scale:.72,op:.92});
+
+// balloon + player
+el(F, `<div class="abs" style="left:477px;top:242px;width:3px;height:70px;background:#fff;border-left:1px solid #9aa"></div>`);
+el(F, `<img class="abs" src="img/Gumball.png" style="left:410px;top:120px;width:140px">`);
+el(F, `<div class="abs" style="left:464px;top:304px;width:30px;height:46px;background:#FFD08A;border:3px solid #1a0e22;border-radius:6px"><div class="abs" style="left:-3px;right:-3px;top:18px;height:26px;background:#3D9EFF;border:3px solid #1a0e22;border-radius:4px"></div></div>`);
+
+// balloon billboard
+(function(){
+  const cx=480, y=52;
+  el(F, `<div class="abs" style="left:${cx-112}px;top:${y-24}px">${COIN(46)}</div>`);
+  sparkle(F,cx+86,y-30,18,10); sparkle(F,cx-70,y+8,12);
+  gtext(F,{text:'+2,184',size:44,x:cx+20,y:y,g:'linear-gradient(#FFFBD0 0%,#FFE04A 45%,#FFA51F 100%)',ts:'#5A2400',sw:9});
+  const chip = blk(F,{x:cx-104,y:y+30,w:100,h:28,th:'red',r:9,lip:3,ss:16});
+  txt(chip.face,{text:'SIZE 38',size:17,ts:'#4A0520',sw:5});
+  el(F, `<div class="abs" style="left:${cx+8}px;top:${y+31}px;display:flex;gap:3px">${hpBalloon(1)}${hpBalloon(1)}${hpBalloon(1)}${hpBalloon(0)}</div>`);
+  // risk bar
+  const rx=cx-58, ry=y+72;
+  txt(F,{text:'RISK',size:14,x:rx-8,y:ry+8,sw:5,center:false,style:'transform:translate(-100%,-50%)'});
+  el(F, `<div class="abs" style="left:${rx}px;top:${ry}px;width:150px;height:17px;border-radius:9px;background:#2a1838;border:3px solid #1a0e22;overflow:hidden">
+     <div class="abs" style="left:0;top:0;bottom:0;width:38%;background:linear-gradient(90deg,#45E07F,#FFE04A);border-radius:6px">
+       <div class="abs" style="left:2px;right:2px;top:1px;height:40%;background:rgba(255,255,255,.45);border-radius:4px"></div></div></div>`);
+})();
+
+// island arrow (left edge, where the shop button sits on the ground)
+(function(){
+  const x=34,y=300;
+  el(F, `<svg class="abs" style="left:${x-24}px;top:${y+23}px;z-index:2" width="30" height="40" viewBox="0 0 30 40"><path d="M27 4v32L4 20z" fill="${TH.purple.g[0]}" stroke="#1a0e22" stroke-width="3.5" stroke-linejoin="round"/></svg>`);
+  const d=blk(F,{x,y,w:82,h:82,th:'purple',r:41,lip:5,ss:18});
+  el(d.face, `<img class="abs" src="img/rainbow.png" style="left:9px;top:12px;width:58px">`);
+  txt(d.face,{text:'240m',size:16,x:37,y:60,ts:'#280E5A',sw:5});
+})();
+
+// land button
+(function(){
+  const w=300,h=86,x=(1280-w)/2,y=604;
+  const k=blk(F,{x,y,w,h,th:'green',r:24,lip:8});
+  el(k.face, `<div class="abs" style="left:0;top:0;bottom:0;width:46%;background:linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.5));border-right:3px solid rgba(255,255,255,.85)"></div>`);
+  txt(k.face,{text:'LAND',size:48,x:160,y:40,ts:'#053D26',sw:9});
+  key(F,{x:x-14,y:y-14,label:'E',w:38,size:20});
+  const sp=blk(F,{x:x+22,y:y-46,w:190,h:30,th:'dark',r:11,lip:3,ss:16,gloss:false});
+  txt(sp.face,{text:'WINDMILL HILL',size:17,ts:'#120A20',sw:5});
+  const rb=blk(F,{x:x+w-92,y:y-12,w:160,h:30,th:'gold',r:11,lip:3,ss:16,rot:8,z:40});
+  txt(rb.face,{text:'FIRST LANDING x2',size:15,ts:'#5A2400',sw:5});
+})();
+
+// let out air
+(function(){
+  const x=1134,y=576;
+  const k=blk(F,{x,y,w:124,h:112,th:'blue',r:24,lip:7});
+  el(k.face, `<div class="abs" style="left:31px;top:14px">${ICON.down}</div>`);
+  txt(k.face,{text:'LET OUT<br>AIR',size:19,x:59,y:86,ts:'#0D1A58',sw:6,style:'line-height:1.0'});
+  key(F,{x:x+24,y:y-18,label:'SPACE',size:14});
+})();
+
+// ---- PARTS SHEET ----
+const P = document.getElementById('parts');
+sky(P,'#4C9BF2','#BFE3FF',[[40,620,1.2,.6],[1000,40,1,.5]]);
+function cap(t,x,y){ txt(P,{text:t,size:16,x,y,sw:5,ts:'#0D1A58',center:false}); }
+
+function sunburst(x,y,s){ el(P, `<div class="abs" style="left:${x-s/2}px;top:${y-s/2}px;width:${s}px;height:${s}px;border-radius:50%;
+  background:repeating-conic-gradient(rgba(255,255,255,.28) 0 9deg, rgba(255,255,255,0) 9deg 22.5deg);-webkit-mask:radial-gradient(circle,#000 30%,transparent 70%)"></div>`); }
+
+function card(x,y,{title,th,lines}){
+  const w=400,h=200;
+  sunburst(x+w/2,y+h/2,560);
+  const body=blk(P,{x,y:y+26,w,h:h-26,th:'dark',r:22,lip:7});
+  const hd=blk(P,{x:x+40,y:y-18,w:w-80,h:66,th,r:20,lip:7,z:3});
+  txt(hd.face,{text:title,size:46,ts:TH[th].ts,sw:9});
+  lines(body.face);
+}
+card(60,90,{title:'BANKED!',th:'green',lines:(f)=>{
+  el(f, `<div class="abs" style="left:78px;top:48px">${COIN(54)}</div>`);
+  sparkle(f,318,34,22,10); sparkle(f,60,92,14);
+  gtext(f,{text:'+4,368',size:58,x:222,y:76,g:'linear-gradient(#FFFBD0 0%,#FFE04A 45%,#FFA51F 100%)',ts:'#5A2400',sw:10});
+  txt(f,{text:'Windmill Hill  •  size 38',size:19,x:200,y:126,sw:5,ts:'#120A20'});
+}});
+(function(){ const rb=blk(P,{x:155,y:280,w:210,h:36,th:'gold',r:12,lip:4,rot:-3,z:10}); txt(rb.face,{text:'FIRST LANDING x2',size:20,ts:'#5A2400',sw:6}); })();
+cap('Banked card (sunburst spins, number counts up)',60,350);
+
+card(500,90,{title:'POPPED!',th:'red',lines:(f)=>{
+  txt(f,{text:'Popped at size 42',size:22,x:200,y:58,sw:5,ts:'#120A20'});
+  txt(f,{text:'-1,234 lost',size:40,x:200,y:102,sw:9,ts:'#4A0520',color:'#FFB8C6'});
+  txt(f,{text:'Land sooner next time!',size:16,x:200,y:142,sw:5,ts:'#120A20',color:'#FFE04A'});
+}});
+cap('Popped card (shakes in)',500,350);
+
+// toasts
+(function(){
+  const a=blk(P,{x:950,y:96,w:290,h:44,th:'dark',r:22,lip:4,ss:20});
+  el(a.face, `<div class="abs" style="left:10px;top:4px">${ICON.star}</div>`);
+  txt(a.face,{text:'NEW BALLOON: VOLT!',size:19,x:150,y:20,ts:'#120A20',sw:5});
+  const b=blk(P,{x:950,y:158,w:290,h:44,th:'green',r:22,lip:4,ss:20});
+  el(b.face, `<div class="abs" style="left:10px;top:4px">${COIN(32)}</div>`);
+  txt(b.face,{text:'+250 CLOSE CALL!',size:19,x:150,y:20,ts:'#053D26',sw:5});
+  const c=blk(P,{x:950,y:220,w:290,h:44,th:'red',r:22,lip:4,ss:20});
+  txt(c.face,{text:'BIRD INCOMING!',size:19,x:142,y:20,ts:'#4A0520',sw:5});
+  cap('Toasts',950,290);
+})();
+
+// marker states
+marker(P,{x:180,y:440,name:'WINDMILL HILL',state:'land',dist:'LAND HERE! 46m'});
+marker(P,{x:470,y:440,name:'MEADOW REST',state:'down',dist:'DROP DOWN 72m'});
+marker(P,{x:760,y:440,name:'SUMMIT CLOUD',state:'up',dist:'FLOAT UP 30m'});
+marker(P,{x:1060,y:440,name:'RAINBOW SHELF',state:'far',dist:'▲ 240m'});
+cap('Island markers: in range (green), above/below the landing window (orange), far away (purple, smaller)',60,560);
+
+// arrow + land states
+(function(){
+  const d=blk(P,{x:80,y:610,w:82,h:82,th:'purple',r:41,lip:5,ss:18});
+  el(d.face, `<img class="abs" src="img/windmill.png" style="left:16px;top:6px;width:44px">`);
+  txt(d.face,{text:'84m',size:16,x:37,y:60,ts:'#280E5A',sw:5});
+  el(P, `<svg class="abs" style="left:158px;top:633px;z-index:2" width="30" height="40" viewBox="0 0 30 40"><path d="M3 4v32L26 20z" fill="${TH.purple.g[0]}" stroke="#1a0e22" stroke-width="3.5" stroke-linejoin="round"/></svg>`);
+  cap('Edge arrow (spins to point at the island)',60,712);
+  const g=blk(P,{x:470,y:612,w:260,h:76,th:'grey',r:22,lip:7});
+  txt(g.face,{text:'LAND',size:42,ts:'#2A2D38',sw:8});
+  key(P,{x:458,y:600,label:'E',w:36,size:19});
+  cap('Land button out of range',470,712);
+  const k=blk(P,{x:800,y:612,w:260,h:76,th:'green',r:22,lip:7});
+  el(k.face, `<div class="abs" style="left:0;top:0;bottom:0;width:80%;background:linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.5));border-right:3px solid rgba(255,255,255,.85)"></div>`);
+  txt(k.face,{text:'LANDING',size:40,ts:'#053D26',sw:8});
+  key(P,{x:788,y:600,label:'E',w:36,size:19});
+  cap('Holding E (white fill sweeps across)',800,712);
+})();
+</script>
+</body></html>
