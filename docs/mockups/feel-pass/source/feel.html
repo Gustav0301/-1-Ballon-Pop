@@ -1,0 +1,290 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Fredoka One';src:url(fredoka.woff2) format('woff2');}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#222;font-family:'Fredoka One',sans-serif;}
+.screen{position:relative;width:1280px;height:720px;overflow:hidden;margin:0 0 20px 0}
+.abs{position:absolute}
+/* text: white fill, dark outside stroke, hard drop shadow */
+.t{position:absolute;color:#fff;white-space:nowrap;text-align:center;line-height:1;paint-order:stroke fill;
+   -webkit-text-stroke:var(--sw,6px) var(--ts,#1a0e22);text-shadow:0 3px 0 rgba(0,0,0,.35);letter-spacing:.5px}
+.c{left:50%;top:50%;transform:translate(-50%,-50%)}
+/* stud block */
+.blk{position:absolute}
+.blk>.sh{position:absolute;left:0;right:0;border-radius:var(--r);background:rgba(10,4,20,.28)}
+.blk>.lip{position:absolute;left:0;right:0;border-radius:var(--r);border:3.5px solid #1a0e22}
+.blk>.face{position:absolute;left:0;right:0;top:0;border-radius:var(--r);border:3.5px solid #1a0e22;overflow:hidden}
+.face>.studs{position:absolute;inset:0;background-image:var(--stud);background-size:var(--ss,26px) var(--ss,26px);background-position:3px 2px}
+.face>.gloss{position:absolute;left:5px;right:5px;top:4px;height:44%;border-radius:calc(var(--r) - 5px) calc(var(--r) - 5px) 10px 10px;
+   background:linear-gradient(rgba(255,255,255,.42),rgba(255,255,255,.06))}
+.face>.inner{position:absolute;inset:0;border-radius:calc(var(--r) - 3px);box-shadow:inset 0 -5px 0 rgba(0,0,0,.14)}
+.face>*{pointer-events:none}
+.keychip{position:absolute}
+.gtext{position:absolute;white-space:nowrap;line-height:1}
+.gtext .s{position:absolute;left:0;top:0;color:transparent;-webkit-text-stroke:var(--sw) var(--ts);paint-order:stroke fill;text-shadow:0 4px 0 rgba(0,0,0,.35)}
+.gtext .f{position:relative;background:var(--g);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style></head><body>
+
+<div class="screen" id="arrive"></div>
+<div class="screen" id="zone"></div>
+<div class="screen" id="parts" style="height:760px"></div>
+
+<script>
+// ---------- stud tile (stand-in for rbxassetid://6927295847) ----------
+const studSVG = `<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'>
+<ellipse cx='14' cy='15.2' rx='8.2' ry='8.2' fill='black' fill-opacity='.10'/>
+<circle cx='13' cy='13' r='8' fill='white' fill-opacity='.07'/>
+<path d='M7.2 16.2A6.6 6.6 0 0 1 16.2 7.2' stroke='white' stroke-opacity='.38' stroke-width='2.2' fill='none' stroke-linecap='round'/>
+<path d='M18.8 9.8A6.6 6.6 0 0 1 9.8 18.8' stroke='black' stroke-opacity='.15' stroke-width='2.2' fill='none' stroke-linecap='round'/>
+</svg>`;
+document.documentElement.style.setProperty('--stud', `url("data:image/svg+xml;utf8,${encodeURIComponent(studSVG)}")`);
+
+const TH = {
+  red:    {g:['#FF9A66','#FF3F66','#D41450'], lip:'#8C0B38', ts:'#4A0520'},
+  green:  {g:['#CFFF70','#45E07F','#0DAE6B'], lip:'#07744A', ts:'#053D26'},
+  blue:   {g:['#8AF5FF','#3D9EFF','#5A46F2'], lip:'#2C209A', ts:'#0D1A58'},
+  purple: {g:['#FFA8EC','#B46CFF','#6B42F0'], lip:'#3D21A2', ts:'#280E5A'},
+  gold:   {g:['#FFF48C','#FFC530','#FF8B1F'], lip:'#B0500B', ts:'#5A2400'},
+  orange: {g:['#FFDB75','#FF9E38','#FF5C3C'], lip:'#AE3514', ts:'#561700'},
+  dark:   {g:['#5E4C86','#3B2D5E','#251B40'], lip:'#130C24', ts:'#120A20'},
+  grey:   {g:['#E9ECF3','#C3C8D6','#9AA0B4'], lip:'#5F657A', ts:'#2A2D38'},
+  white:  {g:['#FFFFFF','#F1F3F9','#D5DAE8'], lip:'#8A90A6', ts:'#1a0e22'},
+  grass:  {g:['#A4F25A','#57CC3E','#2F9E2C'], lip:'#6B3A1E', ts:'#123D0C'},
+};
+function grad(th, ang=162){ const g=TH[th].g; return `linear-gradient(${ang}deg, ${g[0]} 0%, ${g[1]} 48%, ${g[2]} 100%)`; }
+function el(parent, html){ const d=document.createElement('div'); d.innerHTML=html.trim(); const n=d.firstElementChild; parent.appendChild(n); return n; }
+
+// a stud block: face + darker lip + hard shadow
+function blk(parent,{x,y,w,h,th='red',r=16,lip=6,ss=26,studs=true,gloss=true,rot=0,shadow=true,z=1,ang=162,op=1}){
+  const n = el(parent, `<div class="blk" style="left:${x}px;top:${y}px;width:${w}px;height:${h+lip}px;--r:${r}px;--ss:${ss}px;transform:rotate(${rot}deg);z-index:${z};opacity:${op}">
+    ${shadow?`<div class="sh" style="top:${lip+5}px;height:${h}px"></div>`:''}
+    <div class="lip" style="top:${lip}px;height:${h}px;background:${TH[th].lip}"></div>
+    <div class="face" style="height:${h}px;background:${grad(th,ang)}">
+      ${studs?`<div class="studs" style="opacity:${th==='dark'?0.45:1}"></div>`:''}${gloss?'<div class="gloss"></div>':''}<div class="inner"></div>
+    </div></div>`);
+  n.face = n.querySelector('.face'); return n;
+}
+function txt(parent,{text,size,x=null,y=null,ts='#1a0e22',sw=6,color='#fff',center=true,cls='',style=''}){
+  const pos = center && x===null ? 'left:50%;top:50%;transform:translate(-50%,-50%);' : `left:${x}px;top:${y}px;`+(center?'transform:translate(-50%,-50%);':'');
+  return el(parent, `<div class="t ${cls}" style="${pos}font-size:${size}px;--ts:${ts};--sw:${sw}px;color:${color};${style}">${text}</div>`);
+}
+function gtext(parent,{text,size,x,y,g,ts='#5A2400',sw=9}){
+  return el(parent, `<div class="gtext" style="left:${x}px;top:${y}px;font-size:${size}px;--g:${g};--ts:${ts};--sw:${sw}px;transform:translate(-50%,-50%)"><span class="s">${text}</span><span class="f">${text}</span></div>`);
+}
+function key(parent,{x,y,label,w=null,size=18}){
+  const ww = w || Math.max(34, label.length*11+20);
+  const k = blk(parent,{x,y,w:ww,h:32,th:'white',r:9,lip:4,studs:false,ss:18,z:30});
+  txt(k.face,{text:label,size,ts:'#fff',sw:0,color:'#2a1838',style:'text-shadow:none'});
+  return k;
+}
+const COIN = (s)=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4A0"/><stop offset=".5" stop-color="#FFC531"/><stop offset="1" stop-color="#F08A12"/></linearGradient></defs>
+<circle cx="20" cy="22" r="17" fill="#1a0e22"/><circle cx="20" cy="20" r="17" fill="#1a0e22"/><circle cx="20" cy="20" r="14" fill="url(#cg)"/>
+<circle cx="20" cy="20" r="9" fill="none" stroke="#D9790E" stroke-width="2.5"/><path d="M12 13a10 10 0 0 1 9-5" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity=".8"/></svg>`;
+const ICON = {
+  home:`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M6 20 20 7l14 13h-4v13H10V20z" fill="#fff" stroke="#1a0e22" stroke-width="3.5" stroke-linejoin="round"/><rect x="16.5" y="23" width="7" height="10" rx="1.5" fill="#57CC3E" stroke="#1a0e22" stroke-width="3"/></svg>`,
+  up:`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M20 5 34 19h-8v15H14V19H6z" fill="#fff" stroke="#1a0e22" stroke-width="3.5" stroke-linejoin="round"/></svg>`,
+  down:`<svg width="56" height="56" viewBox="0 0 56 56"><path d="M20 6h16v22h11L28 49 9 28h11z" fill="#fff" stroke="#0D1A58" stroke-width="4" stroke-linejoin="round"/></svg>`,
+  check:`<svg width="22" height="22" viewBox="0 0 22 22"><path d="M4 11.5 9 16 18 6" stroke="#0DAE6B" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  dArrow:`<svg width="22" height="22" viewBox="0 0 22 22"><path d="M11 4v13M5 11.5l6 6 6-6" stroke="#FF6A2E" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  uArrow:`<svg width="22" height="22" viewBox="0 0 22 22"><path d="M11 18V5M5 10.5l6-6 6 6" stroke="#FF6A2E" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  dot:`<svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="5" fill="#6B42F0"/></svg>`,
+  star:`<svg width="30" height="30" viewBox="0 0 30 30"><path d="M15 2.5l3.7 7.6 8.3 1.2-6 5.9 1.4 8.3L15 21.6l-7.4 3.9L9 17.2l-6-5.9 8.3-1.2z" fill="#FFE04A" stroke="#1a0e22" stroke-width="3" stroke-linejoin="round"/></svg>`,
+};
+function hpBalloon(on){ const c = on?'#FF3F66':'#7b7390'; return `<svg width="22" height="28" viewBox="0 0 22 28"><path d="M11 21l-2.5 4h5z" fill="${c}" stroke="#1a0e22" stroke-width="2.4" stroke-linejoin="round"/><ellipse cx="11" cy="11" rx="8.5" ry="9.5" fill="${c}" stroke="#1a0e22" stroke-width="2.8"/><ellipse cx="8" cy="7.5" rx="2.4" ry="3" fill="#fff" opacity="${on?.7:.35}"/></svg>`; }
+
+function sparkle(parent,x,y,s,rot=0){ el(parent, `<svg class="abs" style="left:${x}px;top:${y}px;z-index:50;transform:rotate(${rot}deg)" width="${s}" height="${s}" viewBox="0 0 20 20"><path d="M10 0C11 7 13 9 20 10 13 11 11 13 10 20 9 13 7 11 0 10 7 9 9 7 10 0z" fill="#fff" stroke="#1a0e22" stroke-width="1.6" stroke-linejoin="round"/></svg>`); }
+// ---------- scenes ----------
+function sky(scr, top, bot, clouds){
+  el(scr, `<div class="abs" style="inset:0;background:linear-gradient(${top},${bot})"></div>`);
+  for (const [x,y,s,o] of clouds){
+    const c = el(scr, `<div class="abs" style="left:${x}px;top:${y}px;opacity:${o}"></div>`);
+    const parts=[[0,18,70*s,30*s],[22*s,0,60*s,48*s],[60*s,10*s,70*s,38*s]];
+    for(const [px,py,pw,ph] of parts) el(c, `<div class="abs" style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;background:#fff;border-radius:${8*s}px;box-shadow:inset 0 -${6*s}px 0 #DCEBFA"></div>`);
+  }
+}
+
+// ---- coin counter (KEEPS its look; only the stud texture swaps) ----
+function coinBar(scr,x,y){
+  const b = blk(scr,{x:x+22,y,w:212,h:52,th:'gold',r:16,lip:5});
+  txt(b.face,{text:'128,450',size:32,ts:'#5A2400',sw:7,x:118,y:25});
+  el(scr, `<div class="abs" style="left:${x}px;top:${y-6}px;z-index:5">${COIN(64)}</div>`);
+}
+
+// ---- altitude gauge (KEEPS its look) ----
+function gauge(scr,label='318m',yf=.79){
+  const X=1228, top=170, h=340;
+  const tag = blk(scr,{x:X-74,y:120,w:96,h:34,th:'red',r:11,lip:4,ss:20});
+  txt(tag.face,{text:label,size:22,ts:'#4A0520',sw:6});
+  el(scr, `<div class="abs" style="left:${X-2}px;top:${top}px;width:30px;height:${h}px;background:#2a1838;border:3.5px solid #1a0e22;border-radius:15px;overflow:hidden">
+     <div class="abs" style="left:3px;right:3px;top:3px;height:${h*0.66}px;border-radius:12px 12px 4px 4px;background:linear-gradient(#E9F1FF,#B7CCFF)"></div>
+     <div class="abs" style="left:3px;right:3px;bottom:3px;height:${h*0.33-8}px;border-radius:4px 4px 12px 12px;background:linear-gradient(#8FE3FF,#63D56E)"></div></div>`);
+  for (const [n,f] of [['SUMMIT CLOUD',.27],['RAINBOW SHELF',.62],['WINDMILL HILL',.78],['MEADOW REST',.9]]){
+    const yy = top + h*f;
+    el(scr, `<div class="abs" style="left:${X-12}px;top:${yy-3}px;width:16px;height:6px;background:#fff;border:2px solid #1a0e22;border-radius:3px"></div>`);
+    txt(scr,{text:n,size:12,x:X-20,y:yy,sw:4,center:false,style:'transform:translate(-100%,-50%)'});
+  }
+  el(scr, `<div class="abs" style="left:${X-2}px;top:${top+h*yf-14}px;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff98a8,#FF3F66 45%,#c4103f);border:3px solid #1a0e22"></div>`);
+}
+
+
+// ================= FEEL PASS =================
+function burst(parent,x,y,s,op=.28){ el(parent, `<div class="abs" style="left:${x-s/2}px;top:${y-s/2}px;width:${s}px;height:${s}px;border-radius:50%;
+  background:repeating-conic-gradient(rgba(255,255,255,${op}) 0 9deg, rgba(255,255,255,0) 9deg 22.5deg);-webkit-mask:radial-gradient(circle,#000 25%,transparent 70%)"></div>`); }
+function cap(parent,t,x,y){ txt(parent,{text:t,size:16,x,y,sw:5,ts:'#0D1A58',center:false}); }
+function topBar(scr){
+  const row=[{n:'SPAWN',th:'green',icon:ICON.home,grass:true},{n:'UPGRADES',th:'orange',icon:ICON.up}];
+  let x=(1280-2*214-14)/2;
+  for(const b of row){
+    const k=blk(scr,{x,y:12,w:214,h:60,th:b.th,r:16,lip:6});
+    if(b.grass){ el(k.face,`<div class="abs" style="left:0;right:0;top:0;height:13px;background:linear-gradient(#C8FF7A,#78DE4C)"></div>`);
+      for(let i=0;i<9;i++) el(k.face,`<div class="abs" style="left:${8+i*23}px;top:10px;width:13px;height:${[6,10,5,9,6,11,5,8,7][i]}px;background:#78DE4C;border-radius:0 0 5px 5px"></div>`); }
+    el(k.face,`<div class="abs" style="left:12px;top:8px">${b.icon}</div>`);
+    txt(k.face,{text:b.n,size:27,x:122,y:31,ts:TH[b.th].ts,sw:7}); x+=228;
+  }
+}
+function leftCol(scr){
+  coinBar(scr,18,200);
+  const s=blk(scr,{x:18,y:272,w:96,h:96,th:'red',r:20,lip:7}); el(s.face,`<img class="abs" src="img/basket.png" style="left:14px;top:6px;width:62px">`); txt(s.face,{text:'SHOP',size:21,x:45,y:72,ts:'#4A0520',sw:6});
+  const i=blk(scr,{x:18,y:384,w:96,h:96,th:'purple',r:20,lip:7}); el(i.face,`<img class="abs" src="img/Gumball.png" style="left:16px;top:2px;width:60px">`); txt(i.face,{text:'INDEX',size:21,x:45,y:72,ts:'#280E5A',sw:6});
+}
+// a stud treasure chest (world object), drawn front-on
+function chest(parent,x,y,s=1,open=false){
+  const c=el(parent,`<div class="abs" style="left:${x}px;top:${y}px;width:${120*s}px;height:${100*s}px"></div>`);
+  const W=120*s,H=100*s;
+  el(c,`<div class="abs" style="left:0;top:${H*.42}px;width:${W}px;height:${H*.58}px;background:linear-gradient(#B8662E,#8A4520);border:${3*s}px solid #2a1206;border-radius:${6*s}px;background-image:var(--stud),linear-gradient(#B8662E,#8A4520);background-size:${14*s}px ${14*s}px,auto"></div>`);
+  if(!open) el(c,`<div class="abs" style="left:${-4*s}px;top:${H*.12}px;width:${W+8*s}px;height:${H*.36}px;background:linear-gradient(#D07A3A,#A3552A);border:${3*s}px solid #2a1206;border-radius:${18*s}px ${18*s}px ${4*s}px ${4*s}px"></div>`);
+  else el(c,`<div class="abs" style="left:${-4*s}px;top:${-H*.18}px;width:${W+8*s}px;height:${H*.34}px;background:linear-gradient(#D07A3A,#A3552A);border:${3*s}px solid #2a1206;border-radius:${18*s}px ${18*s}px ${4*s}px ${4*s}px;transform:perspective(200px) rotateX(35deg)"></div>`);
+  for(const fx of [.16,.84]) el(c,`<div class="abs" style="left:${W*fx-6*s}px;top:${H*.12}px;width:${12*s}px;height:${H*.88}px;background:linear-gradient(#FFF07A,#FFB21E);border:${2.5*s}px solid #2a1206"></div>`);
+  el(c,`<div class="abs" style="left:${W/2-11*s}px;top:${H*.36}px;width:${22*s}px;height:${24*s}px;background:linear-gradient(#FFF07A,#FFB21E);border:${2.5*s}px solid #2a1206;border-radius:${4*s}px"><div class="abs" style="left:${6*s}px;top:${8*s}px;width:${5*s}px;height:${7*s}px;background:#2a1206;border-radius:2px"></div></div>`);
+  if(open){ el(c,`<div class="abs" style="left:${W*.1}px;top:${H*.22}px;width:${W*.8}px;height:${H*.3}px;background:radial-gradient(ellipse at 50% 100%,#FFF6B0,#FFD23A 60%,transparent 75%)"></div>`);
+    for(const [cx,cy] of [[.25,.12],[.45,0],[.62,.08],[.78,.18],[.36,.2]]) el(c,`<div class="abs" style="left:${W*cx}px;top:${H*cy}px">${COIN(24*s)}</div>`); }
+  return c;
+}
+// billboard over a chest
+function chestBoard(parent,x,y,{title,th,line,lineCol='#fff',bar=null}){
+  const w=230;
+  const k=blk(parent,{x:x-w/2,y,w,h:40,th,r:14,lip:5,ss:20,z:20});
+  txt(k.face,{text:title,size:21,ts:TH[th].ts,sw:6});
+  const sw=Math.max(150,line.length*10+30);
+  const t=blk(parent,{x:x-sw/2,y:y+50,w:sw,h:28,th:'dark',r:10,lip:3,ss:16,gloss:false,z:20});
+  txt(t.face,{text:line,size:16,ts:'#120A20',sw:5,color:lineCol});
+  if(bar!==null){ el(parent,`<div class="abs" style="left:${x-70}px;top:${y+88}px;width:140px;height:16px;border-radius:8px;background:#2a1838;border:3px solid #1a0e22;overflow:hidden;z-index:20"><div class="abs" style="left:0;top:0;bottom:0;width:${bar*100}%;background:linear-gradient(90deg,#45E07F,#CFFF70)"></div></div>`); }
+}
+
+// ---------- SCREEN 1: arriving on a new island ----------
+const A=document.getElementById('arrive');
+sky(A,'#4C9BF2','#BFE3FF',[[60,520,1.1,.9],[1010,560,1.3,.9],[1120,160,.6,.6]]);
+el(A,`<img class="abs" src="img/windmill.png" style="left:280px;top:330px;width:720px">`);
+// player on the island
+el(A,`<div class="abs" style="left:610px;top:472px;width:30px;height:46px;background:#FFD08A;border:3px solid #1a0e22;border-radius:6px;z-index:5"><div class="abs" style="left:-3px;right:-3px;top:18px;height:26px;background:#3D9EFF;border:3px solid #1a0e22;border-radius:4px"></div></div>`);
+el(A,`<div class="abs" style="left:700px;top:478px;width:28px;height:42px;background:#E8B07A;border:3px solid #1a0e22;border-radius:6px;z-index:5"><div class="abs" style="left:-3px;right:-3px;top:16px;height:24px;background:#FF5C3C;border:3px solid #1a0e22;border-radius:4px"></div></div>`);
+// group chest on the island
+chest(A,470,430,0.8,true);
+chestBoard(A,518,330,{title:'GROUP CHEST',th:'gold',line:'2 PLAYERS  •  OPEN!',lineCol:'#7CFFB0'});
+topBar(A); leftCol(A);
+// arrival banner
+(function(){
+  const cx=640, y=104;
+  burst(A,cx,y+70,520,.22);
+  const z=blk(A,{x:cx-90,y,w:180,h:30,th:'green',r:11,lip:4,ss:16,z:5});
+  txt(z.face,{text:'MEADOW SKY',size:17,ts:'#053D26',sw:5});
+  const b=blk(A,{x:cx-250,y:y+36,w:500,h:84,th:'white',r:24,lip:8,z:4,ss:26});
+  gtext(b.face,{text:'WINDMILL HILL',size:56,x:246,y:40,g:'linear-gradient(#FFFFFF 0%,#FFF3A0 55%,#FFC530 100%)',ts:'#5A2400',sw:10});
+  const n=blk(A,{x:cx+170,y:y+22,w:150,h:34,th:'gold',r:12,lip:4,ss:18,rot:9,z:8});
+  txt(n.face,{text:'NEW ISLAND!',size:19,ts:'#5A2400',sw:6});
+  const bon=blk(A,{x:cx-120,y:y+136,w:240,h:36,th:'dark',r:18,lip:4,ss:18,z:6});
+  el(bon.face,`<div class="abs" style="left:8px;top:2px">${COIN(28)}</div>`);
+  txt(bon.face,{text:'+500 FIRST VISIT',size:19,x:126,y:16,ts:'#120A20',sw:5,color:'#FFE04A'});
+  sparkle(A,cx+262,y+70,20,10); sparkle(A,cx-262,y+44,16); sparkle(A,cx+200,y+128,14);
+})();
+
+// ---------- SCREEN 2: entering a new zone (sky has changed) ----------
+const Z=document.getElementById('zone');
+el(Z,`<div class="abs" style="inset:0;background:linear-gradient(#1E4FC8 0%,#3E86EE 40%,#9CCBFF 70%,#FFE2A8 100%)"></div>`);
+el(Z,`<div class="abs" style="left:900px;top:-140px;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(255,244,190,.95) 0%,rgba(255,220,130,.45) 18%,rgba(255,220,130,0) 60%)"></div>`);
+// cloud floor below
+for(let i=0;i<16;i++){ const x=-40+i*90, h=[60,90,70,110,80,95,65,100,85,70,105,75,90,60,95,80][i];
+  el(Z,`<div class="abs" style="left:${x}px;top:${720-h-60}px;width:120px;height:${h+80}px;background:#fff;border-radius:14px;box-shadow:inset 0 -14px 0 #E4EEFB, inset 0 10px 0 #ffffff"></div>`); }
+el(Z,`<div class="abs" style="left:0;right:0;bottom:0;height:90px;background:#EEF4FD"></div>`);
+el(Z,`<img class="abs" src="img/rainbow.png" style="left:860px;top:330px;width:300px;opacity:.95">`);
+// player + balloon
+el(Z,`<div class="abs" style="left:637px;top:320px;width:3px;height:80px;background:#fff;border-left:1px solid #9aa"></div>`);
+el(Z,`<img class="abs" src="img/Gumball.png" style="left:570px;top:200px;width:140px">`);
+el(Z,`<div class="abs" style="left:624px;top:392px;width:30px;height:46px;background:#FFD08A;border:3px solid #1a0e22;border-radius:6px"><div class="abs" style="left:-3px;right:-3px;top:18px;height:26px;background:#3D9EFF;border:3px solid #1a0e22;border-radius:4px"></div></div>`);
+coinBar(Z,18,22); gauge(Z,'540m',.6);
+(function(){
+  const cx=640,y=40;
+  burst(Z,cx,y+70,560,.25);
+  const e=blk(Z,{x:cx-80,y,w:160,h:30,th:'dark',r:11,lip:4,ss:16,z:5});
+  txt(e.face,{text:'ENTERING',size:17,ts:'#120A20',sw:5});
+  const b=blk(Z,{x:cx-280,y:y+36,w:560,h:92,th:'blue',r:26,lip:8,z:4});
+  txt(b.face,{text:'CLOUD SHELF',size:62,ts:'#0D1A58',sw:11});
+  const r=blk(Z,{x:cx-100,y:y+142,w:200,h:30,th:'white',r:11,lip:3,studs:false,z:5});
+  txt(r.face,{text:'500 – 1,500m',size:17,ts:'#fff',sw:0,color:'#2a1838',style:'text-shadow:none'});
+  sparkle(Z,cx+262,y+30,22,10); sparkle(Z,cx-300,y+70,16);
+})();
+
+// ---------- SCREEN 3: parts ----------
+const P=document.getElementById('parts');
+el(P,`<div class="abs" style="inset:0;background:linear-gradient(#4C9BF2,#BFE3FF)"></div>`);
+// leaderboards (world boards on the start map)
+function board(x,y,{title,th,icon,rows}){
+  const w=330,h=380;
+  // posts
+  for(const px of [40,w-56]) el(P,`<div class="abs" style="left:${x+px}px;top:${y+h-10}px;width:16px;height:60px;background:linear-gradient(#9A5A2A,#6E3A18);border:3px solid #2a1206"></div>`);
+  const body=blk(P,{x,y:y+30,w,h:h-30,th:'dark',r:20,lip:7});
+  const hd=blk(P,{x:x+24,y:y-6,w:w-48,h:58,th,r:18,lip:6,z:3});
+  el(hd.face,`<div class="abs" style="left:10px;top:9px">${icon}</div>`);
+  txt(hd.face,{text:title,size:28,x:(w-48)/2+16,y:27,ts:TH[th].ts,sw:7});
+  rows.forEach((r,i)=>{
+    const yy=60+i*28.5; const medal=['#FFD23A','#D9DEE8','#E08A4A'][i];
+    if(medal) el(body.face,`<div class="abs" style="left:16px;top:${yy-2}px;width:26px;height:26px;border-radius:50%;background:${medal};border:2.5px solid #1a0e22"></div>`);
+    txt(body.face,{text:String(i+1),size:15,x:29,y:yy+11,sw:4,ts:'#120A20'});
+    txt(body.face,{text:r[0],size:17,x:54,y:yy+3,sw:4,ts:'#120A20',center:false,style:'transform:none'});
+    txt(body.face,{text:r[1],size:17,x:w-24,y:yy+3,sw:4,ts:'#120A20',center:false,color:'#FFE04A',style:'transform:translateX(-100%)'});
+  });
+}
+const names=['OrmeswagAlt','SkyKing_22','PopQueen','balloonboi','Lumi_x','CloudSurfer','Gusty','ToastyBee','NovaSun99','Pip'];
+board(36,40,{title:'BIGGEST POP',th:'red',icon:`<img src="img/Gumball.png" style="width:38px">`,rows:names.map((n,i)=>[n,'SIZE '+[412,388,301,276,254,233,201,188,170,152][i]])});
+board(400,40,{title:'MOST BANKED',th:'gold',icon:COIN(36),rows:[...names].reverse().map((n,i)=>[n,['2.4M','1.9M','1.1M','880K','640K','512K','390K','260K','151K','98K'][i]])});
+cap(P,'Leaderboards on the start map (top 10, update every minute)',36,486);
+// chest states
+chest(P,800,150,0.8,false);
+chestBoard(P,848,48,{title:'GROUP CHEST',th:'gold',line:'1/2 PLAYERS  •  NEED 1 MORE',bar:.5});
+chest(P,1080,150,0.8,false);
+chestBoard(P,1128,48,{title:'YOUR CHEST',th:'purple',line:'READY IN 3:42',lineCol:'#FFE04A'});
+cap(P,'Chest boards: group (2+ players) and solo',760,262);
+// reward card
+(function(){
+  const x=760,y=316,w=440;
+  burst(P,x+w/2,y+80,420,.25);
+  const body=blk(P,{x,y:y+24,w,h:140,th:'dark',r:22,lip:7});
+  const hd=blk(P,{x:x+50,y:y-14,w:w-100,h:60,th:'gold',r:20,lip:6,z:3});
+  txt(hd.face,{text:'GROUP CHEST!',size:38,ts:'#5A2400',sw:8});
+  el(body.face,`<div class="abs" style="left:110px;top:44px">${COIN(48)}</div>`);
+  gtext(body.face,{text:'+1,200',size:52,x:248,y:68,g:'linear-gradient(#FFFBD0 0%,#FFE04A 45%,#FFA51F 100%)',ts:'#5A2400',sw:10});
+  txt(body.face,{text:'Shared with 3 players',size:17,x:218,y:112,sw:5,ts:'#120A20'});
+  sparkle(P,x+w-40,y+40,20,10);
+})();
+cap(P,'Reward card when the chest opens',760,500);
+// coin rain toast + falling coins
+(function(){
+  for(const [x,y,r] of [[90,560,0],[150,600,20],[60,640,-15],[200,560,10],[250,630,-25],[120,690,30]]) el(P,`<div class="abs" style="left:${x}px;top:${y}px;transform:rotate(${r}deg)">${COIN(30)}</div>`);
+  const t=blk(P,{x:290,y:600,w:330,h:44,th:'green',r:22,lip:4,ss:20});
+  el(t.face,`<div class="abs" style="left:10px;top:4px">${COIN(32)}</div>`);
+  txt(t.face,{text:'+48 COIN RAIN!',size:20,x:176,y:20,ts:'#053D26',sw:5});
+  cap(P,"Coin rain: 10% of a popped player's coins fall for players below",60,712);
+})();
+// sky strips
+(function(){
+  const skies=[['MEADOW SKY','linear-gradient(#5FB6FF,#C9E9FF)',false],['CLOUD SHELF','linear-gradient(#2E6FE0,#8EC4FF 70%,#FFE2A8)',true],['HIGH UP','linear-gradient(#173E9E,#3E86EE 60%,#FFD48A)',true]];
+  skies.forEach(([n,g,floor],i)=>{
+    const x=760+i*160,y=560;
+    el(P,`<div class="abs" style="left:${x}px;top:${y}px;width:146px;height:120px;border-radius:14px;border:3.5px solid #1a0e22;background:${g};overflow:hidden">${floor?`<div class="abs" style="left:-4px;right:-4px;bottom:-6px;height:${22+i*4}px;background:#fff;border-radius:10px;box-shadow:inset 0 -6px 0 #E4EEFB"></div>`:''}</div>`);
+    txt(P,{text:n,size:15,x:x+73,y:y+138,sw:5,ts:'#0D1A58'});
+  });
+  cap(P,'Sky blends as you climb',760,712);
+})();
+</script>
+</body></html>
