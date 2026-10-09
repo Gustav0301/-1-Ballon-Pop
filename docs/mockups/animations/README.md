@@ -60,3 +60,14 @@ Start the animation 0.26 s before the character reaches the landing pad, so Touc
 If that is hard, start it at contact: it still looks fine, the tuck is just shorter. The Studio touchdown
 effects already built (dust ring, sparkles, LANDED!, balloon dip) should fire on the Touchdown marker.
 Pictures: `landing-touchdown.png`, `landing-lookup.png`.
+
+## v2: balloon put away on the ground (2026-10-09)
+
+Gustav: you should not hold the balloon before you blow it up.
+- **Idle v2:** empty hands. Bounce, up on the toes, bounce, look up at the sky, look to the other side (4 s loop).
+- **Take-off v2:** starts from empty hands, reaches into the right pocket (0.12 s) and pulls out a small balloon
+  at **Grab (0.22 s)**: show the mini balloon in the right hand there. All later marker times are unchanged
+  (Puff 0.48 / 0.76 / 1.06, Release 1.26, LiftOff 1.60).
+- **Landing v2:** the right arm comes down while standing up. At **StandUp (0.88 s)** the balloon is put away
+  (small white poof), and it ends in the empty-hands pose.
+Gustav republishes all three (overwriting keeps the same ids).
