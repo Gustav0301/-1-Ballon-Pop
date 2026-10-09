@@ -45,3 +45,18 @@ Sizes used in the preview: ground balloon 0.30 scale, puffs 0.34 / 0.39 / 0.44, 
 - Stop the float animation when landing, banking or popping, and go back to the idle on the ground.
 - Use the game's existing sounds from `SoundConfig` where one fits. The preview sounds are only stand-ins.
 - Don't press Play in Studio while Gustav is working unless he says it's OK.
+
+## Landing (added 2026-10-09)
+
+Gustav picked a hero landing: about 1.1 s, no walking while it plays, starting from the float.
+`BalloonLanding.lua` makes the KeyframeSequence (Priority Action). Gustav publishes it and sends the id.
+
+| Marker | Time | What the game does |
+|---|---|---|
+| Touchdown | 0.26 s | Feet hit the island: dust ring, coins fly into the counter, LANDED! pop, thud sound, a small camera shake |
+| StandUp | 0.88 s | Small sound; the idle takes over at the end (1.1 s) |
+
+Start the animation 0.26 s before the character reaches the landing pad, so Touchdown matches the real contact.
+If that is hard, start it at contact: it still looks fine, the tuck is just shorter. The Studio touchdown
+effects already built (dust ring, sparkles, LANDED!, balloon dip) should fire on the Touchdown marker.
+Pictures: `landing-touchdown.png`, `landing-lookup.png`.

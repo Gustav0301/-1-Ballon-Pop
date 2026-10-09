@@ -285,4 +285,5 @@ print("Created KeyframeSequence '" .. seq.Name .. "' in ServerStorage")
 
 -- Markers the game listens for:
 -- track:GetMarkerReachedSignal("Puff"):Connect(function(n) ... end)  -- n = "1", "2", "3"
--- track:GetMarkerReachedSignal("Grab") / ("Release") / ("LiftOff")
+-- track:GetMarkerReachedSignal("Grab") / ("Release") / ("LiftOff")  (take-off)
+-- track:GetMarkerReachedSignal("Touchdown") / ("StandUp")  (landing)
