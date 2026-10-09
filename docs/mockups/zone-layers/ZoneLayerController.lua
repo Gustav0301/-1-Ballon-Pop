@@ -3,8 +3,10 @@
 --  * Look: Lighting, Atmosphere, ColorCorrection and Terrain clouds blend from zone to zone.
 --  * Clouds: puffy stud clouds in Meadow Sky, small golden cloudlets in Cloud Shelf, drifting with the wind.
 --  * Deck: a stud cloud deck at 480-520. A ceiling from below, a floor from above, no collision.
---    Tiles follow you; a flat cloud sea goes on to the horizon; cloud towers stand far away.
---  * Near bits: petals and pollen down low, mist wisps and golden dust up high.
+--    Tiles follow you. Further out the floor goes on as flat slabs that break up and fade into the sky.
+--    Cloud towers grow out of the deck far away.
+--  * Near bits: petals and pollen down low, golden dust up high.
+--  * Clouds never turn see-through: they grow in from small and shrink away.
 --  * Punch-through: crossing the deck gives a cloud puff ring, a flash and a whoosh.
 -- Everything is in ZoneLayerConfig. Weather goes on top with SetOverlay (see below).
 -- The cloud shapes use the same math as the preview (docs/mockups/zone-layers) and tools/zones/clouds.py.
@@ -26,7 +28,9 @@ ZoneLayerController.Look = nil :: any -- the blended Sky values right now (after
 type Box = { x: number, y: number, z: number, sx: number, sy: number, sz: number, c: Color3, top: boolean }
 type Rng = () -> number
 type Island = { x: number, y: number, z: number, r: number, lo: Vector3, hi: Vector3 }
-type Cloud = { parts: { BasePart }, offs: { Vector3 }, pos: Vector3, half: Vector3, alpha: number, shown: number, fade: number, alive: boolean }
+type Cloud = { parts: { BasePart }, offs: { Vector3 }, sizes: { Vector3 }, pos: Vector3, half: Vector3, alpha: number, shown: number, scale: number, fade: number, alive: boolean }
+type Tile = { inst: Instance?, far: boolean, ix: number, iz: number }
+type Tower = { ix0: number, iz0: number, n: number, x: number, z: number }
 type CloudLayer = { zone: any, clouds: { Cloud }, active: boolean, filled: boolean, folder: Folder, sizeMin: number, sizeMax: number }
 type Bit = { part: BasePart, kind: string, age: number, life: number, vel: Vector3, spin: Vector3 }
 type Overlay = { values: { [string]: any }, weight: number, target: number, speed: number }
@@ -157,13 +161,16 @@ local function tileSeed(ix: number, iz: number): number
 	return ix * 7349 + iz * 9157 + Deck.Seed * 101
 end
 
--- one deck tile: a slab that meets its neighbours edge to edge, stepped puffs on a 2x2 grid on top, bellies under
-local function deckTile(ix: number, iz: number): { Box }
+local towerTiles: { [string]: boolean } = {} -- deck tiles that a cloud tower stands in
+
+-- one deck tile: a slab that meets its neighbours edge to edge, stepped puffs on a 2x2 grid on top, bellies under.
+-- far = true: only the flat slab (the far floor)
+local function deckTile(ix: number, iz: number, far: boolean): { Box }
 	local r = rng(tileSeed(ix, iz))
 	local t = Deck.Tile
 	local out: { Box } = {}
 	local cx, cz = (ix + 0.5) * t, (iz + 0.5) * t
-	if r() > Deck.Coverage then
+	if r() > Deck.Coverage or towerTiles[ix .. "," .. iz] then
 		return out
 	end
 	for _, I in islands do
@@ -174,7 +181,10 @@ local function deckTile(ix: number, iz: number): { Box }
 	local thick = Deck.Thickness * (0.6 + r() * 0.2)
 	local sy = Deck.Y + (r() - 0.5) * 6
 	local c = t / 2
-	table.insert(out, { x = cx, y = sy, z = cz, sx = t, sy = thick, sz = t, c = Deck.Side, top = true })
+	table.insert(out, { x = cx, y = sy, z = cz, sx = t, sy = thick, sz = t, c = Deck.Side, top = not far })
+	if far then
+		return out
+	end
 	for i = 0, 1 do
 		for j = 0, 1 do
 			if r() > 0.75 then
@@ -211,11 +221,10 @@ local function deckTile(ix: number, iz: number): { Box }
 end
 
 -- a tall stepped cloud tower with little bumps on each step
-local function towerBoxes(r: Rng, x: number, z: number, baseY: number): { Box }
+local function towerBoxes(r: Rng, x: number, z: number, baseY: number, W: number): { Box }
 	local T = Cfg.Towers
 	local out: { Box } = {}
 	local H = T.Height[1] + r() * (T.Height[2] - T.Height[1])
-	local W = T.Width[1] + r() * (T.Width[2] - T.Width[1])
 	local y, w = baseY, W
 	local steps = 5 + math.floor(r() * 3)
 	for k = 0, steps - 1 do
@@ -236,6 +245,23 @@ local function towerBoxes(r: Rng, x: number, z: number, baseY: number): { Box }
 		end
 		y += h
 		w *= 0.8
+	end
+	return out
+end
+
+-- where the towers stand: on the deck grid, each one in place of n x n tiles (so nothing overlaps)
+local function towerLayout(): { Tower }
+	local T = Cfg.Towers
+	local t = Deck.Tile
+	local r = rng(31)
+	local out: { Tower } = {}
+	for i = 0, T.Count - 1 do
+		local a = (i / T.Count) * math.pi * 2 + r() * 0.5
+		local dist = T.Distance[1] + r() * (T.Distance[2] - T.Distance[1])
+		local n = T.Tiles[1] + math.floor(r() * (T.Tiles[2] - T.Tiles[1] + 1))
+		local ix0 = math.floor(math.cos(a) * dist / t - n / 2 + 0.5)
+		local iz0 = math.floor(math.sin(a) * dist / t - n / 2 + 0.5)
+		table.insert(out, { ix0 = ix0, iz0 = iz0, n = n, x = (ix0 + n / 2) * t, z = (iz0 + n / 2) * t })
 	end
 	return out
 end
@@ -324,14 +350,14 @@ local function blendedSky(h: number): { [string]: any }
 	return look
 end
 
--- 0 outside the deck, 1 in its middle: the mist closes in
+-- 0 outside the deck, 1 in its middle: the fog closes in
 local function mistK(h: number): number
 	local half = Deck.Thickness / 2
 	local d = math.abs(h - Deck.Y)
 	return 1 - math.clamp((d - half * 0.4) / (half * 1.6), 0, 1)
 end
 
--- blend weight between the first two zones (petals fade out, mist and dust fade in)
+-- blend weight between the first two zones (petals fade out, golden dust fades in)
 local function upperK(h: number): number
 	return smooth((h - (Zones[1].To - Cfg.Blend.Below)) / (Cfg.Blend.Below + Cfg.Blend.Above))
 end
@@ -381,18 +407,22 @@ end
 local cloudRandom = Random.new()
 local layers: { CloudLayer } = {}
 
+-- clouds grow in from small and shrink away (never see-through)
 local function cloudVisible(cl: Cloud, alpha: number)
 	if cl.shown == alpha then
 		return
 	end
+	local wasHidden = cl.shown <= 0
 	cl.shown = alpha
-	for _, p in cl.parts do
-		p.Transparency = 1 - alpha
-	end
-	for _, p in cl.parts do
-		local t = p:FindFirstChildOfClass("Texture")
-		if t then
-			t.Transparency = Cfg.Studs.Transparency + (1 - Cfg.Studs.Transparency) * (1 - alpha)
+	cl.scale = if alpha >= 1 then 1 else 0.08 + 0.92 * (1 - (1 - alpha) ^ 3)
+	for j, p in cl.parts do
+		if alpha <= 0 then
+			p.Transparency = 1
+		else
+			if wasHidden then
+				p.Transparency = 0
+			end
+			p.Size = cl.sizes[j] * cl.scale
 		end
 	end
 end
@@ -456,14 +486,15 @@ local function placeCloud(layer: CloudLayer, cl: Cloud?, me: Vector3, edge: bool
 				end
 			end
 			local new: Cloud = cl or ({} :: any)
-			new.parts, new.offs = {}, {}
+			new.parts, new.offs, new.sizes = {}, {}, {}
 			for _, b in boxes do
 				local p = newPart(b, layer.folder)
 				p.Transparency = 1
 				table.insert(new.parts, p)
 				table.insert(new.offs, Vector3.new(b.x, b.y, b.z) - mid)
+				table.insert(new.sizes, p.Size)
 			end
-			new.pos, new.half, new.alpha, new.shown, new.fade, new.alive = pos, half, 0, 1, 1, true
+			new.pos, new.half, new.alpha, new.shown, new.scale, new.fade, new.alive = pos, half, 0, 1, 1, 1, true
 			return new
 		end
 	end
@@ -536,7 +567,7 @@ local function stepClouds(dt: number, h: number, me: Vector3)
 			cloudVisible(cl, cl.alpha)
 			for j, p in cl.parts do
 				table.insert(parts, p)
-				table.insert(cframes, CFrame.new(cl.pos + cl.offs[j]))
+				table.insert(cframes, CFrame.new(cl.pos + cl.offs[j] * cl.scale))
 			end
 		end
 	end
@@ -545,13 +576,13 @@ local function stepClouds(dt: number, h: number, me: Vector3)
 	end
 end
 
--- ---------------------------------------------------------------- the deck, the sea and the towers
+-- ---------------------------------------------------------------- the deck, the far floor and the towers
 
 local deckFolder: Folder
-local tiles: { [string]: Model | boolean } = {}
+local tiles: { [string]: Tile } = {}
 local buildQueue: { { number } } = {}
 local deckCenter: { number }? = nil
-local seaParts: { Part } = {}
+local towers: { Tower } = {}
 local towersBuilt = false
 
 local function setDeckActive(on: boolean)
@@ -561,28 +592,18 @@ local function setDeckActive(on: boolean)
 	end
 end
 
-local function placeSea(cix: number, ciz: number, n: number)
-	local t = Deck.Tile
-	local cx, cz = (cix + 0.5) * t, (ciz + 0.5) * t
-	local R0 = (n + 0.5) * t
-	local R1 = math.max(Deck.SeaOuter, R0 + 64)
-	local len = R1 - R0
-	local mid = (R0 + R1) / 2
-	-- six thin slabs make a square frame around the tiles (no part is bigger than 2048)
-	local rects = {
-		{ cx - R1 / 2, cz + mid, R1, len }, { cx + R1 / 2, cz + mid, R1, len },
-		{ cx - R1 / 2, cz - mid, R1, len }, { cx + R1 / 2, cz - mid, R1, len },
-		{ cx + mid, cz, len, R0 * 2 }, { cx - mid, cz, len, R0 * 2 },
-	}
-	for i, rc in rects do
-		local p = seaParts[i]
-		if not p then
-			p = newPart({ x = 0, y = Deck.SeaY, z = 0, sx = 1, sy = 2, sz = 1, c = Deck.Sea, top = false }, deckFolder)
-			seaParts[i] = p
-		end
-		p.Size = Vector3.new(math.min(rc[3], 2048), 2, math.min(rc[4], 2048))
-		p.CFrame = CFrame.new(rc[1], Deck.SeaY, rc[2])
+-- a far floor slab: the further out, the more it takes the haze colour; near the end more and more slabs drop out
+-- (dist = from you in studs). Never see-through: a slab is shown or not.
+local function farLook(tile: Tile, dist: number)
+	local p = tile.inst
+	if not p or not p:IsA("BasePart") then
+		return
 	end
+	local k = math.clamp((dist - Deck.Radius) / (Deck.FarRadius - Deck.Radius), 0, 1)
+	local brk = math.clamp((k - Deck.FarBreakUp) / (1 - Deck.FarBreakUp), 0, 1)
+	local hv = rng(tileSeed(tile.ix, tile.iz) + 13)()
+	p.Transparency = if hv > 1 - brk * (1 - Deck.FarCoverage) then 1 else 0
+	p.Color = (Deck.Side :: Color3):Lerp(Deck.FarColor, smooth(k))
 end
 
 local function buildTowers()
@@ -590,14 +611,13 @@ local function buildTowers()
 	local folder = Instance.new("Folder")
 	folder.Name = "CloudTowers"
 	folder.Parent = deckFolder
-	local r = rng(31)
-	local T = Cfg.Towers
-	for i = 0, T.Count - 1 do
-		local a = (i / T.Count) * math.pi * 2 + r() * 0.5
-		local dist = T.Distance[1] + r() * (T.Distance[2] - T.Distance[1])
+	local t = Deck.Tile
+	for i, tw in towers do
+		local w = tw.n * t
 		local model = Instance.new("Model")
 		model.Name = "CloudTower"
-		for _, b in towerBoxes(r, math.cos(a) * dist, math.sin(a) * dist, Deck.SeaY + 1) do
+		-- the bottom step starts inside the deck, so the tower grows out of the floor
+		for _, b in towerBoxes(rng(31 + i * 977), tw.x, tw.z, Deck.Y - Deck.Thickness * 0.4, w) do
 			newPart(b, model)
 		end
 		model.Parent = folder
@@ -614,52 +634,62 @@ local function stepDeck(h: number, me: Vector3)
 		buildTowers()
 	end
 	local t = Deck.Tile
-	local n = math.round(Deck.Radius / t)
 	local cix, ciz = math.floor(me.X / t), math.floor(me.Z / t)
 	if not deckCenter or deckCenter[1] ~= cix or deckCenter[2] ~= ciz then
 		deckCenter = { cix, ciz }
-		-- drop tiles that are now outside the square, queue the new ones (nearest first)
+		-- near tiles (with puffs) inside Radius, flat far slabs out to FarRadius.
+		-- Drop what is too far or changed kind, update the far look, queue the new ones (nearest first).
 		for key, tile in tiles do
-			local sx, sz = string.match(key, "^(-?%d+),(-?%d+)$")
-			local ix, iz = tonumber(sx) :: number, tonumber(sz) :: number
-			if math.abs(ix - cix) > n or math.abs(iz - ciz) > n then
-				if typeof(tile) == "Instance" then
-					tile:Destroy()
+			local dist = math.sqrt((tile.ix - cix) ^ 2 + (tile.iz - ciz) ^ 2) * t
+			if dist > Deck.FarRadius or (dist > Deck.Radius) ~= tile.far then
+				if tile.inst then
+					tile.inst:Destroy()
 				end
 				tiles[key] = nil
+			elseif tile.far then
+				farLook(tile, dist)
 			end
 		end
 		buildQueue = {}
-		for ix = cix - n, cix + n do
-			for iz = ciz - n, ciz + n do
-				if tiles[ix .. "," .. iz] == nil then
-					table.insert(buildQueue, { ix, iz, (ix - cix) ^ 2 + (iz - ciz) ^ 2 })
+		local nf = math.ceil(Deck.FarRadius / t)
+		for ix = cix - nf, cix + nf do
+			for iz = ciz - nf, ciz + nf do
+				local dist = math.sqrt((ix - cix) ^ 2 + (iz - ciz) ^ 2) * t
+				if dist <= Deck.FarRadius and tiles[ix .. "," .. iz] == nil then
+					table.insert(buildQueue, { ix, iz, dist })
 				end
 			end
 		end
 		table.sort(buildQueue, function(a, b)
 			return a[3] > b[3] -- pop from the end = nearest first
 		end)
-		placeSea(cix, ciz, n)
 	end
-	for _ = 1, Deck.BuildPerFrame do
+	-- a near tile costs as much as FarBuildPerFrame / BuildPerFrame far slabs
+	local budget = Deck.FarBuildPerFrame
+	while budget > 0 do
 		local q = table.remove(buildQueue)
 		if not q then
 			break
 		end
-		local key = q[1] .. "," .. q[2]
-		local boxes = deckTile(q[1], q[2])
-		if #boxes == 0 then
-			tiles[key] = false
-		else
+		local far = q[3] > Deck.Radius
+		budget -= if far then 1 else Deck.FarBuildPerFrame / Deck.BuildPerFrame
+		local tile: Tile = { inst = nil, far = far, ix = q[1], iz = q[2] }
+		local boxes = deckTile(q[1], q[2], far)
+		if far and #boxes > 0 then
+			local p = newPart(boxes[1], deckFolder)
+			p.Name = "DeckFar"
+			tile.inst = p
+			farLook(tile, q[3])
+		elseif #boxes > 0 then
 			local model = Instance.new("Model")
 			model.Name = "DeckTile"
 			for _, b in boxes do
 				newPart(b, model)
 			end
 			model.Parent = deckFolder
-			tiles[key] = model
+			tile.inst = model
 		end
+		tiles[q[1] .. "," .. q[2]] = tile
 	end
 end
 
@@ -667,7 +697,7 @@ end
 
 local bits: { Bit } = {}
 local nearFolder: Folder
-local spawnDebt: { [string]: number } = { petal = 0, pollen = 0, mist = 0, dust = 0 }
+local spawnDebt: { [string]: number } = { petal = 0, pollen = 0, dust = 0 }
 
 local function spawnBit(kind: string, me: Vector3)
 	if #bits >= Cfg.Near.Max then
@@ -687,14 +717,10 @@ local function spawnBit(kind: string, me: Vector3)
 		p.Size = Vector3.one * 0.22
 		p.Color = Color3.fromHex("FFF07A")
 		p.Material = Enum.Material.Neon
-	elseif kind == "dust" then
+	else -- golden dust
 		p.Size = Vector3.one * 0.3
 		p.Color = Color3.fromHex("FFD66B")
 		p.Material = Enum.Material.Neon
-	else -- mist wisp: a thin white plate that fades in and out
-		p.Size = Vector3.new(14, 5, 0.2)
-		p.Color = Color3.new(1, 1, 1)
-		life = 5
 	end
 	p.Transparency = 1
 	p.CFrame = CFrame.new(me.X + math.cos(a) * d, me.Y - 20 + math.random() * 30, me.Z + math.sin(a) * d)
@@ -716,7 +742,6 @@ local function stepNear(dt: number, h: number, me: Vector3)
 	local rates = {
 		petal = (1 - k) * lo.Petals * 4,
 		pollen = (1 - k) * lo.Pollen * 5,
-		mist = k * hi.Mist * 1.2 + mistK(h) * 6,
 		dust = k * hi.Dust * 6,
 	}
 	local onGround = h < 25
@@ -727,7 +752,6 @@ local function stepNear(dt: number, h: number, me: Vector3)
 			spawnBit(kind, me)
 		end
 	end
-	local cam = Workspace.CurrentCamera
 	local parts: { BasePart } = {}
 	local cframes: { CFrame } = {}
 	for i = #bits, 1, -1 do
@@ -743,11 +767,6 @@ local function stepNear(dt: number, h: number, me: Vector3)
 		if b.kind == "petal" then
 			cf *= CFrame.Angles(b.spin.X * dt, 0, b.spin.Z * dt)
 			b.part.Transparency = math.max(0, 1 - math.sin(f * math.pi) * 1.2)
-		elseif b.kind == "mist" then
-			if cam then
-				cf = CFrame.lookAt(cf.Position, cam.CFrame.Position)
-			end
-			b.part.Transparency = 1 - math.sin(f * math.pi) * 0.35
 		elseif b.kind == "dust" then
 			b.part.Transparency = 1 - math.sin(f * math.pi) * (0.6 + 0.4 * math.sin(b.age * 9))
 		else
@@ -889,7 +908,19 @@ function ZoneLayerController.Start(opts: StartOptions)
 	terrainClouds = tc
 
 	readIslands(opts.Shared)
-	for i, z in Zones do
+	-- the towers' tiles stay empty (the tower fills them); towers keep away from islands
+	for _, tw in towerLayout() do
+		local w = tw.n * Deck.Tile
+		if not hitsIsland(Vector3.new(tw.x, Deck.Y + 200, tw.z), Vector3.new(w / 2, 220, w / 2)) then
+			table.insert(towers, tw)
+			for ix = tw.ix0, tw.ix0 + tw.n - 1 do
+				for iz = tw.iz0, tw.iz0 + tw.n - 1 do
+					towerTiles[ix .. "," .. iz] = true
+				end
+			end
+		end
+	end
+	for _, z in Zones do
 		if z.Clouds then
 			local f = Instance.new("Folder")
 			f.Name = z.Id .. "Clouds"

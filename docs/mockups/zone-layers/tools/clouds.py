@@ -51,16 +51,33 @@ def cloud_boxes(r, cx, cy, cz, size, c):
     return out
 
 
-def deck_tile(ix, iz, islands=()):
+def tower_layout():
+    t = DECK["Tile"]; r = rng(31); out = []
+    for i in range(TOW["Count"]):
+        a = (i / TOW["Count"]) * math.pi * 2 + r() * 0.5
+        dist = TOW["Distance"][0] + r() * (TOW["Distance"][1] - TOW["Distance"][0])
+        n = TOW["Tiles"][0] + math.floor(r() * (TOW["Tiles"][1] - TOW["Tiles"][0] + 1))
+        ix0 = math.floor(math.cos(a) * dist / t - n / 2 + 0.5); iz0 = math.floor(math.sin(a) * dist / t - n / 2 + 0.5)
+        out.append(dict(ix0=ix0, iz0=iz0, n=n, x=(ix0 + n / 2) * t, z=(iz0 + n / 2) * t))
+    return out
+
+
+TOWERS = tower_layout()
+TOWER_TILES = {(tw["ix0"] + a, tw["iz0"] + b) for tw in TOWERS for a in range(tw["n"]) for b in range(tw["n"])}
+
+
+def deck_tile(ix, iz, islands=(), far=False):
     r = rng(tile_seed(ix, iz)); t = DECK["Tile"]; out = []
     cx, cz = (ix + 0.5) * t, (iz + 0.5) * t
-    if r() > DECK["Coverage"]:
+    if r() > DECK["Coverage"] or (ix, iz) in TOWER_TILES:
         return out
     for (x, y, z, rad) in islands:
         if abs(y - DECK["Y"]) < DECK["Thickness"] / 2 + DECK["IslandBand"] and math.hypot(cx - x, cz - z) < rad + DECK["IslandHole"]:
             return out
     thick = DECK["Thickness"] * (0.6 + r() * 0.2); sy = DECK["Y"] + (r() - 0.5) * 6; c = t / 2
     out.append([cx, sy, cz, t, thick, t, DECK["Side"]])
+    if far:
+        return out
     for i in range(2):
         for j in range(2):
             if r() > 0.75:
@@ -81,10 +98,9 @@ def deck_tile(ix, iz, islands=()):
     return out
 
 
-def tower(r, x, z, base_y):
+def tower(r, x, z, base_y, W):
     out = []
     H = TOW["Height"][0] + r() * (TOW["Height"][1] - TOW["Height"][0])
-    W = TOW["Width"][0] + r() * (TOW["Width"][1] - TOW["Width"][0])
     y, w = base_y, W
     steps = 5 + math.floor(r() * 3)
     for k in range(steps):
@@ -123,8 +139,7 @@ for ix in range(-2, 2):
     for iz in range(-2, 2):
         patch += deck_tile(ix, iz)
 groups["DeckPatch"] = [[[b[0], b[1] - DECK["Y"], b[2]] + b[3:] for b in patch]]
-r = rng(31)
-groups["CloudTower"] = [tower(r, 0, 0, 0)]
+groups["CloudTower"] = [tower(rng(31 + 977), 0, 0, 0, TOWERS[0]["n"] * DECK["Tile"])]
 
 # overlap check on every sample + a large deck area
 total_bad = 0
@@ -138,6 +153,29 @@ for ix in range(-9, 9):
 n_tiles_parts = len(big)
 # neighbours only: compare within a tile and against the next tiles (cheap enough)
 total_bad += overlaps(big[:4000])
+# the whole deck out to FarRadius (near tiles inside Radius, flat slabs outside) plus the towers, grid-bucketed
+t = DECK["Tile"]; nf = math.ceil(DECK["FarRadius"] / t); whole = []
+for ix in range(-nf, nf + 1):
+    for iz in range(-nf, nf + 1):
+        d = math.hypot(ix, iz) * t
+        if d <= DECK["FarRadius"]:
+            whole += deck_tile(ix, iz, far=d > DECK["Radius"])
+for i, tw in enumerate(TOWERS, 1):
+    whole += tower(rng(31 + i * 977), tw["x"], tw["z"], DECK["Y"] - DECK["Thickness"] * 0.4, tw["n"] * t)
+cells = {}
+for k, b in enumerate(whole):
+    for gx in range(math.floor((b[0] - b[3] / 2) / 64), math.floor((b[0] + b[3] / 2) / 64) + 1):
+        for gz in range(math.floor((b[2] - b[5] / 2) / 64), math.floor((b[2] + b[5] / 2) / 64) + 1):
+            cells.setdefault((gx, gz), []).append(k)
+pairs = set()
+for ks in cells.values():
+    for i in range(len(ks)):
+        for j in range(i + 1, len(ks)):
+            a, b = whole[ks[i]], whole[ks[j]]
+            if all(abs(a[q] - b[q]) < (a[q + 3] + b[q + 3]) / 2 - 0.01 for q in range(3)):
+                pairs.add((ks[i], ks[j]))
+print("whole deck + towers:", len(whole), "parts | overlaps:", len(pairs))
+total_bad += len(pairs)
 print("deck parts in 18x18 tiles:", n_tiles_parts, "| overlaps:", total_bad)
 for name, lst in groups.items():
     print(name, [len(b) for b in lst])

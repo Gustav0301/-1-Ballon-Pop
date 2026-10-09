@@ -3,7 +3,7 @@
 The sky changes with your height. Meadow Sky (0–500) is bright blue with puffy stud clouds, petals and pollen.
 From 400 a stud cloud deck closes in above you like a ceiling. At 500 you burst through it (cloud puff ring,
 flash, whoosh). Above it, in Cloud Shelf (500–1,500), the deck is a floor under you, the sky is deeper with a
-golden haze and a bigger sun, small golden cloudlets float past, and tall cloud towers stand far away.
+golden haze and a bigger sun, small golden cloudlets float past, and tall cloud towers grow out of the floor.
 
 Preview (same numbers and the same cloud shapes as the game code): open `index.html`, or
 https://claude.ai/artifact/VhWR3vJboCj4unMUBUoNbh
@@ -19,6 +19,23 @@ https://claude.ai/artifact/VhWR3vJboCj4unMUBUoNbh
 | `CloudModels.rbxmx` | Sample stud clouds (4 puffy clouds, 4 cloudlets, a 4x4 deck patch, a tower) to look at or reuse in ServerStorage. The game does not need it: the controller builds the clouds itself. |
 | `index.html` + `lib/` | The 3D preview with the height slider. |
 | `tools/` | `zones.py` (writes the config + `zones.json`), `clouds.py` (writes `CloudModels.rbxmx` and checks for overlapping parts), `build.py` (builds the preview from `src.html`). Run them inside `tools/`. |
+
+## Sky fix (2026-10-09)
+
+After Gustav's first test the floor looked wrong from above (a flat white sea with a hard edge, too bright, and a
+see-through sheet in the air). To update: replace `ZoneLayerConfig` and `ZoneLayerController` in Studio with the
+two files here. Nothing else changes (same Start call, same SetOverlay and events).
+
+- **No hard edge:** the flat cloud sea is gone. Past `Deck.Radius` the floor goes on as flat slabs out to
+  `Deck.FarRadius` (1,300). They slowly take the haze colour (`FarColor`) and break up near the end, so the floor
+  melts into the horizon. Nothing is see-through.
+- **No glass sheets:** the mist wisps are removed. Drifting clouds now grow in from small and shrink away instead
+  of fading (a half-faded cloud looked like a glass sheet).
+- **Less bright Cloud Shelf:** Brightness 2.8 (was 3.5), Exposure 0, a warmer cream floor.
+- **Cloud towers** now grow out of the deck (each one takes the place of 2x2 or 3x3 deck tiles), 620–940 studs
+  out, so they don't float. Towers keep away from islands.
+
+![sky fix](pictures/sky-fix.png)
 
 ## Hooking it up in Studio
 
@@ -59,8 +76,9 @@ so this has to be joined to what is in Studio:
 
 - Fly up from spawn: blue sky and puffy clouds, petals and pollen near you.
 - From about 400: the cloud ceiling closes in above you.
-- At 500: puff ring, flash, whoosh, CLOUD SHELF banner. Inside the deck the mist goes white for a moment.
-- Above: the clouds are a floor, golden haze, cloud towers far away, mist wisps and golden dust.
+- At 500: puff ring, flash, whoosh, CLOUD SHELF banner. Inside the deck the fog goes white for a moment.
+- Above: the clouds are a floor that fades into the horizon, golden haze, cloud towers far away, golden dust.
+- Nothing in the air should look like a see-through sheet.
 - Fall back down after a pop: the look goes back to Meadow Sky and the ceiling is above you again.
 - Weather still shows on top (rain, fog, golden hour).
 
@@ -70,10 +88,11 @@ so this has to be joined to what is in Studio:
   CastShadow off (a deck at 500 would shadow the whole map). Tops use Gustav's stud picture
   (`rbxassetid://6927295847`); `Studs.On = false` turns it off.
 - No part overlaps another: puffs sit on a grid on their slab and stack touching. `tools/clouds.py` checks a
-  full 18x18-tile deck (3,702 parts): 0 overlaps. Drifting clouds keep 4 studs apart and fade out before they
-  would touch an island.
-- About 2,500 deck parts are near you while you are within 800 studs of the deck. If phones lag: lower
-  `Deck.Radius` (320), the cloud `Count`s, or set `Studs.On = false`.
+  full 18x18-tile deck (3,616 parts) and the whole deck out to 1,300 with the towers (2,813 parts): 0 overlaps.
+  Drifting clouds keep 4 studs apart and shrink away before they would touch an island.
+- About 1,000 near-tile parts plus about 1,000 flat far slabs are there while you are within 800 studs of the
+  deck. If phones lag: lower `Deck.Radius` (320) or `Deck.FarRadius` (1,000), the cloud `Count`s, or set
+  `Studs.On = false`.
 - Checked here: both Luau files compile; the controller ran in a Luau VM with a mock Roblox for a full flight
   0 → 1,300 → 0 (zone changes both ways, punch-through up and down, weather overlay in and out, no errors);
   the cloud shapes are identical in the preview, `clouds.py` and the Luau code.

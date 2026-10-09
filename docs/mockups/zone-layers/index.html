@@ -114,12 +114,12 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,50px);ma
       </div></div>
     <div class="card" style="--zc:#7d8dff;--zc2:#909dff"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Punch-through</span><span class="f">Punch-through</span></span><span class="tagc">400 – 520</span></div>
       <div class="bd">
-        <p>From 400 the cloud deck closes in above you like a ceiling. Inside it the mist goes white. At 500 you burst out with a whoosh, a cloud puff and the zone banner.</p>
+        <p>From 400 the cloud deck closes in above you like a ceiling. Inside it the fog goes white. At 500 you burst out with a whoosh, a cloud puff and the zone banner.</p>
         <ul class="li"><li><b>Deck:</b> 480–520 high, stud cloud tiles, no collision</li><li><b>Holes:</b> about 1 tile in 8 is open sky, and an island that sits in the deck gets a hole around it</li><li><b>Sound:</b> your Launch whoosh, lower pitch</li></ul>
       </div></div>
     <div class="card" style="--zc:#F0A21E;--zc2:#F6B23A"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Cloud Shelf</span><span class="f">Cloud Shelf</span></span><span class="tagc">500 – 1,500</span></div>
       <div class="bd">
-        <p>The deck becomes a floor below you. Deeper blue sky, golden haze, a bigger warmer sun, tall cloud towers far away, mist wisps and golden dust.</p>
+        <p>The deck becomes a floor below you. Deeper blue sky, golden haze, a bigger warmer sun, tall cloud towers far away and golden dust. The cloud floor fades into the sky far out.</p>
         <div class="sw" id="swShelf"></div>
         <ul class="li"><li><b>Clouds:</b> <span id="cShelf"></span> small golden cloudlets, 560–1,450 high</li><li><b>Far:</b> 7 cloud towers, 180–420 tall</li></ul>
       </div></div>
@@ -128,7 +128,7 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,50px);ma
 
 <script src="lib/three.min.js"></script>
 <script>
-const CFG = {"zones":[{"Id":"MeadowSky","Name":"MEADOW SKY","From":0,"To":500,"Sky":{"Brightness":3.0,"ClockTime":13.6,"Exposure":0.0,"Ambient":"7680A0","OutdoorAmbient":"98A6C0","SkyTop":"3FA9F5","Horizon":"D4F0FF","Sun":"FFF6C9","AtmosColor":"D4F0FF","AtmosDecay":"6EAEE8","AtmosDensity":0.2,"AtmosHaze":0.5,"AtmosGlare":0.3,"AtmosOffset":0.2,"Tint":"FFFBF4","Saturation":0.18,"Contrast":0.06,"CCBrightness":0.02,"SunSize":14,"CloudCover":0.52,"CloudDensity":0.45,"CloudColor":"FFFFFF"},"Clouds":{"Kind":"Puffy","Count":24,"MinY":90,"MaxY":430,"Ring":[120,520],"Drift":[3.0,0,0.6],"Top":"FFFFFF","Side":"F2F7FF","Bottom":"BCD0EA"},"Near":{"Petals":1.0,"Pollen":1.0,"Mist":0.0,"Dust":0.0,"PetalColors":["FF8FB8","FFE066","FFFFFF","FFB0D0"]}},{"Id":"CloudShelf","Name":"CLOUD SHELF","From":500,"To":1500,"Sky":{"Brightness":3.5,"ClockTime":14.2,"Exposure":0.05,"Ambient":"8C7E70","OutdoorAmbient":"C0A68C","SkyTop":"1F6FD1","Horizon":"FFD9A0","Sun":"FFE08A","AtmosColor":"FFD9A0","AtmosDecay":"3F7FD6","AtmosDensity":0.24,"AtmosHaze":1.0,"AtmosGlare":0.75,"AtmosOffset":0.12,"Tint":"FFF0DA","Saturation":0.24,"Contrast":0.08,"CCBrightness":0.03,"SunSize":19,"CloudCover":0.25,"CloudDensity":0.3,"CloudColor":"FFF2DC"},"Clouds":{"Kind":"Cloudlets","Count":30,"MinY":560,"MaxY":1450,"Ring":[90,420],"Drift":[1.6,0,0.4],"Top":"FFF4DE","Side":"FFFFFF","Bottom":"E9D7C0"},"Near":{"Petals":0.0,"Pollen":0.0,"Mist":1.0,"Dust":1.0,"PetalColors":[]}}],"deck":{"Y":500,"Thickness":40,"Tile":64,"Radius":448,"ActiveRange":800,"BuildPerFrame":10,"Coverage":0.88,"IslandHole":26,"IslandBand":60,"Top":"FFFFFF","TopGold":"FFF0D2","Side":"F6F9FF","Bottom":"CFDCF0","Seed":7,"SeaY":512,"SeaOuter":2048,"Sea":"FFF8EE"},"towers":{"Count":7,"Distance":[1100,1700],"Height":[180,420],"Width":[90,160]},"blend":{"Below":100,"Above":30},"punch":{"MistDensity":0.62,"FlashBrightness":0.18,"FlashTime":0.5,"Whoosh":"Launch","WhooshPitch":0.75},"studs":{"On":true,"Texture":"rbxassetid://6927295847","Tile":4,"Transparency":0.55},"near":{"Max":40},"islands":{"Folders":["SkyIslands"],"Margin":6}}, GUMBALL = {"pal":{"red":["FF3B3B","P",0],"redDark":["D9232F","P",0],"pink":["FF9A9A","P",0],"white":["FFFFFF","S",0],"silver":["C9CED6","P",0],"silverDark":["8E96A3","P",0]},"knot":[0,-8.0,0],"light":null,"parts":[["B","silverDark",5,1,5,0.0,-6.0,0.0],["B","silver",3,1,3,0.0,-5.0,0.0],["B","redDark",3,1,3,0.0,-4.0,0.0],["B","redDark",3,1,2,0.0,-3.0,-2.5],["B","redDark",1,1,5,-2.0,-3.0,0.0],["B","redDark",1,1,5,2.0,-3.0,0.0],["B","redDark",1,1,3,-3.0,-3.0,0.0],["B","red",3,8,3,0.0,0.5,0.0],["B","redDark",1,1,3,3.0,-3.0,0.0],["B","redDark",3,1,2,0.0,-3.0,2.5],["B","red",5,3,2,0.0,-1.0,-2.5],["B","red",1,4,5,-3.0,-0.5,0.0],["B","red",1,5,5,3.0,0.0,0.0],["B","red",1,5,5,-2.0,0.0,1.0],["B","red",1,5,5,2.0,0.0,1.0],["B","red",3,6,2,0.0,0.5,2.5],["B","red",3,3,1,0.0,0.0,-4.0],["B","red",1,3,1,-3.0,0.0,-3.0],["B","red",1,3,1,3.0,0.0,-3.0],["B","red",1,3,3,-4.0,0.0,0.0],["B","red",1,3,3,4.0,0.0,0.0],["B","red",1,3,1,-3.0,0.0,3.0],["B","red",1,3,1,3.0,0.0,3.0],["B","red",3,3,1,0.0,0.0,4.0],["B","pink",1,1,1,-2.0,1.0,-3.0],["B","red",4,1,2,0.5,1.0,-2.5],["B","red",1,2,1,-2.0,1.5,-2.0],["B","white",2,1,1,-1.5,2.0,-3.0],["B","red",3,1,2,1.0,2.0,-2.5],["B","pink",1,1,1,-3.0,2.0,-2.0],["B","red",1,1,1,-1.0,2.0,-2.0],["B","red",1,1,4,-3.0,2.0,0.5],["B","pink",1,1,2,-1.0,3.0,-2.5],["B","red",2,1,2,0.5,3.0,-2.5],["B","pink",1,1,1,-2.0,3.0,-2.0],["B","red",1,1,5,2.0,3.0,0.0],["B","red",2,1,3,-2.5,3.0,0.0],["B","red",1,1,3,3.0,3.0,0.0],["B","red",1,1,1,-2.0,3.0,2.0],["B","redDark",1.4,0.6,1.4,0,-6.8,0],["W","redDark",1.0,0.9,0.5,0.0,-7.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","redDark",1.0,0.9,0.5,0.0,-7.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]};
+const CFG = {"zones":[{"Id":"MeadowSky","Name":"MEADOW SKY","From":0,"To":500,"Sky":{"Brightness":3.0,"ClockTime":13.6,"Exposure":0.0,"Ambient":"7680A0","OutdoorAmbient":"98A6C0","SkyTop":"3FA9F5","Horizon":"D4F0FF","Sun":"FFF6C9","AtmosColor":"D4F0FF","AtmosDecay":"6EAEE8","AtmosDensity":0.2,"AtmosHaze":0.5,"AtmosGlare":0.3,"AtmosOffset":0.2,"Tint":"FFFBF4","Saturation":0.18,"Contrast":0.06,"CCBrightness":0.02,"SunSize":14,"CloudCover":0.52,"CloudDensity":0.45,"CloudColor":"FFFFFF"},"Clouds":{"Kind":"Puffy","Count":24,"MinY":90,"MaxY":430,"Ring":[120,520],"Drift":[3.0,0,0.6],"Top":"FFFFFF","Side":"F2F7FF","Bottom":"BCD0EA"},"Near":{"Petals":1.0,"Pollen":1.0,"Dust":0.0,"PetalColors":["FF8FB8","FFE066","FFFFFF","FFB0D0"]}},{"Id":"CloudShelf","Name":"CLOUD SHELF","From":500,"To":1500,"Sky":{"Brightness":2.8,"ClockTime":14.2,"Exposure":0.0,"Ambient":"8C7E70","OutdoorAmbient":"C0A68C","SkyTop":"1F6FD1","Horizon":"FFD9A0","Sun":"FFE08A","AtmosColor":"FFD9A0","AtmosDecay":"3F7FD6","AtmosDensity":0.24,"AtmosHaze":1.0,"AtmosGlare":0.75,"AtmosOffset":0.12,"Tint":"FFEED6","Saturation":0.22,"Contrast":0.08,"CCBrightness":0.0,"SunSize":19,"CloudCover":0.25,"CloudDensity":0.3,"CloudColor":"FFF2DC"},"Clouds":{"Kind":"Cloudlets","Count":30,"MinY":560,"MaxY":1450,"Ring":[90,420],"Drift":[1.6,0,0.4],"Top":"FFF4DE","Side":"FFFFFF","Bottom":"E9D7C0"},"Near":{"Petals":0.0,"Pollen":0.0,"Dust":1.0,"PetalColors":[]}}],"deck":{"Y":500,"Thickness":40,"Tile":64,"Radius":448,"ActiveRange":800,"BuildPerFrame":10,"Coverage":0.88,"IslandHole":26,"IslandBand":60,"Top":"FFFAF0","TopGold":"FFE6BE","Side":"F4ECDF","Bottom":"CFDCF0","Seed":7,"FarRadius":1300,"FarBuildPerFrame":40,"FarColor":"F5DDB8","FarBreakUp":0.6,"FarCoverage":0.3},"towers":{"Count":6,"Distance":[620,940],"Tiles":[2,3],"Height":[180,400]},"blend":{"Below":100,"Above":30},"punch":{"MistDensity":0.62,"FlashBrightness":0.18,"FlashTime":0.5,"Whoosh":"Launch","WhooshPitch":0.75},"studs":{"On":true,"Texture":"rbxassetid://6927295847","Tile":4,"Transparency":0.55},"near":{"Max":40},"islands":{"Folders":["SkyIslands"],"Margin":6}}, GUMBALL = {"pal":{"red":["FF3B3B","P",0],"redDark":["D9232F","P",0],"pink":["FF9A9A","P",0],"white":["FFFFFF","S",0],"silver":["C9CED6","P",0],"silverDark":["8E96A3","P",0]},"knot":[0,-8.0,0],"light":null,"parts":[["B","silverDark",5,1,5,0.0,-6.0,0.0],["B","silver",3,1,3,0.0,-5.0,0.0],["B","redDark",3,1,3,0.0,-4.0,0.0],["B","redDark",3,1,2,0.0,-3.0,-2.5],["B","redDark",1,1,5,-2.0,-3.0,0.0],["B","redDark",1,1,5,2.0,-3.0,0.0],["B","redDark",1,1,3,-3.0,-3.0,0.0],["B","red",3,8,3,0.0,0.5,0.0],["B","redDark",1,1,3,3.0,-3.0,0.0],["B","redDark",3,1,2,0.0,-3.0,2.5],["B","red",5,3,2,0.0,-1.0,-2.5],["B","red",1,4,5,-3.0,-0.5,0.0],["B","red",1,5,5,3.0,0.0,0.0],["B","red",1,5,5,-2.0,0.0,1.0],["B","red",1,5,5,2.0,0.0,1.0],["B","red",3,6,2,0.0,0.5,2.5],["B","red",3,3,1,0.0,0.0,-4.0],["B","red",1,3,1,-3.0,0.0,-3.0],["B","red",1,3,1,3.0,0.0,-3.0],["B","red",1,3,3,-4.0,0.0,0.0],["B","red",1,3,3,4.0,0.0,0.0],["B","red",1,3,1,-3.0,0.0,3.0],["B","red",1,3,1,3.0,0.0,3.0],["B","red",3,3,1,0.0,0.0,4.0],["B","pink",1,1,1,-2.0,1.0,-3.0],["B","red",4,1,2,0.5,1.0,-2.5],["B","red",1,2,1,-2.0,1.5,-2.0],["B","white",2,1,1,-1.5,2.0,-3.0],["B","red",3,1,2,1.0,2.0,-2.5],["B","pink",1,1,1,-3.0,2.0,-2.0],["B","red",1,1,1,-1.0,2.0,-2.0],["B","red",1,1,4,-3.0,2.0,0.5],["B","pink",1,1,2,-1.0,3.0,-2.5],["B","red",2,1,2,0.5,3.0,-2.5],["B","pink",1,1,1,-2.0,3.0,-2.0],["B","red",1,1,5,2.0,3.0,0.0],["B","red",2,1,3,-2.5,3.0,0.0],["B","red",1,1,3,3.0,3.0,0.0],["B","red",1,1,1,-2.0,3.0,2.0],["B","redDark",1.4,0.6,1.4,0,-6.8,0],["W","redDark",1.0,0.9,0.5,0.0,-7.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","redDark",1.0,0.9,0.5,0.0,-7.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]};
 const T = THREE, PI = Math.PI;
 const Z0 = CFG.zones[0], Z1 = CFG.zones[1], DECK = CFG.deck;
 
@@ -249,13 +249,22 @@ const shelfClouds = new T.Group(); S.add(shelfClouds);
 
 /* ---------- the cloud deck (a ceiling from below, a floor from above) ---------- */
 // one 64x64 tile: a slab that meets its neighbours edge to edge, stepped puffs on a 2x2 grid on top, bellies under
-function deckTile(ix, iz){
+// towers stand on the deck grid, each one in place of n x n tiles (so nothing overlaps)
+const TOWERS = (function(){ const r = rng(31), tw = CFG.towers, t = DECK.Tile, out = [];
+  for(let i=0;i<tw.Count;i++){ const a = (i/tw.Count)*PI*2 + r()*.5, dist = tw.Distance[0] + r()*(tw.Distance[1]-tw.Distance[0]);
+    const n = tw.Tiles[0] + Math.floor(r()*(tw.Tiles[1]-tw.Tiles[0]+1));
+    const ix0 = Math.floor(Math.cos(a)*dist/t - n/2 + .5), iz0 = Math.floor(Math.sin(a)*dist/t - n/2 + .5);
+    out.push({ix0, iz0, n, x:(ix0 + n/2)*t, z:(iz0 + n/2)*t}); }
+  return out; })();
+const TOWER_TILES = new Set(); TOWERS.forEach(tw => { for(let a=0;a<tw.n;a++) for(let b=0;b<tw.n;b++) TOWER_TILES.add((tw.ix0+a)+','+(tw.iz0+b)); });
+function deckTile(ix, iz, far){
   const r = rng(tileSeed(ix, iz)), t = DECK.Tile, out = [];
   const cx = (ix + .5)*t, cz = (iz + .5)*t;
-  if(r() > DECK.Coverage) return out;
+  if(r() > DECK.Coverage || TOWER_TILES.has(ix+','+iz)) return out;
   for(const I of ISLANDS){ if(Math.abs(I[2] - DECK.Y) < DECK.Thickness/2 + DECK.IslandBand && Math.hypot(cx - I[1], cz - I[3]) < I[4] + DECK.IslandHole) return out; }
   const thick = DECK.Thickness*(.6 + r()*.2), sy = DECK.Y + (r() - .5)*6, c = t/2;
   out.push([cx, sy, cz, t, thick, t, DECK.Side]);
+  if(far) return out;
   for(let i=0;i<2;i++) for(let j=0;j<2;j++){ if(r() > .75) continue;
     const pw = 14 + r()*16, pd = 14 + r()*16, h = 6 + r()*10, layers = 2 + Math.floor(r()*2), gold = r() < .3;
     const px = cx - c/2 + c*i + (c - pw)/2*(r()*2 - 1), pz = cz - c/2 + c*j + (c - pd)/2*(r()*2 - 1);
@@ -266,18 +275,29 @@ function deckTile(ix, iz){
     dome(out, px, sy - thick/2, pz, pw, pd, h, 2, -1, () => DECK.Bottom); }
   return out;
 }
-(function(){ const n = Math.round(DECK.Radius/DECK.Tile), list = [];
-  for(let ix=-n; ix<n; ix++) for(let iz=-n; iz<n; iz++) list.push(...deckTile(ix, iz));
-  // the flat cloud sea beyond the tiles, out to the horizon (a frame of thin slabs)
-  const R0 = n*DECK.Tile, R1 = 4600, mid = (R0 + R1)/2, len = R1 - R0;
-  list.push([0, DECK.SeaY, mid, R1*2, 2, len, DECK.Sea], [0, DECK.SeaY, -mid, R1*2, 2, len, DECK.Sea], [mid, DECK.SeaY, 0, len, 2, R0*2, DECK.Sea], [-mid, DECK.SeaY, 0, len, 2, R0*2, DECK.Sea]);
-  S.add(boxSet(list, .18)); })();
+(function(){ const t = DECK.Tile, nf = Math.ceil(DECK.FarRadius/t), list = [], STEPS = 12;
+  const buckets = Array.from({length:STEPS}, () => []);
+  for(let ix=-nf; ix<=nf; ix++) for(let iz=-nf; iz<=nf; iz++){ const d = Math.hypot(ix, iz)*t; if(d > DECK.FarRadius) continue;
+    if(d <= DECK.Radius){ list.push(...deckTile(ix, iz, false)); continue; }
+    // the far floor: flat slabs that turn warmer, break up and fade out (same rule as farLook in the controller)
+    const b = deckTile(ix, iz, true); if(!b.length) continue;
+    const k = Math.min(1, (d - DECK.Radius)/(DECK.FarRadius - DECK.Radius)), hv = rng(tileSeed(ix, iz) + 13)();
+    const brk = Math.max(0, Math.min(1, (k - DECK.FarBreakUp)/(1 - DECK.FarBreakUp)));
+    if(hv > 1 - brk*(1 - DECK.FarCoverage)) continue;
+    buckets[Math.min(STEPS-1, Math.floor(smooth(k)*STEPS))].push(b[0]); }
+  S.add(boxSet(list, .18));
+  const d3 = new T.Object3D();
+  buckets.forEach(function(arr, i){ if(!arr.length) return; const c = new T.Color('#'+DECK.Side).lerp(new T.Color('#'+DECK.FarColor), (i + .5)/STEPS);
+    const im = new T.InstancedMesh(BOX, new T.MeshLambertMaterial({color:c, emissive:c.clone().multiplyScalar(.18)}), arr.length);
+    arr.forEach((b, j) => { d3.position.set(b[0],b[1],b[2]); d3.scale.set(b[3],b[4],b[5]); d3.updateMatrix(); im.setMatrixAt(j, d3.matrix); });
+    im.frustumCulled = false; S.add(im); });
+})();
 
-/* ---------- cloud towers far away (Cloud Shelf "far" layer) ---------- */
-(function(){ const r = rng(31), tw = CFG.towers, list = [];
-  for(let i=0;i<tw.Count;i++){ const a = (i/tw.Count)*PI*2 + r()*.5, dist = tw.Distance[0] + r()*(tw.Distance[1]-tw.Distance[0]);
-    const H = tw.Height[0] + r()*(tw.Height[1]-tw.Height[0]), W = tw.Width[0] + r()*(tw.Width[1]-tw.Width[0]);
-    const x = Math.cos(a)*dist, z = Math.sin(a)*dist; let y = DECK.SeaY + 1, w = W;
+/* ---------- cloud towers far away: they grow out of the deck (Cloud Shelf "far" layer) ---------- */
+(function(){ const tw = CFG.towers, list = [];
+  TOWERS.forEach(function(T0, idx){ const r = rng(31 + (idx + 1)*977);
+    const H = tw.Height[0] + r()*(tw.Height[1]-tw.Height[0]), W = T0.n*DECK.Tile;
+    const x = T0.x, z = T0.z; let y = DECK.Y - DECK.Thickness*.4, w = W;
     const steps = 5 + Math.floor(r()*3);
     for(let k=0;k<steps;k++){ const h = H/steps*(1.1 - k*.05);
       list.push([x, y + h/2, z, w, h, w, k===steps-1 ? DECK.TopGold : (k%2 ? DECK.Top : DECK.Side)]);
@@ -285,7 +305,7 @@ function deckTile(ix, iz){
       if(k < steps-1) for(const sx of [-1,1]) for(const sz of [-1,1]){ if(r() < .4) continue; const bw = w*.08, bh = h*(.15 + r()*.2);
         list.push([x + sx*(w/2 - bw/2), y + h + bh/2, z + sz*(w/2 - bw/2), bw, bh, bw, DECK.Top]); }
       y += h; w *= .8; }
-  } S.add(boxSet(list, .1)); })();
+  }); S.add(boxSet(list, .1)); })();
 
 /* ---------- you: a blocky player holding the Gumball ---------- */
 const player = new T.Group(); S.add(player);
@@ -300,29 +320,27 @@ const player = new T.Group(); S.add(player);
   const s = new T.Mesh(BOX, new T.MeshStandardMaterial({color:0xf4f6ff})); s.scale.set(.08, 5.2, .08); s.position.set(1.5, 6.2, .5); player.add(s);
   player.userData.balloon = B; })();
 
-/* ---------- near bits: petals, pollen, mist wisps, golden dust ---------- */
+/* ---------- near bits: petals, pollen, golden dust ---------- */
 const near = [];
-const petalGeo = new T.BoxGeometry(.7,.12,.5), dustGeo = new T.BoxGeometry(.35,.35,.35), mistGeo = new T.PlaneGeometry(14,5);
+const petalGeo = new T.BoxGeometry(.7,.12,.5), dustGeo = new T.BoxGeometry(.35,.35,.35);
 function spawnNear(kind){
   let m;
   if(kind==='petal'){ const pc = Z0.Near.PetalColors; m = new T.Mesh(petalGeo, new T.MeshStandardMaterial({color:new T.Color('#'+pc[Math.floor(Math.random()*pc.length)]), roughness:.6})); }
   else if(kind==='pollen'){ m = new T.Mesh(dustGeo, new T.MeshBasicMaterial({color:0xfff07a})); m.scale.setScalar(.6); }
-  else if(kind==='dust'){ m = new T.Mesh(dustGeo, new T.MeshBasicMaterial({color:0xffd66b, transparent:true})); }
-  else { m = new T.Mesh(mistGeo, new T.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.0, depthWrite:false, side:T.DoubleSide})); }
+  else { m = new T.Mesh(dustGeo, new T.MeshBasicMaterial({color:0xffd66b, transparent:true})); }
   const a = Math.random()*PI*2, d = 6 + Math.random()*34;
   m.position.set(player.position.x + Math.cos(a)*d, player.position.y - 20 + Math.random()*10, player.position.z + Math.sin(a)*d);
   m.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
-  S.add(m); near.push({m, kind, age:0, life: kind==='mist' ? 5 : 7, v:new T.Vector3((Math.random()-.3)*2, 6 + Math.random()*5, (Math.random()-.5)*2), spin:(Math.random()-.5)*4});
+  S.add(m); near.push({m, kind, age:0, life: 7, v:new T.Vector3((Math.random()-.3)*2, 6 + Math.random()*5, (Math.random()-.5)*2), spin:(Math.random()-.5)*4});
 }
 function stepNear(dt, h, climb){
   const k = blendK(h);
-  const rates = {petal: (1-k)*Z0.Near.Petals*4, pollen:(1-k)*Z0.Near.Pollen*5, mist:k*Z1.Near.Mist*1.2 + mistK(h)*6, dust:k*Z1.Near.Dust*6};
+  const rates = {petal: (1-k)*Z0.Near.Petals*4, pollen:(1-k)*Z0.Near.Pollen*5, dust:k*Z1.Near.Dust*6};
   for(const kind in rates){ let n = rates[kind]*dt; while(Math.random() < n){ spawnNear(kind); n -= 1; } }
   for(let i=near.length-1;i>=0;i--){ const p = near[i]; p.age += dt; const f = p.age/p.life;
     if(f>=1){ S.remove(p.m); near.splice(i,1); continue; }
     p.m.position.addScaledVector(p.v, dt); p.m.position.y -= climb*dt*.85; // you rise past them
     if(p.kind==='petal'){ p.m.rotation.x += p.spin*dt; p.m.rotation.z += p.spin*.7*dt; }
-    if(p.kind==='mist'){ p.m.lookAt(cam.position); p.m.material.opacity = Math.sin(f*PI)*.35; }
     if(p.kind==='dust'){ p.m.material.opacity = Math.sin(f*PI)*(.6+.4*Math.sin(p.age*9)); }
   }
 }

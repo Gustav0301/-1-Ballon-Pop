@@ -10,35 +10,36 @@ ZONES = [
                   CloudCover=0.52, CloudDensity=0.45, CloudColor="FFFFFF"),
          Clouds=dict(Kind="Puffy", Count=24, MinY=90, MaxY=430, Ring=[120, 520], Drift=[3.0, 0, 0.6],
                      Top="FFFFFF", Side="F2F7FF", Bottom="BCD0EA"),
-         Near=dict(Petals=1.0, Pollen=1.0, Mist=0.0, Dust=0.0,
+         Near=dict(Petals=1.0, Pollen=1.0, Dust=0.0,
                    PetalColors=["FF8FB8", "FFE066", "FFFFFF", "FFB0D0"]),
          ),
     dict(Id="CloudShelf", Name="CLOUD SHELF", From=500, To=1500,
-         Sky=dict(Brightness=3.5, ClockTime=14.2, Exposure=0.05, Ambient="8C7E70", OutdoorAmbient="C0A68C",
+         Sky=dict(Brightness=2.8, ClockTime=14.2, Exposure=0.0, Ambient="8C7E70", OutdoorAmbient="C0A68C",
                   SkyTop="1F6FD1", Horizon="FFD9A0", Sun="FFE08A",
                   AtmosColor="FFD9A0", AtmosDecay="3F7FD6", AtmosDensity=0.24, AtmosHaze=1.0, AtmosGlare=0.75, AtmosOffset=0.12,
-                  Tint="FFF0DA", Saturation=0.24, Contrast=0.08, CCBrightness=0.03, SunSize=19,
+                  Tint="FFEED6", Saturation=0.22, Contrast=0.08, CCBrightness=0.0, SunSize=19,
                   CloudCover=0.25, CloudDensity=0.3, CloudColor="FFF2DC"),
          Clouds=dict(Kind="Cloudlets", Count=30, MinY=560, MaxY=1450, Ring=[90, 420], Drift=[1.6, 0, 0.4],
                      Top="FFF4DE", Side="FFFFFF", Bottom="E9D7C0"),
-         Near=dict(Petals=0.0, Pollen=0.0, Mist=1.0, Dust=1.0, PetalColors=[]),
+         Near=dict(Petals=0.0, Pollen=0.0, Dust=1.0, PetalColors=[]),
          ),
 ]
 
 # the cloud deck between the two zones: a ceiling from below, a floor from above
 DECK = dict(Y=500, Thickness=40, Tile=64, Radius=448, ActiveRange=800, BuildPerFrame=10, Coverage=0.88, IslandHole=26, IslandBand=60,
-            Top="FFFFFF", TopGold="FFF0D2", Side="F6F9FF", Bottom="CFDCF0", Seed=7,
-            # flat cloud sea beyond the tiles, out to the horizon (a frame of thin parts, max part size 2048)
-            SeaY=512, SeaOuter=2048, Sea="FFF8EE")
-# tall cloud towers standing on the deck, far away (Cloud Shelf "far" layer)
-TOWERS = dict(Count=7, Distance=[1100, 1700], Height=[180, 420], Width=[90, 160])
+            Top="FFFAF0", TopGold="FFE6BE", Side="F4ECDF", Bottom="CFDCF0", Seed=7,
+            # past Radius the floor goes on as flat slabs out to FarRadius. They take on the haze colour and break up
+            # near the end (from FarBreakUp of the way out, down to FarCoverage), so there is no hard edge. Never see-through.
+            FarRadius=1300, FarBuildPerFrame=40, FarColor="F5DDB8", FarBreakUp=0.6, FarCoverage=0.3)
+# tall cloud towers that grow out of the deck (each takes the place of Tiles x Tiles deck tiles)
+TOWERS = dict(Count=6, Distance=[620, 940], Tiles=[2, 3], Height=[180, 400])
 # how values blend at a zone boundary: starts BlendBelow studs under it, done BlendAbove over it
 BLEND = dict(Below=100, Above=30)
-# the punch-through: inside the deck the mist closes in, then it opens up
+# the punch-through: inside the deck the fog closes in, then it opens up
 PUNCH = dict(MistDensity=0.62, FlashBrightness=0.18, FlashTime=0.5, Whoosh="Launch", WhooshPitch=0.75)
 # stud texture on the tops of clouds (Gustav's stud picture); set On=False to turn off
 STUDS = dict(On=True, Texture="rbxassetid://6927295847", Tile=4, Transparency=0.55)
-# how many near bits (petals, pollen, mist, dust) can exist at once
+# how many near bits (petals, pollen, golden dust) can exist at once
 NEAR = dict(Max=40)
 # workspace folders with island models (holes in the deck, clouds keep away); IslandConfig is the fallback
 ISLANDS = dict(Folders=["SkyIslands"], Margin=6)
