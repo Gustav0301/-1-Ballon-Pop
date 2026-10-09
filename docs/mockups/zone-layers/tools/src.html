@@ -1,0 +1,423 @@
+<title>Sky Zone Layers Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700&display=swap">
+<style>
+/* Layout: a tall 3D stage with a height slider on its right edge, a zone ribbon under it, then three shop-style cards */
+:root{
+  --bg:#d9eeff; --panel:#ffffff; --ink:#1a0e22; --muted:#4d5b78; --line:#1a0e22; --chip:#f3f7ff;
+  --meadow:#3DBE4A; --shelf:#F0A21E; --gold:#ffc530;
+  --font-d:'Fredoka',"Arial Rounded MT Bold",system-ui,sans-serif; --font-b:'Nunito',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121829; --panel:#1d2540; --ink:#f2f6ff; --muted:#a9b6d3; --line:#06040c; --chip:#26304f; color-scheme:dark;}}
+:root[data-theme="dark"]{--bg:#121829; --panel:#1d2540; --ink:#f2f6ff; --muted:#a9b6d3; --line:#06040c; --chip:#26304f; color-scheme:dark;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b)}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:22px 40px;display:flex;flex-direction:column;gap:16px}
+.st{position:relative;display:inline-block}
+.st .s{position:absolute;left:0;right:0;top:0;color:transparent;-webkit-text-stroke:var(--sw,9px) #1a0e22;text-shadow:0 5px 0 rgba(10,4,20,.35);pointer-events:none}
+.st .f{position:relative;background:var(--g,linear-gradient(#ffffff 0%,#fff3a0 55%,#ffc530 100%));-webkit-background-clip:text;background-clip:text;color:transparent}
+header{display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
+h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,50px);margin:0;letter-spacing:.5px;line-height:1.12;text-wrap:balance}
+.sub{color:var(--muted);font-size:15px;max-width:62ch;margin:0;line-height:1.45}
+
+.stagewrap{display:grid;grid-template-columns:minmax(0,1fr) 74px;gap:12px}
+.stage{position:relative;aspect-ratio:16/10;border:4px solid var(--line);border-radius:22px;overflow:hidden;background:#8fd3ff;box-shadow:0 8px 0 rgba(10,4,20,.28)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.zone{position:absolute;left:12px;top:12px;font-family:var(--font-d);font-size:15px;letter-spacing:.8px;color:#fff;background:#1a0e22b0;border-radius:11px;padding:5px 11px;pointer-events:none}
+.zone b{font-weight:600}
+.hgt{position:absolute;right:12px;top:12px;font-family:var(--font-d);font-size:15px;color:#fff;background:#1a0e22b0;border-radius:11px;padding:5px 11px;font-variant-numeric:tabular-nums;pointer-events:none}
+.banner{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);pointer-events:none;font-family:var(--font-d);font-weight:700;
+  font-size:clamp(28px,6vw,58px);white-space:nowrap;letter-spacing:1px;--sw:10px;opacity:0;text-align:center}
+.banner small{display:block;font-size:.34em;letter-spacing:2px;margin-top:2px}
+.banner .s small{-webkit-text-stroke-width:5px}
+.banner.go{animation:ban 2.4s ease-out forwards}
+@keyframes ban{0%{opacity:0;transform:translate(-50%,-40%) scale(.6)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}22%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+
+/* height slider styled like a stud tower */
+.meter{position:relative;border:4px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(#1f6fd1 0%,#ffd9a0 62%,#d4f0ff 66.7%,#3fa9f5 100%)}
+.meter .band{position:absolute;left:0;right:0;font-family:var(--font-d);font-size:11px;color:#fff;text-align:center;letter-spacing:.5px;
+  -webkit-text-stroke:3px #1a0e22;paint-order:stroke fill;pointer-events:none}
+.meter .deck{position:absolute;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,#fff 0 8px,#e9eef7 8px 16px);border-block:2px solid #1a0e22;pointer-events:none}
+.meter input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;writing-mode:vertical-lr;direction:rtl;margin:0}
+.knob{position:absolute;left:4px;right:4px;height:30px;margin-top:-15px;border:3px solid #1a0e22;border-bottom-width:5px;border-radius:10px;
+  background:linear-gradient(#ff8a92,#ff3f4f 55%,#d9232f);display:grid;place-items:center;font-family:var(--font-d);font-size:12px;color:#fff;pointer-events:none;
+  text-shadow:0 2px 0 #7a1020;font-variant-numeric:tabular-nums}
+.meter input:focus-visible ~ .knob{outline:3px solid var(--gold);outline-offset:2px}
+
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center}
+.btn{font-family:var(--font-d);font-weight:600;font-size:16px;border:3px solid var(--line);border-bottom-width:6px;border-radius:13px;
+  background:var(--panel);color:var(--ink);padding:6px 13px;cursor:pointer;transition:transform .06s}
+.btn:active{transform:translateY(2px);border-bottom-width:4px}
+.btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btn.big{font-size:19px;padding:8px 18px;color:#fff;text-shadow:0 2px 0 #7a1020;background:linear-gradient(#ff8a92,#ff3f4f 55%,#d9232f)}
+.btn.on{background:linear-gradient(#7dffa0,#2fcf5a 55%,#16a63e);color:#fff;text-shadow:0 2px 0 #0a4a1c}
+.btn.sm{font-size:14px;padding:4px 10px;border-bottom-width:5px}
+
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.cards{grid-template-columns:1fr}}
+.card{border:4px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 8px 0 rgba(10,4,20,.28);background:var(--zc);display:flex;flex-direction:column;min-width:0}
+.card .hd{padding:10px 14px;background:repeating-linear-gradient(135deg,var(--zc2) 0 16px,var(--zc) 16px 32px);border-bottom:4px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card .hd .st{font-family:var(--font-d);font-weight:600;font-size:24px;line-height:1.1;--g:linear-gradient(#fff,#fff);--sw:8px}
+.tagc{font-family:var(--font-d);font-size:12px;letter-spacing:.6px;border:3px solid #1a0e22;border-radius:9px;padding:2px 8px;background:#fff;color:#1a0e22;white-space:nowrap}
+.card .bd{background:var(--panel);margin:10px;border:3px solid var(--line);border-radius:16px;padding:12px 13px;display:flex;flex-direction:column;gap:9px;flex:1}
+.card p{margin:0;font-size:14.5px;line-height:1.45}
+.sw{display:flex;flex-wrap:wrap;gap:6px}
+.sw span{display:flex;align-items:center;gap:5px;font-family:var(--font-d);font-size:12px;border:3px solid var(--line);border-radius:9px;padding:2px 7px 2px 3px;background:var(--chip)}
+.sw i{width:16px;height:16px;border-radius:5px;border:2px solid #1a0e22;display:inline-block}
+.li{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;font-size:13.5px;line-height:1.35}
+.li b{font-family:var(--font-d);font-weight:600}
+@media (max-width:560px){.meter .band{font-size:9px;-webkit-text-stroke-width:2.5px}.stagewrap{grid-template-columns:minmax(0,1fr) 54px}.stage{aspect-ratio:3/4}.hgt{font-size:13px}.zone{font-size:13px}}
+@media (prefers-reduced-motion: reduce){.banner.go{animation-duration:.01s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span class="st"><span class="s" aria-hidden="true">Sky Layers</span><span class="f">Sky Layers</span></span></h1>
+    <p class="sub">Drag the height bar or press Fly up. The sky blends as you climb, a cloud ceiling closes in from 400, and at 500 you punch through into the golden Cloud Shelf.</p>
+  </header>
+
+  <div class="stagewrap">
+    <div class="stage" id="stage">
+      <div class="zone" id="zone"><b>MEADOW SKY</b></div>
+      <div class="hgt" id="hgt">HEIGHT 0</div>
+      <div class="banner st" id="banner"><span class="s" aria-hidden="true"></span><span class="f"></span></div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <div class="meter" id="meter">
+      <div class="band" style="top:12%">CLOUD<br>SHELF</div>
+      <div class="deck" style="top:66.67%"></div>
+      <div class="band" style="top:80%">MEADOW<br>SKY</div>
+      <input type="range" id="h" min="0" max="1500" step="1" value="40" aria-label="Height in studs">
+      <div class="knob" id="knob">40</div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <button class="btn big" id="fly" type="button">Fly up!</button>
+    <button class="btn sm" data-jump="60" type="button">Ground</button>
+    <button class="btn sm" data-jump="300" type="button">300</button>
+    <button class="btn sm" data-jump="455" type="button">Under the ceiling</button>
+    <button class="btn sm" data-jump="560" type="button">Just above</button>
+    <button class="btn sm" data-jump="1100" type="button">1,100</button>
+    <button class="btn sm" id="snd" type="button">Sound: off</button>
+  </div>
+
+  <div class="cards">
+    <div class="card" style="--zc:#3DBE4A;--zc2:#52CC5E"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Meadow Sky</span><span class="f">Meadow Sky</span></span><span class="tagc">0 – 500</span></div>
+      <div class="bd">
+        <p>Bright happy blue. Puffy stud clouds with blue-grey bottoms drift east. Petals and pollen float up past you. The start map shrinks below.</p>
+        <div class="sw" id="swMeadow"></div>
+        <ul class="li"><li><b>Clouds:</b> <span id="cMeadow"></span> puffy stud clouds, 90–430 high</li><li><b>Near:</b> pink, yellow and white petals, pollen</li></ul>
+      </div></div>
+    <div class="card" style="--zc:#7d8dff;--zc2:#909dff"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Punch-through</span><span class="f">Punch-through</span></span><span class="tagc">400 – 520</span></div>
+      <div class="bd">
+        <p>From 400 the cloud deck closes in above you like a ceiling. Inside it the mist goes white. At 500 you burst out with a whoosh, a cloud puff and the zone banner.</p>
+        <ul class="li"><li><b>Deck:</b> 480–520 high, stud cloud tiles, no collision</li><li><b>Holes:</b> about 1 tile in 8 is open sky, and an island that sits in the deck gets a hole around it</li><li><b>Sound:</b> your Launch whoosh, lower pitch</li></ul>
+      </div></div>
+    <div class="card" style="--zc:#F0A21E;--zc2:#F6B23A"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Cloud Shelf</span><span class="f">Cloud Shelf</span></span><span class="tagc">500 – 1,500</span></div>
+      <div class="bd">
+        <p>The deck becomes a floor below you. Deeper blue sky, golden haze, a bigger warmer sun, tall cloud towers far away, mist wisps and golden dust.</p>
+        <div class="sw" id="swShelf"></div>
+        <ul class="li"><li><b>Clouds:</b> <span id="cShelf"></span> small golden cloudlets, 560–1,450 high</li><li><b>Far:</b> 7 cloud towers, 180–420 tall</li></ul>
+      </div></div>
+  </div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script>
+const CFG = __CFG__, GUMBALL = __GUMBALL__;
+const T = THREE, PI = Math.PI;
+const Z0 = CFG.zones[0], Z1 = CFG.zones[1], DECK = CFG.deck;
+
+/* ---------- swatches ---------- */
+function swatches(id, z){ const el = document.getElementById(id);
+  [['Sky top',z.Sky.SkyTop],['Horizon',z.Sky.Horizon],['Sun',z.Sky.Sun],['Haze',z.Sky.AtmosColor]].forEach(function(s){
+    const sp = document.createElement('span'); sp.innerHTML = '<i style="background:#'+s[1]+'"></i>'+s[0]+' #'+s[1]; el.appendChild(sp); }); }
+swatches('swMeadow', Z0); swatches('swShelf', Z1);
+document.getElementById('cMeadow').textContent = Z0.Clouds.Count; document.getElementById('cShelf').textContent = Z1.Clouds.Count;
+
+/* ---------- seeded random (Park-Miller, same as the Luau code) ---------- */
+function rng(seed){ let s = ((Math.floor(seed) % 2147483646) + 2147483646) % 2147483646 + 1; return function(){ s = (s*16807) % 2147483647; return (s-1)/2147483646; }; }
+function tileSeed(ix, iz){ return ix*7349 + iz*9157 + DECK.Seed*101; }
+
+/* ---------- blending by height (same math as ZoneLayerController) ---------- */
+const col = h => new T.Color('#'+h);
+function smooth(a){ a = Math.max(0, Math.min(1, a)); return a*a*(3-2*a); }
+function blendK(h){ return smooth((h - (Z0.To - CFG.blend.Below)) / (CFG.blend.Below + CFG.blend.Above)); }
+function mistK(h){ const half = DECK.Thickness/2, d = Math.abs(h - DECK.Y); return 1 - Math.max(0, Math.min(1, (d - half*.4)/(half*1.6))); }
+
+/* ---------- renderer ---------- */
+const stage = document.getElementById('stage');
+const R = new T.WebGLRenderer({antialias:true});
+R.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+stage.insertBefore(R.domElement, stage.firstChild);
+const S = new T.Scene();
+S.fog = new T.Fog(0xd4f0ff, 300, 2400);
+const cam = new T.PerspectiveCamera(50, 16/10, 1, 9000);
+const hemi = new T.HemisphereLight(0xffffff, 0x8aa0c8, .62); S.add(hemi);
+const sun = new T.DirectionalLight(0xfff2dc, .85); S.add(sun);
+const fill = new T.DirectionalLight(0xbfe0ff, .2); fill.position.set(1, .3, 1); S.add(fill);
+const SUN_DIR = new T.Vector3(-.45, .62, -.64).normalize();
+sun.position.copy(SUN_DIR).multiplyScalar(100);
+
+/* sky dome: top colour, horizon colour and a sun glow */
+const skyU = {top:{value:col(Z0.Sky.SkyTop)}, hor:{value:col(Z0.Sky.Horizon)}, sunc:{value:col(Z0.Sky.Sun)}, sdir:{value:SUN_DIR}, ssize:{value:14}, glare:{value:.3}, mist:{value:0}, mistc:{value:new T.Color(1,1,1)}};
+const skyM = new T.ShaderMaterial({uniforms:skyU, side:T.BackSide, depthWrite:false, fog:false,
+  vertexShader:'varying vec3 vd; void main(){ vd = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+  fragmentShader:'uniform vec3 top,hor,sunc,sdir,mistc; uniform float ssize,glare,mist; varying vec3 vd;'+
+  'void main(){ float h = clamp(vd.y,-1.,1.); vec3 c = mix(hor, top, pow(max(h,0.),.55)); if(h<0.) c = mix(hor, hor*.92, min(1.,-h*3.));'+
+  ' float sd = dot(normalize(vd), sdir); float disc = smoothstep(1.-ssize*.00012, 1.-ssize*.00008, sd); float glow = pow(max(sd,0.), 24.)*glare;'+
+  ' c = c + sunc*glow*.6; c = mix(c, vec3(1.,1.,.96), disc); gl_FragColor = vec4(mix(c, mistc, mist),1.); }'});
+const skyDome = new T.Mesh(new T.SphereGeometry(6000, 32, 16), skyM); S.add(skyDome);
+
+/* ---------- instanced boxes: one mesh per colour group ---------- */
+const BOX = new T.BoxGeometry(1,1,1);
+function boxSet(list, glow){ // list of [x,y,z,sx,sy,sz,hex]; glow keeps cloud whites bright
+  const g = new T.Group(); const byC = new Map();
+  list.forEach(b => { if(!byC.has(b[6])) byC.set(b[6], []); byC.get(b[6]).push(b); });
+  const d = new T.Object3D();
+  byC.forEach(function(arr, hex){ const im = new T.InstancedMesh(BOX, glow ? new T.MeshLambertMaterial({color:new T.Color('#'+hex), emissive:new T.Color('#'+hex).multiplyScalar(hex === DECK.Bottom || hex === Z0.Clouds.Bottom ? glow + .25 : glow)}) : new T.MeshStandardMaterial({color:new T.Color('#'+hex), roughness:.9}), arr.length);
+    arr.forEach((b,i) => { d.position.set(b[0],b[1],b[2]); d.scale.set(b[3],b[4],b[5]); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); im.frustumCulled = false; g.add(im); });
+  return g;
+}
+
+/* ---------- the start map below: stud grass, the mountain ring, the arch ---------- */
+function studTex(base, light, dark){ const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = base; x.fillRect(0,0,64,64); x.fillStyle = dark; x.beginPath(); x.arc(33,35,15,0,PI*2); x.fill();
+  x.fillStyle = light; x.beginPath(); x.arc(31,31,15,0,PI*2); x.fill(); x.fillStyle = base; x.beginPath(); x.arc(32,32,12,0,PI*2); x.fill();
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t; }
+(function(){
+  const gt = studTex('#5cc93a','#86e35e','#3f9a26'); gt.repeat.set(220,220);
+  const ground = new T.Mesh(new T.PlaneGeometry(1760,1760), new T.MeshStandardMaterial({map:gt, roughness:.8})); ground.rotation.x = -PI/2; S.add(ground);
+  const far = new T.Mesh(new T.PlaneGeometry(9000,9000), new T.MeshStandardMaterial({color:0x4aa83a, roughness:1})); far.rotation.x = -PI/2; far.position.y = -.5; S.add(far);
+  const list = [];
+  // stepped mountain ring with snow tops
+  for(let i=0;i<46;i++){ const a = i/46*PI*2, r = 760 + (i*37%5)*14, h = 90 + (i*53%7)*24;
+    const x = Math.cos(a)*r, z = Math.sin(a)*r;
+    for(let k=0;k<4;k++){ const w = 120 - k*26, hh = h*(.36 - k*.06); const y = h*(k*.27) + hh/2;
+      list.push([x, y, z, w, hh, w, k===3 ? 'F4F8FF' : (k===2 ? '5E9C7A' : '4F8E6C')]); } }
+  // festival plaza, stalls and the golden arch at the start
+  list.push([0,1,0,90,2,90,'E9D9B8']);
+  [[-34,-30,'FF5D6C'],[34,-30,'3FA9F5'],[-34,30,'FFC530'],[34,30,'7D6BFF']].forEach(s => { list.push([s[0],6,s[1],16,12,12,'FFFFFF']); list.push([s[0],14,s[1],18,4,14,s[2]]); });
+  list.push([-24,22,-70,6,44,6,'FFC530']); list.push([24,22,-70,6,44,6,'FFC530']); list.push([0,46,-70,54,6,6,'FFC530']); list.push([0,52,-70,30,6,6,'FF9A1E']);
+  S.add(boxSet(list));
+})();
+
+/* ---------- sky islands (heights from IslandConfig) ---------- */
+const ISLANDS = [['Meadow Rest',-70,150,-56,30],['Windmill Hill',72,350,-48,32],['Rainbow Shelf',-66,560,62,34],['Summit Cloud',70,1100,62,36]];
+(function(){ const list = [];
+  ISLANDS.forEach(function(I){ const [n,x,y,z,r] = I;
+    list.push([x,y-1,z,r*2,2,r*2,'5CC93A']); list.push([x,y-4,z,r*2-1,4,r*2-1,'9A6334']);
+    list.push([x,y-10,z,r*1.5,8,r*1.5,'7B7B86']); list.push([x,y-17,z,r*.9,6,r*.9,'6E6E78']); list.push([x,y-22,z,r*.4,4,r*.4,'6E6E78']);
+    list.push([x,y+.4,z+4,16,.8,16,'FFC530']); // landing pad
+    for(let k=0;k<3;k++){ const tx = x + Math.cos(k*2.1)*r*.6, tz = z + Math.sin(k*2.1)*r*.6; list.push([tx,y+4,tz,2,8,2,'6B4226']); list.push([tx,y+10,tz,9,7,9,'3E9E2F']); list.push([tx,y+14,tz,6,4,6,'52B83C']); }
+  }); S.add(boxSet(list)); })();
+
+/* ---------- stud clouds (same generators as ZoneLayerController; parts touch, never overlap) ---------- */
+// a stepped dome: layers stacked up (dir 1) or down (dir -1) from baseY, each one smaller
+function dome(out, cx, baseY, cz, w, d, h, layers, dir, colOf){
+  const lh = h/layers; let y = baseY;
+  for(let i=0;i<layers;i++){ const k = 1 - i*.26; out.push([cx, y + dir*lh/2, cz, w*k, lh, d*k, colOf(i, layers)]); y += dir*lh; }
+}
+// a puffy cloud: a flat slab, a grid of stepped puffs on top, a darker belly under it
+function cloudBoxes(r, cx, cy, cz, size, c){
+  const out = [], w = size*(1.2 + r()*.6), d = size*(.7 + r()*.3), hb = size*.2;
+  out.push([cx, cy, cz, w, hb, d, c.Side]);
+  const nx = 2 + (r() < .5 ? 1 : 0), nz = d > size*.85 ? 2 : 1, cw = w/nx, cd = d/nz;
+  for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){ if(r() > .85) continue;
+    const pw = cw*(.7 + r()*.3), pd = cd*(.7 + r()*.3), ph = size*(.25 + r()*.35), layers = 2 + Math.floor(r()*2);
+    const px = cx - w/2 + cw*(i + .5) + (cw - pw)/2*(r()*2 - 1), pz = cz - d/2 + cd*(j + .5) + (cd - pd)/2*(r()*2 - 1);
+    dome(out, px, cy + hb/2, pz, pw, pd, ph, layers, 1, () => c.Top); }
+  out.push([cx, cy - hb/2 - size*.05, cz, w*.82, size*.1, d*.8, c.Bottom]);
+  return out;
+}
+// Meadow Sky: puffy clouds placed around the start, drifting east
+const meadowClouds = new T.Group(); S.add(meadowClouds);
+(function(){ const r = rng(11), c = Z0.Clouds, list = [];
+  for(let i=0;i<c.Count;i++){ const a = r()*PI*2, dist = c.Ring[0] + r()*(c.Ring[1]-c.Ring[0]);
+    list.push(...cloudBoxes(r, Math.cos(a)*dist, c.MinY + r()*(c.MaxY-c.MinY), Math.sin(a)*dist, 26 + r()*26, c)); }
+  meadowClouds.add(boxSet(list, .12)); })();
+// Cloud Shelf: small golden cloudlets
+const shelfClouds = new T.Group(); S.add(shelfClouds);
+(function(){ const r = rng(23), c = Z1.Clouds, list = [];
+  for(let i=0;i<c.Count;i++){ const a = r()*PI*2, dist = c.Ring[0] + r()*(c.Ring[1]-c.Ring[0]);
+    list.push(...cloudBoxes(r, Math.cos(a)*dist, c.MinY + r()*(c.MaxY-c.MinY), Math.sin(a)*dist, 14 + r()*14, c)); }
+  shelfClouds.add(boxSet(list, .12)); })();
+
+/* ---------- the cloud deck (a ceiling from below, a floor from above) ---------- */
+// one 64x64 tile: a slab that meets its neighbours edge to edge, stepped puffs on a 2x2 grid on top, bellies under
+function deckTile(ix, iz){
+  const r = rng(tileSeed(ix, iz)), t = DECK.Tile, out = [];
+  const cx = (ix + .5)*t, cz = (iz + .5)*t;
+  if(r() > DECK.Coverage) return out;
+  for(const I of ISLANDS){ if(Math.abs(I[2] - DECK.Y) < DECK.Thickness/2 + DECK.IslandBand && Math.hypot(cx - I[1], cz - I[3]) < I[4] + DECK.IslandHole) return out; }
+  const thick = DECK.Thickness*(.6 + r()*.2), sy = DECK.Y + (r() - .5)*6, c = t/2;
+  out.push([cx, sy, cz, t, thick, t, DECK.Side]);
+  for(let i=0;i<2;i++) for(let j=0;j<2;j++){ if(r() > .75) continue;
+    const pw = 14 + r()*16, pd = 14 + r()*16, h = 6 + r()*10, layers = 2 + Math.floor(r()*2), gold = r() < .3;
+    const px = cx - c/2 + c*i + (c - pw)/2*(r()*2 - 1), pz = cz - c/2 + c*j + (c - pd)/2*(r()*2 - 1);
+    dome(out, px, sy + thick/2, pz, pw, pd, h, layers, 1, (k, n) => (gold && k === n-1) ? DECK.TopGold : DECK.Top); }
+  for(let i=0;i<2;i++) for(let j=0;j<2;j++){ if(r() > .55) continue;
+    const pw = 12 + r()*18, pd = 12 + r()*18, h = 4 + r()*6;
+    const px = cx - c/2 + c*i + (c - pw)/2*(r()*2 - 1), pz = cz - c/2 + c*j + (c - pd)/2*(r()*2 - 1);
+    dome(out, px, sy - thick/2, pz, pw, pd, h, 2, -1, () => DECK.Bottom); }
+  return out;
+}
+(function(){ const n = Math.round(DECK.Radius/DECK.Tile), list = [];
+  for(let ix=-n; ix<n; ix++) for(let iz=-n; iz<n; iz++) list.push(...deckTile(ix, iz));
+  // the flat cloud sea beyond the tiles, out to the horizon (a frame of thin slabs)
+  const R0 = n*DECK.Tile, R1 = 4600, mid = (R0 + R1)/2, len = R1 - R0;
+  list.push([0, DECK.SeaY, mid, R1*2, 2, len, DECK.Sea], [0, DECK.SeaY, -mid, R1*2, 2, len, DECK.Sea], [mid, DECK.SeaY, 0, len, 2, R0*2, DECK.Sea], [-mid, DECK.SeaY, 0, len, 2, R0*2, DECK.Sea]);
+  S.add(boxSet(list, .18)); })();
+
+/* ---------- cloud towers far away (Cloud Shelf "far" layer) ---------- */
+(function(){ const r = rng(31), tw = CFG.towers, list = [];
+  for(let i=0;i<tw.Count;i++){ const a = (i/tw.Count)*PI*2 + r()*.5, dist = tw.Distance[0] + r()*(tw.Distance[1]-tw.Distance[0]);
+    const H = tw.Height[0] + r()*(tw.Height[1]-tw.Height[0]), W = tw.Width[0] + r()*(tw.Width[1]-tw.Width[0]);
+    const x = Math.cos(a)*dist, z = Math.sin(a)*dist; let y = DECK.SeaY + 1, w = W;
+    const steps = 5 + Math.floor(r()*3);
+    for(let k=0;k<steps;k++){ const h = H/steps*(1.1 - k*.05);
+      list.push([x, y + h/2, z, w, h, w, k===steps-1 ? DECK.TopGold : (k%2 ? DECK.Top : DECK.Side)]);
+      // corner bumps on each tier, outside the footprint of the tier above
+      if(k < steps-1) for(const sx of [-1,1]) for(const sz of [-1,1]){ if(r() < .4) continue; const bw = w*.08, bh = h*(.15 + r()*.2);
+        list.push([x + sx*(w/2 - bw/2), y + h + bh/2, z + sz*(w/2 - bw/2), bw, bh, bw, DECK.Top]); }
+      y += h; w *= .8; }
+  } S.add(boxSet(list, .1)); })();
+
+/* ---------- you: a blocky player holding the Gumball ---------- */
+const player = new T.Group(); S.add(player);
+(function(){ const L = [[0,1.2,0,2,1.6,1,'2C7BE5'],[0,-.1,0,2,1,1,'3A3F58'],[-.5,-1.3,0,1,1.4,1,'3A3F58'],[.5,-1.3,0,1,1.4,1,'3A3F58'],[0,2.65,0,1.25,1.25,1.25,'FFCC33'],
+  [-1.5,1.1,0,1,2,1,'FFCC33'],[1.5,2.7,0,1,2.2,1,'FFCC33']]; player.add(boxSet(L));
+  const B = new T.Group(); const kn = GUMBALL.knot;
+  GUMBALL.parts.forEach(function(p){ const m = new T.Mesh(BOX, new T.MeshStandardMaterial({color:new T.Color('#'+GUMBALL.pal[p[1]][0]), roughness:GUMBALL.pal[p[1]][1]==='S'?.32:.55}));
+    m.position.set(p[5]-kn[0], p[6]-kn[1], p[7]-kn[2]); m.scale.set(p[2],p[3],p[4]);
+    if(p.length > 8){ const M = new T.Matrix4(); const rr = p.slice(8); M.set(rr[0],rr[1],rr[2],0, rr[3],rr[4],rr[5],0, rr[6],rr[7],rr[8],0, 0,0,0,1); m.quaternion.setFromRotationMatrix(M); }
+    B.add(m); });
+  B.scale.setScalar(.55); B.position.set(1.5, 9, .8); player.add(B);
+  const s = new T.Mesh(BOX, new T.MeshStandardMaterial({color:0xf4f6ff})); s.scale.set(.08, 5.2, .08); s.position.set(1.5, 6.2, .5); player.add(s);
+  player.userData.balloon = B; })();
+
+/* ---------- near bits: petals, pollen, mist wisps, golden dust ---------- */
+const near = [];
+const petalGeo = new T.BoxGeometry(.7,.12,.5), dustGeo = new T.BoxGeometry(.35,.35,.35), mistGeo = new T.PlaneGeometry(14,5);
+function spawnNear(kind){
+  let m;
+  if(kind==='petal'){ const pc = Z0.Near.PetalColors; m = new T.Mesh(petalGeo, new T.MeshStandardMaterial({color:new T.Color('#'+pc[Math.floor(Math.random()*pc.length)]), roughness:.6})); }
+  else if(kind==='pollen'){ m = new T.Mesh(dustGeo, new T.MeshBasicMaterial({color:0xfff07a})); m.scale.setScalar(.6); }
+  else if(kind==='dust'){ m = new T.Mesh(dustGeo, new T.MeshBasicMaterial({color:0xffd66b, transparent:true})); }
+  else { m = new T.Mesh(mistGeo, new T.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.0, depthWrite:false, side:T.DoubleSide})); }
+  const a = Math.random()*PI*2, d = 6 + Math.random()*34;
+  m.position.set(player.position.x + Math.cos(a)*d, player.position.y - 20 + Math.random()*10, player.position.z + Math.sin(a)*d);
+  m.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+  S.add(m); near.push({m, kind, age:0, life: kind==='mist' ? 5 : 7, v:new T.Vector3((Math.random()-.3)*2, 6 + Math.random()*5, (Math.random()-.5)*2), spin:(Math.random()-.5)*4});
+}
+function stepNear(dt, h, climb){
+  const k = blendK(h);
+  const rates = {petal: (1-k)*Z0.Near.Petals*4, pollen:(1-k)*Z0.Near.Pollen*5, mist:k*Z1.Near.Mist*1.2 + mistK(h)*6, dust:k*Z1.Near.Dust*6};
+  for(const kind in rates){ let n = rates[kind]*dt; while(Math.random() < n){ spawnNear(kind); n -= 1; } }
+  for(let i=near.length-1;i>=0;i--){ const p = near[i]; p.age += dt; const f = p.age/p.life;
+    if(f>=1){ S.remove(p.m); near.splice(i,1); continue; }
+    p.m.position.addScaledVector(p.v, dt); p.m.position.y -= climb*dt*.85; // you rise past them
+    if(p.kind==='petal'){ p.m.rotation.x += p.spin*dt; p.m.rotation.z += p.spin*.7*dt; }
+    if(p.kind==='mist'){ p.m.lookAt(cam.position); p.m.material.opacity = Math.sin(f*PI)*.35; }
+    if(p.kind==='dust'){ p.m.material.opacity = Math.sin(f*PI)*(.6+.4*Math.sin(p.age*9)); }
+  }
+}
+
+/* ---------- puff ring at the punch-through ---------- */
+const puffs = [];
+function punchPuff(dir){
+  for(let i=0;i<26;i++){ const a = i/26*PI*2; const m = new T.Mesh(BOX, new T.MeshStandardMaterial({color:i%3?0xffffff:0xfff2d6, transparent:true, roughness:.9}));
+    const s = 3 + Math.random()*4; m.scale.setScalar(s); m.position.set(player.position.x + Math.cos(a)*4, DECK.Y + DECK.Thickness/2*dir, player.position.z + Math.sin(a)*4); S.add(m);
+    puffs.push({m, v:new T.Vector3(Math.cos(a)*30, dir*(6+Math.random()*10), Math.sin(a)*30), age:0, life:1.4, s}); }
+}
+function stepPuffs(dt){ for(let i=puffs.length-1;i>=0;i--){ const p = puffs[i]; p.age += dt; const f = p.age/p.life;
+  if(f>=1){ S.remove(p.m); puffs.splice(i,1); continue; } p.v.multiplyScalar(Math.exp(-2.5*dt)); p.m.position.addScaledVector(p.v, dt);
+  p.m.scale.setScalar(p.s*(1+f*1.5)); p.m.material.opacity = 1-f; } }
+
+/* ---------- sound ---------- */
+let AC = null, soundOn = false;
+function whoosh(up){ if(!soundOn||!AC) return; const t = AC.currentTime, dur = 1.1;
+  const n = AC.createBuffer(1, AC.sampleRate*dur, AC.sampleRate), d = n.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+  const s = AC.createBufferSource(); s.buffer = n; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = .9;
+  bp.frequency.setValueAtTime(up?300:1800, t); bp.frequency.exponentialRampToValueAtTime(up?2200:300, t+dur*.7);
+  const g = AC.createGain(); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.5,t+.25); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  s.connect(bp).connect(g).connect(AC.destination); s.start(t);
+  if(up){ [523,659,784,1047].forEach((f,i) => { const o = AC.createOscillator(), gg = AC.createGain(); o.type = 'triangle'; o.frequency.value = f;
+    gg.gain.setValueAtTime(.0001, t+.35+i*.09); gg.gain.exponentialRampToValueAtTime(.09, t+.38+i*.09); gg.gain.exponentialRampToValueAtTime(.001, t+1.2+i*.09);
+    o.connect(gg).connect(AC.destination); o.start(t+.35+i*.09); o.stop(t+1.4+i*.09); }); } }
+
+/* ---------- state + controls ---------- */
+let H = 40, targetH = 40, flying = false, lastH = 40;
+const hIn = document.getElementById('h'), knob = document.getElementById('knob'), meter = document.getElementById('meter');
+function setTarget(v){ targetH = Math.max(0, Math.min(1500, v)); hIn.value = Math.round(targetH); }
+hIn.addEventListener('input', () => { flying = false; setTarget(+hIn.value); });
+document.querySelectorAll('[data-jump]').forEach(b => b.addEventListener('click', () => { flying = false; setTarget(+b.dataset.jump); H = targetH - 1; }));
+function ensureAudio(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); soundOn = true; document.getElementById('snd').textContent = 'Sound: on'; }catch(e){} } }
+document.getElementById('fly').addEventListener('click', () => { ensureAudio(); H = lastH = 60; setTarget(60); flying = true; });
+document.getElementById('snd').addEventListener('click', function(){ ensureAudio(); soundOn = !soundOn; this.textContent = 'Sound: '+(soundOn?'on':'off'); });
+const bannerEl = document.getElementById('banner'), flashEl = document.getElementById('flash');
+function banner(name, g){ bannerEl.querySelector('.s').innerHTML = name + '<small>ZONE 2 · 500 – 1,500</small>'; const f = bannerEl.querySelector('.f');
+  f.innerHTML = name + '<small>ZONE 2 · 500 – 1,500</small>'; bannerEl.style.setProperty('--g', g); bannerEl.classList.remove('go'); void bannerEl.offsetWidth; bannerEl.classList.add('go'); }
+function flash(){ flashEl.style.transition = 'none'; flashEl.style.opacity = '.85'; requestAnimationFrame(() => { flashEl.style.transition = 'opacity '+CFG.punch.FlashTime*1.6+'s ease-out'; flashEl.style.opacity = '0'; }); }
+
+/* orbit */
+let yaw = .9, pitch = .22, dist = 46;
+(function(){ let dr = null; const c = R.domElement;
+  c.addEventListener('pointerdown', e => { dr = [e.clientX, e.clientY, yaw, pitch]; c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointermove', e => { if(!dr) return; yaw = dr[2] - (e.clientX-dr[0])*.008; pitch = Math.max(-.6, Math.min(1.2, dr[3] + (e.clientY-dr[1])*.006)); });
+  c.addEventListener('pointerup', () => dr = null); })();
+
+/* ---------- apply the zone look for a height ---------- */
+const tmpA = new T.Color(), tmpB = new T.Color();
+function mixHex(a, b, k){ return tmpA.set('#'+a).lerp(tmpB.set('#'+b), k).clone(); }
+function lerp(a, b, k){ return a + (b-a)*k; }
+function applyLook(h){
+  const k = blendK(h), m = mistK(h), A = Z0.Sky, B = Z1.Sky;
+  skyU.top.value.copy(mixHex(A.SkyTop, B.SkyTop, k)); skyU.hor.value.copy(mixHex(A.Horizon, B.Horizon, k)); skyU.sunc.value.copy(mixHex(A.Sun, B.Sun, k));
+  skyU.ssize.value = lerp(A.SunSize, B.SunSize, k); skyU.glare.value = lerp(A.AtmosGlare, B.AtmosGlare, k);
+  // fog: Atmosphere density + haze -> distance; inside the deck the mist closes right in
+  const dens = lerp(A.AtmosDensity, B.AtmosDensity, k), haze = lerp(A.AtmosHaze, B.AtmosHaze, k);
+  const fogC = mixHex(A.AtmosColor, B.AtmosColor, k).lerp(new T.Color(0xffffff), m);
+  S.fog.color.copy(fogC); S.fog.near = lerp(300*.28/dens, 4, m); S.fog.far = lerp(4400 - haze*420, 70, m);
+  skyU.mist.value = m; skyU.mistc.value.copy(fogC);
+  R.setClearColor(fogC);
+  sun.color.copy(mixHex('FFF4E0', 'FFE2B0', k)); sun.intensity = lerp(.72, .78, k)*(1 - m*.5);
+  hemi.color.copy(mixHex('FFFFFF', 'FFF0DA', k)); hemi.groundColor.copy(mixHex(A.OutdoorAmbient, B.OutdoorAmbient, k).lerp(new T.Color(0xffffff), .7)); hemi.intensity = lerp(.5, .5, k) + m*.3;
+  const zoneEl = document.getElementById('zone');
+  zoneEl.innerHTML = h < DECK.Y ? '<b>MEADOW SKY</b>' + (h > 400 ? ' · cloud ceiling' : '') : '<b>CLOUD SHELF</b>';
+  document.getElementById('hgt').textContent = 'HEIGHT ' + Math.round(h);
+  knob.textContent = Math.round(h); knob.style.top = (100 - h/1500*100) + '%';
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), simT = 0, frozen = false;
+function step(dt){
+  simT += dt;
+  if(flying){ setTarget(targetH + dt*(targetH < 380 ? 70 : targetH < 620 ? 45 : 80)); if(targetH >= 1500) flying = false; }
+  const prev = H; H += (targetH - H)*Math.min(1, dt*3.2);
+  const climb = (H - prev)/Math.max(dt, 1e-4);
+  // crossing the deck middle: punch-through
+  if(lastH < DECK.Y && H >= DECK.Y){ punchPuff(1); flash(); whoosh(true); banner('CLOUD SHELF', 'linear-gradient(#ffffff 0%,#ffe9b0 55%,#f0a21e 100%)'); }
+  if(lastH >= DECK.Y && H < DECK.Y){ punchPuff(-1); whoosh(false); }
+  lastH = H;
+  const sway = Math.sin(simT*.5)*6;
+  player.position.set(sway, H, Math.cos(simT*.4)*4);
+  player.rotation.y = Math.sin(simT*.3)*.3;
+  player.userData.balloon.rotation.z = Math.sin(simT*1.1)*.08;
+  meadowClouds.position.x = (simT*Z0.Clouds.Drift[0]) % 400; shelfClouds.position.x = (simT*Z1.Clouds.Drift[0]) % 400;
+  applyLook(H); stepNear(dt, H, climb); stepPuffs(dt);
+  const tgt = new T.Vector3(player.position.x, H + 6, player.position.z);
+  cam.position.set(tgt.x + Math.sin(yaw)*Math.cos(pitch)*dist, tgt.y + Math.sin(pitch)*dist, tgt.z + Math.cos(yaw)*Math.cos(pitch)*dist);
+  cam.lookAt(tgt); skyDome.position.copy(cam.position);
+}
+function frame(now){ const dt = Math.min(.05, (now-last)/1000); last = now; if(!frozen) step(dt); R.render(S, cam); requestAnimationFrame(frame); }
+function resize(){ const w = stage.clientWidth, h = stage.clientHeight; R.setSize(w, h, false); cam.aspect = w/h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize);
+window.__debug = {go:function(h, sec, y, p){ frozen = true; flying = false; if(y!=null){ yaw = y; pitch = p; } setTarget(h); H = lastH = h; for(let i=0;i<Math.round((sec||.5)*60);i++) step(1/60); R.render(S, cam); },
+  fly:function(from, sec){ frozen = true; H = lastH = from; setTarget(from); flying = true; for(let i=0;i<Math.round(sec*60);i++) step(1/60); R.render(S, cam); return H; }};
+resize(); setTarget(40); applyLook(40); requestAnimationFrame(frame);
+</script>
