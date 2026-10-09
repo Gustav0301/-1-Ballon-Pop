@@ -3,9 +3,9 @@ import json
 
 ZONES = [
     dict(Id="MeadowSky", Name="MEADOW SKY", From=0, To=500,
-         Sky=dict(Brightness=3.0, ClockTime=13.6, Exposure=0.1, Ambient="7680A0", OutdoorAmbient="98A6C0",
+         Sky=dict(Brightness=3.0, ClockTime=13.6, Exposure=0.0, Ambient="7680A0", OutdoorAmbient="98A6C0",
                   SkyTop="3FA9F5", Horizon="D4F0FF", Sun="FFF6C9",
-                  AtmosColor="D4F0FF", AtmosDecay="6EAEE8", AtmosDensity=0.28, AtmosHaze=1.4, AtmosGlare=0.3, AtmosOffset=0.2,
+                  AtmosColor="D4F0FF", AtmosDecay="6EAEE8", AtmosDensity=0.2, AtmosHaze=0.5, AtmosGlare=0.3, AtmosOffset=0.2,
                   Tint="FFFBF4", Saturation=0.18, Contrast=0.06, CCBrightness=0.02, SunSize=14,
                   CloudCover=0.52, CloudDensity=0.45, CloudColor="FFFFFF"),
          Clouds=dict(Kind="Puffy", Count=24, MinY=90, MaxY=430, Ring=[120, 520], Drift=[3.0, 0, 0.6],
@@ -14,9 +14,9 @@ ZONES = [
                    PetalColors=["FF8FB8", "FFE066", "FFFFFF", "FFB0D0"]),
          ),
     dict(Id="CloudShelf", Name="CLOUD SHELF", From=500, To=1500,
-         Sky=dict(Brightness=3.5, ClockTime=14.2, Exposure=0.18, Ambient="8C7E70", OutdoorAmbient="C0A68C",
+         Sky=dict(Brightness=3.5, ClockTime=14.2, Exposure=0.05, Ambient="8C7E70", OutdoorAmbient="C0A68C",
                   SkyTop="1F6FD1", Horizon="FFD9A0", Sun="FFE08A",
-                  AtmosColor="FFD9A0", AtmosDecay="3F7FD6", AtmosDensity=0.33, AtmosHaze=2.1, AtmosGlare=0.75, AtmosOffset=0.12,
+                  AtmosColor="FFD9A0", AtmosDecay="3F7FD6", AtmosDensity=0.24, AtmosHaze=1.0, AtmosGlare=0.75, AtmosOffset=0.12,
                   Tint="FFF0DA", Saturation=0.24, Contrast=0.08, CCBrightness=0.03, SunSize=19,
                   CloudCover=0.25, CloudDensity=0.3, CloudColor="FFF2DC"),
          Clouds=dict(Kind="Cloudlets", Count=30, MinY=560, MaxY=1450, Ring=[90, 420], Drift=[1.6, 0, 0.4],
