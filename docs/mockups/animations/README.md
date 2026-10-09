@@ -10,7 +10,11 @@ Preview page: `index.html` here (open it in a browser). Gustav approved the plan
 | `BalloonTakeOff` | Claude (`BalloonTakeOff.lua`) | 1.85 s | no | Action | When the player presses Space to take off. The player can't move while it plays. |
 | `BalloonGentleGlideandLookAround` | Gustav (Rig Director) | 5.6 s | yes | play as Action | The whole flight, from the end of the take-off until landing or popping. |
 
-Each `.lua` file is a command-bar script in the same format as Rig Director. It creates a KeyframeSequence in ServerStorage. Gustav publishes each one (right-click > Save to Roblox) and gives the animation ids. Put the ids in a config (for example `FlightConfig.Anim = { Idle = ..., TakeOff = ..., Float = ... }`) so they can be swapped without code changes.
+Gustav's float animation is `BalloonGentleGlideandLookAround.lua` (his own Rig Director export). Each `.lua` file is a command-bar script in the same format as Rig Director. It creates a KeyframeSequence in ServerStorage. Gustav publishes each one (right-click > Save to Roblox) and gives the animation ids. Put the ids in a config (for example `FlightConfig.Anim = { Idle = ..., TakeOff = ..., Float = ... }`) so they can be swapped without code changes.
+
+## Testing in Studio before the ids exist
+
+Until Gustav publishes the three animations, run the three `.lua` files to make the KeyframeSequences and play them with `KeyframeSequenceProvider:RegisterKeyframeSequence(seq)` (this only works in Studio). Keep the KeyframeSequences in ServerStorage.Animations and have the code use the published ids from the config when they are set, and fall back to the registered sequences in Studio when they aren't.
 
 ## Take-off markers (the game listens with `track:GetMarkerReachedSignal`)
 
