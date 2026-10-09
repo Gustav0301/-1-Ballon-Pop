@@ -1,0 +1,590 @@
+<title>Sky Zone Layers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: a game poster. A tall painted sky column next to the rules, then one chunky card per zone, Shop-style red header. Single bright look on purpose. */
+:root{
+  --ink:#1E2433;          /* thick outlines + text stroke */
+  --page:#E4F3FF;         /* light sky page */
+  --page-grid:#D3EAFB;
+  --card:#FFFFFF;
+  --card-soft:#F3F8FD;
+  --text:#24304A;
+  --muted:#58647E;
+  --red:#E8352E; --red-2:#F2534B;
+  --gold:#FFC83D; --gold-2:#FFE08A;
+  --green:#3DBE4A;
+  --l-sky:#2E9BFF; --l-far:#7A5CFF; --l-mid:#1FB4C9; --l-near:#FF8A1F; --l-below:#3DBE4A; --l-next:#FF4D6D;
+  --display:"Fredoka One","Fredoka","Lilita One","Arial Rounded MT Bold","Trebuchet MS","DejaVu Sans",system-ui,sans-serif;
+  --body:"Nunito","Segoe UI","Helvetica Neue","Liberation Sans",Arial,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","DejaVu Sans Mono",Menlo,monospace;
+  --stroke:3px 0 0 var(--ink),-3px 0 0 var(--ink),0 3px 0 var(--ink),0 -3px 0 var(--ink),2px 2px 0 var(--ink),-2px 2px 0 var(--ink),2px -2px 0 var(--ink),-2px -2px 0 var(--ink),0 6px 0 var(--ink);
+  --stroke-s:2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),1.5px 1.5px 0 var(--ink),-1.5px 1.5px 0 var(--ink),1.5px -1.5px 0 var(--ink),-1.5px -1.5px 0 var(--ink),0 3px 0 var(--ink);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background-color:var(--page);color:var(--text);
+  background-image:radial-gradient(circle at 12px 12px,var(--page-grid) 5px,transparent 5.5px);
+  background-size:24px 24px;
+  font:400 16px/1.55 var(--body);
+}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 56px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:.5px}
+.stroke{color:#FFFFFF;text-shadow:var(--stroke)}
+.stroke-s{color:#FFFFFF;text-shadow:var(--stroke-s)}
+p{margin:0}
+
+/* ---------- header (Shop window style) ---------- */
+.title-bar{
+  position:relative;border:5px solid var(--ink);border-radius:26px;
+  background:repeating-linear-gradient(135deg,var(--red) 0 22px,var(--red-2) 22px 44px);
+  box-shadow:0 8px 0 var(--ink);padding:22px 24px 26px;display:flex;align-items:center;gap:20px;
+}
+.title-bar canvas{flex:none;width:92px;height:110px}
+.title-text{display:flex;flex-direction:column;gap:6px;min-width:0}
+.title-bar h1{font-size:clamp(34px,6vw,64px);line-height:1.05}
+.title-bar .sub{font-family:var(--display);font-size:clamp(15px,2vw,20px);color:#FFFFFF;text-shadow:var(--stroke-s);letter-spacing:1px;text-transform:uppercase}
+
+/* ---------- hero ---------- */
+.hero{display:grid;grid-template-columns:minmax(0,470px) minmax(0,1fr);gap:28px;align-items:start}
+.column{position:relative;border:5px solid var(--ink);border-radius:28px;overflow:hidden;box-shadow:0 8px 0 var(--ink);background:#0A0A1A;height:1440px}
+.column canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ruler{position:absolute;left:0;top:0;bottom:0;width:62px;background:linear-gradient(90deg,rgba(30,36,51,.55),rgba(30,36,51,0));pointer-events:none}
+.tick{position:absolute;left:0;transform:translateY(-50%);display:flex;align-items:center;gap:4px}
+.tick::before{content:"";width:14px;height:4px;background:#FFFFFF;border:2px solid var(--ink);border-left:0;border-radius:0 3px 3px 0}
+.tick span{font:400 13px/1 var(--display);color:#FFFFFF;text-shadow:var(--stroke-s);font-variant-numeric:tabular-nums;white-space:nowrap}
+.band-label{position:absolute;right:12px;transform:translateY(-50%);display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right;pointer-events:none}
+.band-label b{font:400 clamp(19px,2.4vw,25px)/1 var(--display);color:#FFFFFF;text-shadow:var(--stroke-s);letter-spacing:.5px}
+.pill{display:inline-flex;align-items:center;gap:5px;font:400 11.5px/1 var(--display);letter-spacing:.8px;text-transform:uppercase;color:#FFFFFF;border:2.5px solid var(--ink);border-radius:999px;padding:4px 9px 4px;box-shadow:0 2px 0 var(--ink);white-space:nowrap}
+.pill.open{background:var(--green)}
+.pill.later{background:#5E6A86}
+.pill.storm{background:#6B4FD8}
+.pill.space{background:#20263A}
+.pill.kite{background:#18A7C9}
+
+.side{display:flex;flex-direction:column;gap:22px;min-width:0}
+.panel{background:var(--card);border:4px solid var(--ink);border-radius:22px;box-shadow:0 6px 0 var(--ink);overflow:hidden}
+.panel-head{padding:12px 18px 13px;background:repeating-linear-gradient(135deg,var(--hc) 0 18px,var(--hc2) 18px 36px);border-bottom:4px solid var(--ink)}
+.panel-head h2{font-size:24px}
+.panel-body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.intro{font-size:17px;line-height:1.55}
+.intro strong{font-weight:800}
+.bullets{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.bullets li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start}
+.bullets .dot{width:30px;height:30px;border:3px solid var(--ink);border-radius:9px;background:var(--gold);box-shadow:0 3px 0 var(--ink);display:grid;place-items:center;font:400 14px/1 var(--display);color:var(--ink)}
+.bullets b{font-weight:800}
+.uses{font:500 12.5px/1.5 var(--mono);color:var(--muted);background:var(--card-soft);border:2px dashed #B9C8DD;border-radius:12px;padding:8px 12px}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.legend div{display:flex;flex-direction:column;gap:4px;font-size:14.5px;line-height:1.4;min-width:0}
+.tag{display:inline-block;align-self:flex-start;font:400 12px/1 var(--display);letter-spacing:1px;text-transform:uppercase;color:#FFFFFF;border:2.5px solid var(--ink);border-radius:8px;padding:5px 8px 4px;box-shadow:0 2px 0 var(--ink);white-space:nowrap}
+.tag.sky{background:var(--l-sky)} .tag.far{background:var(--l-far)} .tag.mid{background:var(--l-mid)} .tag.near{background:var(--l-near)} .tag.below{background:var(--l-below)} .tag.next{background:var(--l-next)}
+.jump{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.jump a{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);border:3px solid var(--ink);border-radius:14px;padding:8px 10px;background:var(--card);box-shadow:0 3px 0 var(--ink);transition:transform .12s,box-shadow .12s;min-width:0}
+.jump a:hover{transform:translateY(-2px);box-shadow:0 5px 0 var(--ink)}
+.jump a:focus-visible,.zone-card:focus-visible{outline:4px solid var(--gold);outline-offset:3px}
+.jump i{flex:none;width:30px;height:30px;border:2.5px solid var(--ink);border-radius:8px}
+.jump span{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.jump b{font:400 15.5px/1.1 var(--display);letter-spacing:.3px}
+.jump small{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ---------- zone cards ---------- */
+.section-title{display:flex;flex-direction:column;gap:4px;padding-top:6px}
+.section-title h2{font-size:clamp(30px,4.5vw,44px)}
+.section-title p{color:var(--muted);font-size:16px;max-width:62ch}
+.zones{display:flex;flex-direction:column;gap:34px}
+.zone-card{background:var(--card);border:5px solid var(--ink);border-radius:26px;box-shadow:0 8px 0 var(--ink);overflow:hidden;scroll-margin-top:16px}
+.zone-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px 16px;background:repeating-linear-gradient(135deg,var(--zc) 0 22px,var(--zc2) 22px 44px);border-bottom:5px solid var(--ink)}
+.zone-num{flex:none;width:48px;height:48px;border:4px solid var(--ink);border-radius:14px;background:#FFFFFF;box-shadow:0 4px 0 var(--ink);display:grid;place-items:center;font:400 24px/1 var(--display);color:var(--ink)}
+.zone-head h3{font-size:clamp(28px,4vw,40px);line-height:1}
+.zone-head .range{font:400 17px/1 var(--display);color:#FFFFFF;text-shadow:var(--stroke-s);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.zone-head .names{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 220px}
+.zone-head .pill{font-size:13px;padding:6px 11px}
+.strip{position:relative;border-bottom:5px solid var(--ink);aspect-ratio:5/2;max-width:100%;background:#88C8F0}
+.strip canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.strip .cap{position:absolute;left:10px;bottom:10px;font:400 11px/1 var(--display);letter-spacing:1px;color:#FFFFFF;background:rgba(30,36,51,.72);border-radius:999px;padding:5px 9px 4px;text-transform:uppercase}
+.zone-body{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:22px;padding:22px 22px 4px}
+.box{display:flex;flex-direction:column;gap:12px;min-width:0}
+.box h4{margin:0;font:400 18px/1.1 var(--display);letter-spacing:.5px;color:var(--ink);text-transform:uppercase}
+.swatches{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.swatches li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:center}
+.sw{width:36px;height:36px;border:3px solid var(--ink);border-radius:10px;box-shadow:0 3px 0 var(--ink)}
+.sw.none{background:repeating-linear-gradient(45deg,#FFFFFF 0 5px,#DDE4EE 5px 10px)}
+.swatches .k{font-weight:800;font-size:14px;line-height:1.2}
+.swatches .k code{font:600 12.5px/1 var(--mono);color:var(--muted);background:var(--card-soft);border-radius:6px;padding:2px 5px;margin-left:4px;white-space:nowrap}
+.swatches .v{font-size:14px;line-height:1.35;color:var(--muted)}
+.sound{background:var(--card-soft);border:3px solid var(--ink);border-radius:14px;padding:10px 12px;font-size:15px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}
+.sound svg{flex:none;margin-top:2px}
+.layers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.layers li{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;align-items:start;padding-bottom:12px;border-bottom:2px dashed #D3DDEA}
+.layers li:last-child{border-bottom:0;padding-bottom:0}
+.layers .tag{justify-self:start;margin-top:1px}
+.layers p{font-size:15.5px;line-height:1.5}
+.zone-foot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;padding:18px 22px 22px;align-items:start}
+.weather{border:3px solid var(--ink);border-radius:16px;padding:12px 14px 14px;background:var(--card-soft);display:flex;flex-direction:column;gap:9px}
+.weather ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.weather li{font-size:15px;line-height:1.45}
+.weather li b{font-weight:800}
+.weather .idea{font-size:13px;color:var(--muted)}
+.wow{position:relative;border:4px solid var(--ink);border-radius:18px;padding:14px 16px 16px;background:repeating-linear-gradient(135deg,#FFC83D 0 18px,#FFD45E 18px 36px);box-shadow:0 5px 0 var(--ink);display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.wow h4{margin:0;font:400 22px/1 var(--display);color:#FFFFFF;text-shadow:var(--stroke-s);letter-spacing:1px}
+.wow p{font-weight:800;font-size:16.5px;line-height:1.45;color:var(--ink)}
+.wow::after{content:"";position:absolute;right:-18px;top:-18px;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.7),rgba(255,255,255,0) 70%)}
+
+/* ---------- build order ---------- */
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.steps li{background:var(--card);border:4px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink);padding:0 0 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.steps li.now{grid-column:1/-1;background:#FFFDF2}
+.steps .sh{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:4px solid var(--ink);background:repeating-linear-gradient(135deg,var(--sc) 0 18px,var(--sc2) 18px 36px)}
+.steps .sh .zone-num{width:40px;height:40px;font-size:20px;border-width:3px;box-shadow:0 3px 0 var(--ink)}
+.steps .sh b{font:400 20px/1.1 var(--display);color:#FFFFFF;text-shadow:var(--stroke-s)}
+.steps p,.steps ul{padding-inline:16px;font-size:15px;line-height:1.5}
+.steps ul{margin:0;padding-left:34px;display:flex;flex-direction:column;gap:4px}
+.now-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding-inline:16px}
+.now-grid div{border:3px solid var(--ink);border-radius:14px;padding:10px 12px;background:var(--card);display:flex;flex-direction:column;gap:6px;font-size:15px;line-height:1.45}
+.now-grid b{font:400 17px/1.1 var(--display);color:var(--ink)}
+.foot-note{text-align:center;color:var(--muted);font-size:14px}
+
+@media (max-width:980px){
+  .hero{grid-template-columns:minmax(0,1fr)}
+  .column{height:1280px;max-width:520px;width:100%;justify-self:center}
+  .steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .zone-body{grid-template-columns:minmax(0,1fr)}
+  .zone-foot{grid-template-columns:minmax(0,1fr)}
+  .strip{aspect-ratio:16/10}
+  .now-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  body{font-size:15px}
+  .title-bar{padding:16px 14px 18px;gap:12px;border-radius:22px}
+  .title-bar canvas{width:62px;height:76px}
+  .column{height:1180px}
+  .legend,.jump{grid-template-columns:minmax(0,1fr)}
+  .steps{grid-template-columns:minmax(0,1fr)}
+  .zone-head{padding:12px 14px 14px;gap:10px}
+  .zone-num{width:42px;height:42px;font-size:21px}
+  .zone-body{padding:18px 16px 4px}
+  .zone-foot{padding:16px}
+  .layers li{grid-template-columns:minmax(0,1fr);gap:6px}
+  .panel-body{padding:14px 16px 18px}
+}
+@media (prefers-reduced-motion:reduce){.jump a{transition:none}}
+</style>
+
+<div class="wrap">
+  <header class="title-bar">
+    <canvas id="logoBalloon" width="184" height="220" aria-hidden="true"></canvas>
+    <div class="title-text">
+      <h1 class="stroke">Sky Zone Layers</h1>
+      <div class="sub">1+ Ballon Pop · how every zone looks</div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="column" id="column" role="img" aria-label="All 8 sky zones stacked, from Meadow Sky at the bottom to Orbit at the top">
+      <canvas id="columnCanvas"></canvas>
+      <div class="ruler" id="ruler"></div>
+      <div id="bandLabels"></div>
+    </div>
+
+    <div class="side">
+      <div class="panel" style="--hc:#2E9BFF;--hc2:#47A9FF">
+        <div class="panel-head"><h2 class="stroke-s">The idea</h2></div>
+        <div class="panel-body">
+          <p class="intro">Every zone should feel like <strong>a new place</strong>. Not only new hazards: a new sky, new clouds around you, new light and new things flying past. You climb through it like layers of a cake.</p>
+          <p class="intro">Each zone is built from the same 6 layers, from far away to close to you:</p>
+          <div class="legend">
+            <div><span class="tag sky">Sky</span>Sky colours, sun, fog and light.</div>
+            <div><span class="tag far">Far</span>Scenery far away. You never reach it.</div>
+            <div><span class="tag mid">Middle</span>The clouds around you.</div>
+            <div><span class="tag near">Near</span>Small bits that fly past you.</div>
+            <div><span class="tag below">Below</span>What you see when you look down.</div>
+            <div><span class="tag next">Transition</span>The last ~100 studs before the next zone.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="--hc:#E8352E;--hc2:#F2534B">
+        <div class="panel-head"><h2 class="stroke-s">How it works in the game</h2></div>
+        <div class="panel-body">
+          <ul class="bullets">
+            <li><span class="dot">1</span><p><b>One list of sky settings.</b> Each zone is one entry in one config file. A new zone just adds a new entry.</p></li>
+            <li><span class="dot">2</span><p><b>Smooth blend by height.</b> Colours, fog and light mix slowly as you climb. No hard jump.</p></li>
+            <li><span class="dot">3</span><p><b>Your own sky.</b> It runs on each player's screen (client side). Two players at different heights see different skies.</p></li>
+            <li><span class="dot">4</span><p><b>Stud clouds that follow you.</b> Cloud layers are stud-style part models. They move with you sideways, so you never see their edge.</p></li>
+            <li><span class="dot">5</span><p><b>Zone banner + sound.</b> When you enter a zone, its name pops in and a sound plays.</p></li>
+          </ul>
+          <p>Weather (changes every 5 minutes) plays <b>on top</b> of the zone look. It never replaces it.</p>
+          <div class="uses">Roblox parts used: Lighting · Atmosphere · Sky · ColorCorrection · Clouds · ParticleEmitter · stud part models</div>
+        </div>
+      </div>
+
+      <div class="panel" style="--hc:#3DBE4A;--hc2:#52CC5E">
+        <div class="panel-head"><h2 class="stroke-s">Jump to a zone</h2></div>
+        <div class="panel-body"><nav class="jump" id="jump" aria-label="Zones"></nav></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-title">
+    <h2 class="stroke">The 8 zones</h2>
+    <p>From the start map up to space. Colours are hex codes you can paste into Roblox Studio.</p>
+  </section>
+  <div class="zones" id="zones"></div>
+
+  <section class="section-title">
+    <h2 class="stroke">Build order</h2>
+    <p>Only Meadow Sky and Cloud Shelf are open now. Make those two perfect first. Build the others when their phase opens.</p>
+  </section>
+  <ol class="steps">
+    <li class="now" style="--sc:#3DBE4A;--sc2:#52CC5E">
+      <div class="sh"><span class="zone-num">1</span><b>Now: Meadow Sky + Cloud Shelf + the jump between them</b></div>
+      <p>This is what every player sees first. It must feel amazing.</p>
+      <div class="now-grid">
+        <div><b>Meadow Sky</b>Puffy stud clouds, petals and pollen, the mountain ring far away. Add the 4 weathers on top.</div>
+        <div><b>The punch-through</b>Cloud ceiling at 400, thicker mist, a whoosh and a puff at 500, then golden light.</div>
+        <div><b>Cloud Shelf</b>The cloud floor below you, tall cloud towers, golden haze, mist wisps and sparkle dust.</div>
+      </div>
+    </li>
+    <li style="--sc:#18A7C9;--sc2:#2DB8D8"><div class="sh"><span class="zone-num">2</span><b>Phase 2</b></div><p>Kite Fields and Windways. Build when Phase 2 opens, with updrafts, kites and gust walls.</p></li>
+    <li style="--sc:#6B4FD8;--sc2:#7C63E0"><div class="sh"><span class="zone-num">3</span><b>Phase 3: Storm</b></div><p>Thunderhead and Hail Belt. Dark storm look first, then the ice.</p></li>
+    <li style="--sc:#20263A;--sc2:#2C3450"><div class="sh"><span class="zone-num">4</span><b>Phase 4: Space</b></div><p>Stratosphere and Orbit. Planet curve, stars, moons and the Moon Hub.</p></li>
+    <li style="--sc:#E8352E;--sc2:#F2534B"><div class="sh"><span class="zone-num">+</span><b>Every new zone</b></div><p>Add the zone's entry to the sky list, its banner, its sound loop and its weathers.</p></li>
+  </ol>
+  <p class="foot-note">Pictures on this page are mock-ups to show the mood. The real version is built from stud parts in Roblox.</p>
+</div>
+
+<script>
+(()=>{
+const TAU=Math.PI*2;
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hx(h){const n=parseInt(h.slice(1),16);return[n>>16,n>>8&255,n&255]}
+function sh(h,f){let[r,g,b]=hx(h);if(f<0){r*=1+f;g*=1+f;b*=1+f}else{r+=(255-r)*f;g+=(255-g)*f;b+=(255-b)*f}return`rgb(${r|0},${g|0},${b|0})`}
+function al(h,a){const[r,g,b]=hx(h);return`rgba(${r},${g},${b},${a})`}
+function wrap(v,m){return((v%m)+m)%m}
+
+function sky(c,w,h,stops){const g=c.createLinearGradient(0,0,0,h);stops.forEach(s=>g.addColorStop(s[0],s[1]));c.fillStyle=g;c.fillRect(0,0,w,h)}
+function glow(c,x,y,r,col,a){const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,al(col,a));g.addColorStop(1,al(col,0));c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}
+function studs(c,x,y,w,col,s,top){const n=Math.max(1,Math.round(w/s)),g=w/n,sw=g*.56,hh=g*.22;for(let i=0;i<n;i++){const cx=x+g*(i+.5);c.fillStyle=sh(col,-.07);c.fillRect(cx-sw/2,y-hh,sw,hh+.5);c.fillStyle=top||sh(col,.32);c.beginPath();c.ellipse(cx,y-hh,sw/2,Math.max(.8,hh*.5),0,0,TAU);c.fill()}}
+function block(c,x,y,w,h,col,s,o={}){
+  c.fillStyle=col;c.fillRect(x,y,w,h);
+  if(o.bot!==false){c.fillStyle=o.bot||sh(col,-.16);c.fillRect(x,y+h*.68,w,h*.32)}
+  c.fillStyle=o.top||sh(col,.35);c.fillRect(x,y,w,Math.max(1,h*.12));
+  if(o.edge){c.strokeStyle=o.edge;c.lineWidth=1;c.strokeRect(x+.5,y+.5,w-1,h-1)}
+  if(s)studs(c,x,y,w,col,s,o.top);
+}
+function cloud(c,cx,by,W,col,bot,s,r,o={}){
+  const H=W*(o.flat||.2);
+  const w2=W*(.5+r()*.2),x2=cx-W/2+W*(.08+r()*.3),w3=w2*(.45+r()*.2),x3=x2+w2*(.15+r()*.35);
+  block(c,cx-W/2,by-H,W,H,col,s,{bot,top:o.top});
+  block(c,x2,by-H*1.85,w2,H*.88,col,s,{bot:false,top:o.top});
+  block(c,x3,by-H*2.6,w3,H*.8,col,s,{bot:false,top:o.top});
+}
+function stepsMt(c,w,base,step,amp,seed,col,cap){
+  const r=rng(seed),a=[r()*6,r()*6,r()*6],cols=[];
+  c.fillStyle=col;c.beginPath();c.moveTo(-step,base);
+  for(let x=-step;x<w+step;x+=step){const q=x/w*TAU;const v=(Math.sin(q*1.1+a[0])*.5+Math.sin(q*2.7+a[1])*.3+Math.sin(q*6.3+a[2])*.2+1)/2;const y=base-Math.max(1,Math.round(v*amp/step))*step;c.lineTo(x,y);c.lineTo(x+step,y);cols.push([x,y])}
+  c.lineTo(w+step,base);c.closePath();c.fill();
+  c.fillStyle=sh(col,.12);cols.forEach(([x,y])=>c.fillRect(x,y,step,Math.max(1,step*.25)));
+  if(cap){c.fillStyle=cap;cols.forEach(([x,y])=>{if(y<base-amp*.62)c.fillRect(x,y,step,step*.7)})}
+}
+function disc(c,cx,cy,rx,ry,px,col,o={}){
+  const L=o.light||[-.55,-.6];
+  for(let gy=-ry;gy<ry;gy+=px)for(let gx=-rx;gx<rx;gx+=px){
+    const nx=(gx+px/2)/rx,ny=(gy+px/2)/ry,d=nx*nx+ny*ny;if(d>1)continue;
+    let f=o.flat?0:(-(nx*L[0]+ny*L[1])*.32-d*.12);
+    if(o.crater&&o.crater(nx,ny))f-=.18;
+    c.fillStyle=sh(col,f);c.fillRect(cx+gx,cy+gy,px+.6,px+.6);
+    if(o.studs){c.fillStyle=sh(col,f+.14);c.beginPath();c.arc(cx+gx+px/2,cy+gy+px/2,px*.26,0,TAU);c.fill()}
+  }
+}
+function island(c,x,y,s,grass,rock){
+  rock=rock||'#9A7B5B';
+  block(c,x-s*3,y,s*6,s*1.2,grass,s*1,{bot:'#3E9A2A'});
+  c.fillStyle=rock;c.fillRect(x-s*2.6,y+s*1.2,s*5.2,s);c.fillRect(x-s*1.8,y+s*2.2,s*3.6,s);c.fillRect(x-s*.9,y+s*3.2,s*1.8,s);
+  c.fillStyle=sh(rock,-.2);c.fillRect(x-s*.9,y+s*3.9,s*1.8,s*.3);c.fillRect(x-s*1.8,y+s*2.9,s*.9,s*.3);
+}
+function avatar(c,x,y,u){ /* x,y = raised hand */
+  const Y='#F5CD30',B='#0D69AC',G='#A4BD47';
+  c.fillStyle=Y;c.fillRect(x-u*.55,y,u*1.1,u*3.2);
+  c.fillStyle=B;c.fillRect(x-u*3.7,y+u*3,u*3.2,u*3.2);c.fillStyle=sh(B,-.2);c.fillRect(x-u*3.7,y+u*5.6,u*3.2,u*.6);
+  c.fillStyle=Y;c.fillRect(x-u*3.05,y+u*.75,u*1.9,u*2.05);c.fillRect(x-u*4.8,y+u*3,u*1.05,u*3);
+  c.fillStyle='#1E2433';c.fillRect(x-u*2.55,y+u*1.5,u*.3,u*.4);c.fillRect(x-u*1.85,y+u*1.5,u*.3,u*.4);
+  c.fillStyle=G;c.fillRect(x-u*3.7,y+u*6.2,u*1.55,u*3.1);c.fillRect(x-u*2.05,y+u*6.2,u*1.55,u*3.1);
+}
+function balloon(c,x,y,u,t,col){
+  col=col||'#E8352E';const bob=Math.sin(t*1.3)*u*.8;y+=bob;
+  const R=u*7.5,hand=[x+u*1.4,y+R*1.12+u*8.5];
+  c.strokeStyle='#2A2F3D';c.lineWidth=Math.max(1,u*.3);c.beginPath();c.moveTo(x,y+R*1.12);c.quadraticCurveTo(x-u*2.2,y+R*1.12+u*4.5,hand[0],hand[1]);c.stroke();
+  disc(c,x,y,R,R*1.12,Math.max(2,R/6.5),col,{studs:true});
+  c.fillStyle=sh(col,-.35);c.fillRect(x-u*.9,y+R*1.06,u*1.8,u*1.1);
+  c.fillStyle='rgba(255,255,255,.85)';c.fillRect(x-R*.58,y-R*.68,R*.2,R*.42);c.fillRect(x-R*.32,y-R*.8,R*.16,R*.16);
+  avatar(c,hand[0],hand[1],u*.95);
+}
+
+/* ---------------- zone painters ---------------- */
+const P={};
+P.meadow=(c,w,h,t,o)=>{const u=h/100,r=rng(11);
+  sky(c,w,h,[[0,'#3FA9F5'],[.5,'#8FD3FF'],[.8,'#D4F0FF']]);
+  glow(c,w*.84,h*.2,u*34,'#FFF6C9',.85);disc(c,w*.84,h*.2,u*7,u*7,u*1.6,'#FFF3B0',{flat:true});
+  stepsMt(c,w,h*.82,u*4,u*30,3,'#93C3DB','#FFFFFF');stepsMt(c,w,h*.84,u*3,u*17,7,'#6DB3A0');
+  island(c,w*.2,h*.4,u*1.6,'#6CCB4A');
+  const n=Math.ceil(w/h*1.3)+2;for(let i=0;i<n;i++){const W=u*(20+r()*16),x0=r()*(w+W*2),y=h*(.18+r()*.42),sp=u*(1.2+r());cloud(c,wrap(x0+t*sp,w+W*2)-W*.5,y,W,'#FFFFFF','#D6E6F5',u*3,r)}
+  // ground: start map
+  const gy=h*(o.hero?.86:.84);block(c,-2,gy,w+4,h-gy+2,'#5BC236',u*3.2,{bot:'#3E9A2A',top:'#8BE05E'});
+  c.fillStyle='#4CAF2F';for(let i=0;i<w/(u*6);i++)c.fillRect(r()*w,gy+u*3+r()*(h-gy-u*4),u*2,u*1);
+  const ax=w*.22;c.fillStyle='#E9A912';c.fillRect(ax-u*9,gy-u*14,u*3,u*14);c.fillRect(ax+u*6,gy-u*14,u*3,u*14);c.fillRect(ax-u*10,gy-u*17,u*20,u*3.4);c.fillStyle='#FFD94A';c.fillRect(ax-u*10,gy-u*17,u*20,u*1);c.fillRect(ax-u*9,gy-u*14,u*1,u*14);c.fillRect(ax+u*6,gy-u*14,u*1,u*14);
+  [[.42,'#E8352E'],[.55,'#2E9BFF'],[.9,'#FF8A1F']].forEach(([fx,col])=>{const sx=w*fx;for(let k=0;k<4;k++){c.fillStyle=k%2?'#FFFFFF':col;c.fillRect(sx-u*5+k*u*2.5,gy-u*8,u*2.5,u*3)}c.fillStyle='#C9A26B';c.fillRect(sx-u*4.5,gy-u*5,u*9,u*5);c.fillStyle='#7A5A3A';c.fillRect(sx-u*2,gy-u*4,u*4,u*4)});
+  const pc=['#FF8FB8','#FFE45C','#FFFFFF','#FFB0D0'],m=Math.round(w/h*9);for(let i=0;i<m;i++){const x0=r()*w,y0=r()*h,col=pc[i%4],s=u*(.9+r()*.8),x=wrap(x0+Math.sin(t*.8+i)*u*3+t*u*1.5,w),y=wrap(y0-t*u*3.5,h*.9);c.save();c.translate(x,y);c.rotate(t*.9+i);c.fillStyle=col;c.fillRect(-s,-s*.6,s*2,s*1.2);c.restore()}
+};
+P.shelf=(c,w,h,t,o)=>{const u=h/100,r=rng(22);
+  sky(c,w,h,[[0,'#1F6FD1'],[.42,'#6FB0F0'],[.66,'#FFD9A0']]);
+  glow(c,w*.74,h*.5,u*55,'#FFD27A',.95);disc(c,w*.74,h*.5,u*9,u*9,u*1.8,'#FFE59A',{flat:true});
+  for(let i=0;i<5;i++){const x=w*(.06+i*.22+r()*.08),bw=u*(10+r()*6),bh=u*(12+r()*16),base=h*.68;for(let k=0;k<3;k++){const ww=bw*(1-k*.22);block(c,x-ww/2,base-bh*(k+1)/3-k*u,ww,bh/3+u,'#FFF1DA',u*2.4,{bot:'#F3CFA2',top:'#FFFFFF'})}}
+  island(c,w*.36,h*.36,u*1.7,'#6CCB4A');island(c,w*.9,h*.24,u*1.1,'#5FBF4A');
+  const n=Math.ceil(w/h)+1;for(let i=0;i<n;i++){const W=u*(10+r()*8),x0=r()*(w+W*2),y=h*(.14+r()*.3);cloud(c,wrap(x0+t*u*.8,w+W*2)-W*.5,y,W,'#FFFFFF','#F0D6B0',u*2.4,r,{top:'#FFF6E2'})}
+  const rows=[[.68,6,2.2],[.74,9,3],[.83,17,4.2]];
+  rows.forEach(([fy,hh,s],k)=>{const y0=h*fy;c.fillStyle='#E9EFFA';c.fillRect(0,y0,w,h-y0);let x=-wrap(t*u*(.6+k*.6)+k*u*13,u*60);while(x<w){const sw=u*(14+r()*20)*(1+k*.4),dy=(r()<.5?-1:0)*u*(1+k);block(c,x,y0+dy,sw+1,u*hh,'#FBFCFF',u*s,{bot:'#C9D6EA',top:'#FFF3D6'});x+=sw}});
+  if(!o.hero){c.fillStyle='#7DBB6A';c.fillRect(w*.12,h*.9,u*9,u*3);c.fillStyle='#5E9E4E';c.fillRect(w*.12,h*.9,u*9,u*.8);c.fillStyle='#7DBB6A';c.fillRect(w*.58,h*.93,u*6,u*2.4)}
+  for(let i=0;i<5;i++){const x=wrap(r()*w-t*u*2.5,w+u*40)-u*20,y=h*(.3+r()*.4),ww=u*(18+r()*20);c.fillStyle='rgba(255,255,255,.38)';c.beginPath();c.roundRect(x,y,ww,u*2.2,u*1.1);c.fill()}
+  c.fillStyle='#FFF2B0';const m=Math.round(w/h*7);for(let i=0;i<m;i++){const x=wrap(r()*w+t*u*.8,w),y=wrap(r()*h*.8-t*u*.6,h*.8),s=u*(.5+.5*Math.abs(Math.sin(t*2+i)));c.fillRect(x-s*1.5,y-s*.35,s*3,s*.7);c.fillRect(x-s*.35,y-s*1.5,s*.7,s*3)}
+};
+P.kite=(c,w,h,t,o)=>{const u=h/100,r=rng(33);
+  sky(c,w,h,[[0,'#1AA6E0'],[.5,'#5CD3F0'],[.8,'#C8F5E8']]);
+  glow(c,w*.12,h*.18,u*30,'#FFFFFF',.8);disc(c,w*.12,h*.18,u*6,u*6,u*1.5,'#FFFFFF',{flat:true});
+  island(c,w*.62,h*.6,u*1.3,'#7FD35A');c.fillStyle='#FFFFFF';c.fillRect(w*.62+u*1.5,h*.6-u*7,u*1.2,u*7);c.save();c.translate(w*.62+u*2.1,h*.6-u*7);c.rotate(t*1.5);c.fillStyle='#FF6B6B';for(let k=0;k<4;k++){c.rotate(TAU/4);c.fillRect(0,-u*.5,u*4,u*1)}c.restore();
+  island(c,w*.08,h*.52,u*1,'#7FD35A');
+  const kc=['#FF3B5C','#FFC83D','#7A5CFF','#3DBE4A','#FF8A1F','#FFFFFF'];
+  for(let i=0;i<Math.round(w/h*7);i++){const x=r()*w,y=h*(.08+r()*.5)+Math.sin(t+i)*u,s=u*(.9+r()*1.1);c.fillStyle=kc[i%6];c.beginPath();c.moveTo(x,y-s*1.5);c.lineTo(x+s,y);c.lineTo(x,y+s*1.5);c.lineTo(x-s,y);c.fill();c.strokeStyle='rgba(255,255,255,.7)';c.lineWidth=1;c.beginPath();c.moveTo(x,y+s*1.5);c.quadraticCurveTo(x+s*2,y+s*4,x-s,y+s*6);c.stroke()}
+  const fy=h*.88;c.fillStyle='#E7F7F7';c.fillRect(0,fy,w,h-fy);let x=-wrap(t*u*1.5,u*40);while(x<w){const sw=u*(12+r()*18);if(r()<.78)block(c,x,fy,sw,h-fy,'#FFFFFF',u*2.6,{bot:'#B7DCE6'});else{c.fillStyle='#8FC9A8';c.fillRect(x,fy+u*3,sw,h-fy)}x+=sw}
+  const ux=w*.3,ug=c.createLinearGradient(ux-u*8,0,ux+u*8,0);ug.addColorStop(0,'rgba(140,255,217,0)');ug.addColorStop(.5,'rgba(140,255,217,.55)');ug.addColorStop(1,'rgba(140,255,217,0)');c.fillStyle=ug;c.fillRect(ux-u*8,0,u*16,fy);
+  c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=u*.9;c.lineCap='round';for(let k=0;k<5;k++){const y=wrap(fy-k*u*18-t*u*14,fy);c.beginPath();c.moveTo(ux-u*3,y+u*2.5);c.lineTo(ux,y);c.lineTo(ux+u*3,y+u*2.5);c.stroke()}
+  for(let i=0;i<3;i++){const W=u*(22+r()*10),x0=r()*(w+W*2),y=h*(.22+i*.2),xx=wrap(x0+t*u*4,w+W*2)-W*.5;for(let k=0;k<3;k++){const ww=W*(1-k*.25);block(c,xx-ww/2,y-k*u*3.4,ww,u*3.4,'#FFFFFF',u*2.6,{bot:'#BFE3EE'})}}
+  const hx_=w*.8,hy=h*.38+Math.sin(t*1.2)*u*2,s=u*6;c.save();c.translate(hx_,hy);c.rotate(Math.sin(t)*.15);c.fillStyle='#FFE45C';for(let k=0;k<8;k++){c.save();c.rotate(k*TAU/8);c.beginPath();c.moveTo(-u*.8,-s*1.05);c.lineTo(0,-s*1.55);c.lineTo(u*.8,-s*1.05);c.fill();c.restore()}c.fillStyle='#FF3B5C';c.beginPath();c.moveTo(0,-s*1.2);c.lineTo(s,0);c.lineTo(0,s*1.2);c.lineTo(-s,0);c.fill();c.fillStyle='#C4153A';c.beginPath();c.moveTo(0,0);c.lineTo(s,0);c.lineTo(0,s*1.2);c.fill();c.strokeStyle='#1E2433';c.lineWidth=u*.5;c.beginPath();c.moveTo(0,-s*1.2);c.lineTo(0,s*1.2);c.moveTo(-s,0);c.lineTo(s,0);c.stroke();c.restore();
+  c.strokeStyle='#1E2433';c.lineWidth=u*.3;c.beginPath();c.moveTo(hx_,hy+s*1.2);for(let k=1;k<6;k++)c.lineTo(hx_+Math.sin(t*3+k)*u*2,hy+s*1.2+k*u*3.5);c.stroke();
+  const sc=['#FF3B5C','#FFC83D','#7A5CFF','#3DBE4A','#2E9BFF'];c.lineWidth=u*1.1;for(let i=0;i<Math.round(w/h*3);i++){const x0=wrap(r()*w+t*u*9,w+u*40)-u*20,y0=r()*h*.8;c.strokeStyle=sc[i%5];c.beginPath();for(let k=0;k<7;k++){const xx=x0-k*u*3,yy=y0+Math.sin(t*5+k*.9+i)*u*1.6;k?c.lineTo(xx,yy):c.moveTo(xx,yy)}c.stroke()}
+  for(let i=0;i<Math.round(w/h*10);i++){c.fillStyle=sc[i%5];const x=wrap(r()*w+t*u*5,w),y=wrap(r()*h+t*u*2,h*.88);c.save();c.translate(x,y);c.rotate(t*3+i);c.fillRect(-u*.6,-u*.35,u*1.2,u*.7);c.restore()}
+};
+P.wind=(c,w,h,t,o)=>{const u=h/100,r=rng(44);
+  sky(c,w,h,[[0,'#3E5FCF'],[.5,'#7E9BDC'],[.82,'#B4CDEC']]);
+  glow(c,w*.18,h*.22,u*18,'#F2F6FF',.7);disc(c,w*.18,h*.22,u*4,u*4,u*1.2,'#F7F9FF',{flat:true});
+  const vx=w*.72,vy=h*.6;c.save();c.translate(vx,vy);c.scale(1,.42);for(let k=0;k<6;k++){c.strokeStyle=`rgba(255,255,255,${.5-k*.07})`;c.lineWidth=u*(1.6-k*.15);c.beginPath();const R=u*(6+k*7);c.arc(0,0,R,t*.6+k*.7,t*.6+k*.7+TAU*.62);c.stroke()}c.restore();
+  const arch=(x,y,s,col)=>{c.fillStyle=col;c.fillRect(x,y,s*2,s*6);c.fillRect(x+s*6,y+s,s*2,s*5);c.fillRect(x,y-s*1.5,s*8,s*2);c.fillRect(x+s*1,y-s*2.5,s*5,s*1.2);c.fillStyle=sh(col,.2);c.fillRect(x,y-s*1.5,s*8,s*.5)};
+  arch(w*.04,h*.5,u*1.6,'#8E97B4');arch(w*.44,h*.62,u*1.1,'#A2ABC6');
+  stepsMt(c,w,h*.86,u*3,u*14,19,'#C3D4EE');stepsMt(c,w,h*.86,u*2.4,u*7,23,'#D3E0F3');
+  const fy=h*.86;c.fillStyle='#DCE7F6';c.fillRect(0,fy,w,h-fy);let x=-wrap(t*u*5,u*40);while(x<w){const sw=u*(14+r()*16);block(c,x,fy+(r()<.4?-u:0),sw,h-fy+u,'#F2F6FD',u*2.6,{bot:'#B6C6E0'});x+=sw}
+  c.strokeStyle='rgba(140,160,205,.6)';c.lineWidth=u*.7;for(let k=0;k<3;k++){c.beginPath();c.ellipse(w*(.2+k*.32),fy+u*7,u*(10+k*2),u*2.2,0,t+k,t+k+TAU*.7);c.stroke()}
+  const gx=w*.12,gg=c.createLinearGradient(gx-u*5,0,gx+u*5,0);gg.addColorStop(0,'rgba(255,255,255,0)');gg.addColorStop(.5,'rgba(255,255,255,.6)');gg.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=gg;c.fillRect(gx-u*5,0,u*10,fy);
+  for(let lane=0;lane<3;lane++){const y=h*(.24+lane*.18);for(let i=0;i<3;i++){const W=u*(30+r()*30),xx=wrap(r()*(w+W*2)+t*u*(10+lane*4),w+W*2)-W;const tg=c.createLinearGradient(xx-W*.6,0,xx,0);tg.addColorStop(0,'rgba(255,255,255,0)');tg.addColorStop(1,'rgba(255,255,255,.55)');c.fillStyle=tg;c.fillRect(xx-W*.6,y+u*1,W*.6,u*3.4);block(c,xx,y,W,u*4.6,'#FFFFFF',u*2.4,{bot:'#C7D6EE'});block(c,xx+W*.2,y-u*2.4,W*.45,u*2.4+1,'#FFFFFF',u*2.4,{bot:false})}}
+  const fx0=wrap(w*.55+t*u*7,w+u*60)-u*30,fyy=h*.42;for(let k=0;k<7;k++){const bx=fx0-Math.abs(k-3)*u*4.5,by=fyy+(k-3)*u*3.2,fl=Math.sin(t*8+k)*u*1.2;c.strokeStyle='#FFFFFF';c.lineWidth=u*1.1;c.lineJoin='miter';c.beginPath();c.moveTo(bx-u*2.6,by-fl);c.lineTo(bx,by+u*.6);c.lineTo(bx+u*2.6,by-fl);c.stroke();c.fillStyle='#FFB020';c.fillRect(bx-u*.3,by+u*.4,u*.6,u*.5)}
+  c.lineCap='round';for(let i=0;i<Math.round(w/h*8);i++){const L=u*(10+r()*16),xx=wrap(r()*w+t*u*40*(.7+r()*.6),w+L)-L,y=r()*h*.84;c.strokeStyle='rgba(255,255,255,.8)';c.lineWidth=u*(.4+r()*.4);c.beginPath();c.moveTo(xx,y);c.lineTo(xx+L,y);c.stroke()}
+  c.fillStyle='#FFFFFF';for(let i=0;i<4;i++){const xx=wrap(r()*w+t*u*12,w),y=wrap(r()*h+Math.sin(t*2+i)*u*3,h*.84);c.save();c.translate(xx,y);c.rotate(Math.sin(t*2+i));c.beginPath();c.ellipse(0,0,u*1.5,u*.5,0,0,TAU);c.fill();c.restore()}
+};
+P.thunder=(c,w,h,t,o)=>{const u=h/100,r=rng(55);
+  sky(c,w,h,[[0,'#1B1440'],[.55,'#2E2266'],[.85,'#4B3A8C']]);
+  glow(c,w*.5,h*.15,u*40,'#8C7FD9',.25);
+  for(let i=0;i<3;i++){const x=w*(.14+i*.36+r()*.08),base=h*.84,s=u*(.95+r()*.35),fl=wrap(t*.35+i*.33,1)<.07;const col=fl?'#4E3F8E':'#2C2256',bot=fl?'#3A2E70':'#211A44',top=fl?'#B7A8FF':'#4D3F8C',st=s*2.6;
+    [[-16,6,32],[-12,14,23],[-8.5,23,17],[-9,30,19],[-13,35,34],[-9,38,25]].forEach(([dx,dy,ww],k)=>{const hh=k?(dy-[0,6,14,23,30,35][k]):6;block(c,x+dx*s,base-dy*s,ww*s,hh*s+1,col,st,{bot:k===0?bot:false,top})});
+    if(fl)glow(c,x,base-s*22,s*30,'#D9CCFF',.55)}
+  const fy=h*.84;c.fillStyle='#1A1438';c.fillRect(0,fy,w,h-fy);let x=-wrap(t*u*1.2,u*40);while(x<w){const sw=u*(12+r()*16);block(c,x,fy+(r()<.5?-u*1.5:0),sw,h-fy+u*2,'#2B2350',u*2.8,{bot:'#171230',top:'#4C3F86'});x+=sw}
+  glow(c,w*.62,fy+u*8,u*22,'#B28CFF',.35+.25*Math.sin(t*3));
+  const n=Math.ceil(w/h)+2;const cl=[];for(let i=0;i<n;i++){const W=u*(24+r()*14),x0=r()*(w+W*2),y=h*(.3+r()*.36);const xx=wrap(x0+t*u*.9,w+W*2)-W*.5;cl.push([xx,y,W]);cloud(c,xx,y,W,'#4A4370','#2B2550',u*3,r,{top:'#8C7FD9'})}
+  const bolt=(x1,y1,x2,y2,seed)=>{const rr=rng(seed),pts=[[x1,y1]];for(let k=1;k<7;k++){const f=k/7;pts.push([x1+(x2-x1)*f+(rr()-.5)*u*7,y1+(y2-y1)*f])}pts.push([x2,y2]);c.save();c.shadowColor='#FFE600';c.shadowBlur=u*4;c.strokeStyle='#FFE600';c.lineWidth=u*1.4;c.lineJoin='miter';c.beginPath();pts.forEach((p,k)=>k?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.strokeStyle='#FFFFFF';c.lineWidth=u*.45;c.stroke();c.restore()};
+  if(wrap(t*.5,1)<.62)bolt(w*.58,h*.04,w*.52,h*.62,7);
+  if(wrap(t*.5+.5,1)<.3)bolt(w*.2,h*.1,w*.26,h*.5,9);
+  if(!o.hero||w>0){const ex=w*.86+Math.sin(t*.7)*u*4,ey=h*.2,s=u*1.1,fl=Math.sin(t*4)*s*2;c.fillStyle='#120E26';c.fillRect(ex-s*3,ey-s*1.5,s*6,s*3);c.fillRect(ex+s*3,ey-s*2.5,s*2.5,s*2.5);c.beginPath();c.moveTo(ex-s*2,ey-s);c.lineTo(ex-s*11,ey-s*4-fl);c.lineTo(ex-s*9,ey+s*.5);c.lineTo(ex+s*1,ey+s*.5);c.fill();c.beginPath();c.moveTo(ex,ey-s);c.lineTo(ex+s*6,ey-s*7-fl);c.lineTo(ex+s*3,ey);c.fill();c.fillStyle='#FFE600';c.fillRect(ex+s*4.2,ey-s*2,s*.8,s*.8);c.fillStyle='#FFB020';c.fillRect(ex+s*5.5,ey-s*1.4,s*1.4,s*.7)}
+  c.strokeStyle='rgba(170,185,255,.45)';c.lineWidth=Math.max(1,u*.3);for(let i=0;i<Math.round(w/h*22);i++){const x0=wrap(r()*w-t*u*12,w+u*10),y0=wrap(r()*h+t*u*55,h);c.beginPath();c.moveTo(x0,y0);c.lineTo(x0-u*1.6,y0+u*5);c.stroke()}
+  c.fillStyle='#FFE600';for(let i=0;i<6;i++){const a=t*6+i;if(Math.sin(a)>.2){const x=w*(.5+(r()-.5)*.3),y=h*(.4+(r()-.5)*.3);c.fillRect(x,y,u*.8,u*.8)}else{r();r()}}
+};
+P.hail=(c,w,h,t,o)=>{const u=h/100,r=rng(66);
+  sky(c,w,h,[[0,'#2C4A7A'],[.5,'#6E9CC9'],[.8,'#D8ECF7']]);
+  const sx=w*.7,sy=h*.3;glow(c,sx,sy,u*26,'#FFFFFF',.7);
+  c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=u*1.1;c.beginPath();c.arc(sx,sy,u*17,0,TAU);c.stroke();c.strokeStyle='rgba(255,200,170,.35)';c.lineWidth=u*.6;c.beginPath();c.arc(sx,sy,u*18.4,0,TAU);c.stroke();
+  disc(c,sx,sy,u*4.5,u*4.5,u*1.3,'#FFFFFF',{flat:true});
+  [[-1],[1]].forEach(([d])=>{glow(c,sx+d*u*17,sy,u*5,'#FFF4E0',.9);c.fillStyle='#FFFFFF';c.fillRect(sx+d*u*17-u*.9,sy-u*.9,u*1.8,u*1.8)});
+  const cliff=(x,y,s)=>{c.fillStyle='#BFE6F5';c.fillRect(x,y,s*12,s*3);c.fillRect(x+s*2,y-s*3,s*7,s*3);c.fillRect(x+s*4,y-s*5,s*3,s*2);c.fillStyle='#FFFFFF';c.fillRect(x,y,s*12,s*.6);c.fillRect(x+s*2,y-s*3,s*7,s*.6);c.fillStyle='#9ED3EA';for(let k=0;k<6;k++){c.beginPath();c.moveTo(x+s*(1+k*2),y+s*3);c.lineTo(x+s*(2+k*2),y+s*(5+(k%3)));c.lineTo(x+s*(3+k*2),y+s*3);c.fill()}};
+  cliff(w*.04,h*.52,u*1.3);cliff(w*.42,h*.62,u*.9);
+  const fy=h*.85;c.fillStyle='#E6F4FB';c.fillRect(0,fy,w,h-fy);let x=-wrap(t*u*1,u*40);while(x<w){const sw=u*(14+r()*18);block(c,x,fy,sw,h-fy,'#F1FAFF',u*2.6,{bot:'#B9DCEE',top:'#FFFFFF'});c.strokeStyle='#9CC7DD';c.lineWidth=Math.max(1,u*.3);c.beginPath();const cx=x+sw*r();c.moveTo(cx,fy+u*2);c.lineTo(cx+u*2,fy+u*5);c.lineTo(cx+u*1,fy+u*8);c.stroke();x+=sw}
+  for(let i=0;i<Math.ceil(w/h*1.6);i++){const W=u*(20+r()*14),x0=r()*(w+W*2),y=h*(.15+r()*.5),xx=wrap(x0+t*u*1.6,w+W*2)-W,sk=Math.sin(t*.5+i)*.35;c.save();c.translate(xx,y);c.transform(1,sk*.3,-.6,1,0,0);c.fillStyle='rgba(168,230,255,.42)';c.fillRect(0,0,W,u*7);c.strokeStyle='rgba(255,255,255,.95)';c.lineWidth=u*.5;c.strokeRect(0,0,W,u*7);c.fillStyle='rgba(255,255,255,.55)';c.fillRect(W*.1,u*1.2,W*.35,u*1);c.restore();const sp=Math.abs(Math.sin(t*2+i*2));c.fillStyle='#FFFFFF';const px=xx+W*.6,py=y+u*2;c.fillRect(px-u*1.6*sp,py-u*.25,u*3.2*sp,u*.5);c.fillRect(px-u*.25,py-u*1.6*sp,u*.5,u*3.2*sp)}
+  for(let i=0;i<Math.round(w/h*16);i++){const x0=wrap(r()*w-t*u*6,w),y0=wrap(r()*h+t*u*30*(.7+r()*.5),fy),s=u*(.7+r()*.7);c.fillStyle='#FFFFFF';c.fillRect(x0,y0,s,s);c.fillStyle='#B9D3E6';c.fillRect(x0,y0+s*.65,s,s*.35)}
+  c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=Math.max(1,u*.25);for(let i=0;i<Math.round(w/h*6);i++){const x0=wrap(r()*w+Math.sin(t+i)*u*3,w),y0=wrap(r()*h+t*u*6,fy),s=u*1.1;c.beginPath();c.moveTo(x0-s,y0);c.lineTo(x0+s,y0);c.moveTo(x0,y0-s);c.lineTo(x0,y0+s);c.moveTo(x0-s*.7,y0-s*.7);c.lineTo(x0+s*.7,y0+s*.7);c.moveTo(x0+s*.7,y0-s*.7);c.lineTo(x0-s*.7,y0+s*.7);c.stroke()}
+};
+P.strato=(c,w,h,t,o)=>{const u=h/100,r=rng(77);
+  sky(c,w,h,[[0,'#050B24'],[.5,'#0B1638'],[.74,'#1D3E8A'],[.8,'#3D7BD9']]);
+  for(let i=0;i<Math.round(w/h*30);i++){c.fillStyle=`rgba(255,255,255,${.3+r()*.6})`;const s=r()<.15?u*.7:u*.4;c.fillRect(r()*w,r()*h*.6,s,s)}
+  const sx=w*.14,sy=h*.24;glow(c,sx,sy,u*14,'#FFFFFF',.6);c.fillStyle='#FFFFFF';c.fillRect(sx-u*2.2,sy-u*2.2,u*4.4,u*4.4);c.fillStyle='rgba(255,255,255,.7)';c.fillRect(sx-u*12,sy-u*.25,u*24,u*.5);c.fillRect(sx-u*.25,sy-u*12,u*.5,u*24);
+  const R=Math.max(w*1.5,h*3),cx=w*.5,cy=h*.8+R;
+  c.save();const ag=c.createRadialGradient(cx,cy,R*.985,cx,cy,R*1.03);ag.addColorStop(0,'rgba(120,200,255,.95)');ag.addColorStop(.4,'rgba(80,160,255,.45)');ag.addColorStop(1,'rgba(80,160,255,0)');c.fillStyle=ag;c.beginPath();c.arc(cx,cy,R*1.03,0,TAU);c.fill();
+  c.beginPath();c.arc(cx,cy,R,0,TAU);c.fillStyle='#2D6FD1';c.fill();c.clip();
+  const pr=rng(5);for(let i=0;i<14;i++){const x=wrap(pr()*w*1.4+t*u*.6,w*1.4)-w*.2,y=h*(.8+pr()*.25),s=u*(3+pr()*7);c.fillStyle=i%3?'#FFFFFF':'#4FB548';c.fillRect(x,y,s*3,s*.9);c.fillRect(x+s*.6,y-s*.5,s*1.6,s*.5)}
+  c.fillStyle='rgba(0,0,30,.25)';c.fillRect(0,h*.95,w,h*.05);c.restore();
+  if(!o.hero){c.fillStyle='#6CCB4A';c.fillRect(w*.5,h*.9,u*1,u*1)}
+  c.strokeStyle='rgba(190,217,255,.5)';c.lineWidth=u*.6;for(let k=0;k<2;k++){c.beginPath();for(let x=0;x<=w;x+=u*3){const y=h*(.68+k*.04)+Math.sin(x/w*12+t*.5+k)*u*1.2;x?c.lineTo(x,y):c.moveTo(x,y)}c.stroke()}
+  const tx=wrap(w*.25+t*u*2,w+u*40)-u*20,ty=h*.5;c.save();c.translate(tx,ty);c.rotate(-.15);c.fillStyle='#2F6BD8';c.fillRect(-u*11,-u*2,u*8,u*4);c.fillRect(u*3,-u*2,u*8,u*4);c.strokeStyle='#8FB5FF';c.lineWidth=Math.max(1,u*.25);for(let k=1;k<4;k++){c.beginPath();c.moveTo(-u*11+k*u*2,-u*2);c.lineTo(-u*11+k*u*2,u*2);c.moveTo(u*3+k*u*2,-u*2);c.lineTo(u*3+k*u*2,u*2);c.stroke()}c.fillStyle='#B8BCC8';c.fillRect(-u*3,-u*3,u*6,u*6);c.fillStyle='#E0E3EA';c.fillRect(-u*3,-u*3,u*6,u*1);c.fillStyle='#D9A441';c.fillRect(-u*1,-u*5,u*2,u*2);c.fillStyle=(wrap(t,1)<.5)?'#FF4D4D':'#5A1A1A';c.fillRect(-u*.4,-u*6,u*.8,u*.8);c.restore();
+  for(let i=0;i<3;i++){const p=wrap(t*.35+i*.37,1);if(p<.35){const k=p/.35,x=w*(.3+i*.25)+k*u*30,y=h*(.05+i*.1)+k*u*18;const g=c.createLinearGradient(x-u*14,y-u*8.4,x,y);g.addColorStop(0,'rgba(255,170,90,0)');g.addColorStop(1,'rgba(255,230,190,.95)');c.strokeStyle=g;c.lineWidth=u*.8;c.beginPath();c.moveTo(x-u*14,y-u*8.4);c.lineTo(x,y);c.stroke()}}
+  c.fillStyle='rgba(220,230,255,.6)';for(let i=0;i<Math.round(w/h*10);i++){c.fillRect(wrap(r()*w+t*u*1.5,w),wrap(r()*h-t*u,h*.75),u*.35,u*.35)}
+};
+P.orbit=(c,w,h,t,o)=>{const u=h/100,r=rng(88);
+  sky(c,w,h,[[0,'#000000'],[1,'#0A0A1A']]);
+  for(let i=0;i<Math.round(w/h*55);i++){c.fillStyle=`rgba(255,255,255,${.25+r()*.7})`;const s=u*(.25+r()*.4);c.fillRect(r()*w,r()*h,s,s)}
+  for(let i=0;i<Math.round(w/h*3);i++){const x=r()*w,y=r()*h*.8,s=u*(1.2+1.4*Math.abs(Math.sin(t*1.5+i*1.7)));c.fillStyle='#FFFFFF';c.fillRect(x-s,y-u*.2,s*2,u*.4);c.fillRect(x-u*.2,y-s,u*.4,s*2)}
+  const fx=w*.06,fy=h*.12;glow(c,fx,fy,u*16,'#FFFFFF',.7);c.fillStyle='#FFFFFF';c.fillRect(fx-u*2.4,fy-u*2.4,u*4.8,u*4.8);[[.18,3,'#7FD3FF'],[.3,1.8,'#FFC83D'],[.42,4,'#B28CFF']].forEach(([k,s,col])=>{c.globalAlpha=.35;c.fillStyle=col;c.beginPath();c.arc(fx+(w*.5-fx)*k*1.6,fy+(h*.5-fy)*k*1.6,u*s,0,TAU);c.fill();c.globalAlpha=1});
+  const rpx=w*.4,rpy=h*.18;disc(c,rpx,rpy,u*4,u*4,u*1,'#D59A64');c.strokeStyle='rgba(240,210,160,.85)';c.lineWidth=u*.6;c.beginPath();c.ellipse(rpx,rpy,u*8,u*2,-.3,0,TAU);c.stroke();
+  const mx=w*.76,my=h*.4,MR=u*30;glow(c,mx,my,MR*1.5,'#C9C9E0',.2);
+  disc(c,mx,my,MR,MR,MR/9,'#9A9AA6',{studs:true,crater:(x,y)=>((x+.3)**2+(y+.2)**2<.05)||((x-.35)**2+(y-.3)**2<.03)||((x-.1)**2+(y+.55)**2<.02)});
+  disc(c,w*.08,h*.62,u*8,u*8,u*1.6,'#B4B4BE',{studs:true});
+  const PR=u*26,px=w*.26,py=h*1.08;const pg=c.createRadialGradient(px,py,PR*.95,px,py,PR*1.35);pg.addColorStop(0,'rgba(110,190,255,.8)');pg.addColorStop(1,'rgba(110,190,255,0)');c.fillStyle=pg;c.beginPath();c.arc(px,py,PR*1.35,0,TAU);c.fill();disc(c,px,py,PR,PR,u*2.2,'#2D6FD1');c.fillStyle='#4FB548';c.fillRect(px-u*8,py-u*20,u*9,u*4);c.fillRect(px+u*4,py-u*14,u*6,u*3);c.fillStyle='#FFFFFF';c.fillRect(px-u*14,py-u*14,u*8,u*2);c.fillRect(px+u*2,py-u*23,u*7,u*2);
+  const rock=(x,y,s,seed)=>{const rr=rng(seed);block(c,x,y,s*8,s*3,'#8E8E99',s*1.6,{bot:'#6A6A75',top:'#B6B6C2'});c.fillStyle='#7A7A86';c.fillRect(x+s,y+s*3,s*6,s*1.5);c.fillRect(x+s*2.5,y+s*4.5,s*3,s*1.2);rr()};
+  const bob=Math.sin(t*.8)*u;rock(w*.24,h*.5+bob,u*1.6,1);rock(w*.93,h*.78-bob,u*1,2);rock(w*.42,h*.7-bob,u*1.1,3);
+  const hx_=w*.24+u*6.4,hy=h*.5+bob;c.fillStyle='#C8CAD6';c.fillRect(hx_-u*6,hy-u*4,u*12,u*4);c.fillStyle='#E4E6EE';c.fillRect(hx_-u*6,hy-u*4,u*12,u*.8);c.fillStyle='rgba(127,211,255,.75)';c.beginPath();c.arc(hx_,hy-u*4,u*4.2,Math.PI,0);c.fill();c.fillStyle='rgba(255,255,255,.7)';c.fillRect(hx_-u*2.4,hy-u*7,u*1,u*1.6);c.fillStyle='#FFC83D';for(let k=0;k<4;k++)c.fillRect(hx_-u*5+k*u*3,hy-u*2,u*1.2,u*1);c.fillStyle='#C8CAD6';c.fillRect(hx_+u*4.5,hy-u*10,u*.5,u*6);c.fillStyle=wrap(t,1.2)<.6?'#FF4D4D':'#4A1414';c.fillRect(hx_+u*4.2,hy-u*11,u*1.1,u*1.1);
+  c.fillStyle='rgba(220,220,255,.55)';for(let i=0;i<Math.round(w/h*8);i++)c.fillRect(wrap(r()*w-t*u*.8,w),wrap(r()*h+t*u*.4,h),u*.4,u*.4);
+};
+
+/* ---------------- data ---------------- */
+const Z=[
+ {id:'meadow',name:'Meadow Sky',from:0,to:500,phase:'Phase 1 · open',pc:'open',zc:'#3DBE4A',zc2:'#52CC5E',jc:'#5BC236',
+  sky:[['Sky top','#3FA9F5','Bright happy blue.'],['Horizon','#D4F0FF','Very light blue near the ground.'],['Sun','#FFF6C9','Big, soft, white-yellow, high up.'],['Fog','#D4F0FF','Thin. Starts far away.'],['Light','#FFF4E0','Brightness 3, warm white.']],
+  far:'The mountain ring around the start map: blue-green stepped peaks with snow tops. One or two sky islands far away.',
+  mid:'Puffy cotton clouds. Bright white with blue-grey bottoms. Only a few, with big gaps. They drift slowly to the east.',
+  near:'Pollen dots and flower petals (pink, yellow, white). Slow and few. They float up past you.',
+  below:'The start map: green studded grass, festival stalls and the golden arch. It gets smaller as you climb.',
+  next:'From 400 studs a white cloud ceiling appears above you. Mist wisps get thicker. At 500 you punch through it with a soft whoosh and a cloud puff.',
+  sound:'Birdsong and a soft breeze, with light wind chimes.',
+  weather:[['Sunny','Brighter sun and small sparkles in the air.'],['Breeze','Clouds move faster, petals fly sideways, more wind lines.'],['Rain','Grey cloud bottoms, rain streaks, light drops to 1.8.'],['Rainbow','A big stud rainbow far away. Everything looks freshly washed.']],
+  wow:'Look down: the whole festival map gets tiny, and the golden arch shines in the sun.'},
+ {id:'shelf',name:'Cloud Shelf',from:500,to:1500,phase:'Phase 1 · open',pc:'open',zc:'#F0A21E',zc2:'#F6B23A',jc:'#FFD9A0',
+  sky:[['Sky top','#1F6FD1','Deeper, clearer blue.'],['Horizon','#FFD9A0','Soft golden haze.'],['Sun','#FFE08A','Bigger and warmer, with a glow.'],['Fog','#FFE6B8','Golden. Medium distance.'],['Light','#FFE2B0','Brightness 3.5, warm gold.']],
+  far:'A flat sea of clouds out to the edge of the world. Tall cloud towers stand on it far away. The four sky islands float above it.',
+  mid:'The cloud floor is now BELOW you: flat stud slabs, white with golden tops. A few small cloudlets drift at your height.',
+  near:'Soft mist wisps and golden dust that sparkles in the sunlight.',
+  below:'The cloud floor. Small holes show the green ground far down.',
+  next:'From 1,400 studs the sky turns more turquoise. Paper streamers start to fly past, the wind gets louder and the first kites appear far away.',
+  sound:'A calm, airy pad with distant wind. Very peaceful.',
+  weather:[['Clear','Crisp air, a bright white cloud floor, you see very far.'],['Fog','Golden-white fog closes in (about 300 studs). The cloud floor rises around you.'],['Golden Hour','Low orange sun, pink-orange sky, long shadows on the cloud floor.']],
+  wow:'Breaking through the cloud floor into golden light. The floor closes under you like a sea.'},
+ {id:'kite',name:'Kite Fields',from:1500,to:4000,phase:'Phase 2',pc:'kite',zc:'#18A7C9',zc2:'#2DB8D8',jc:'#5CD3F0',
+  sky:[['Sky top','#1AA6E0','Bright turquoise.'],['Horizon','#C8F5E8','Fresh mint.'],['Sun','#FFFFFF','Bright white, high up.'],['Fog','#D6FFF2','Mint. Thin.'],['Light','#F0FFF8','Brightness 3, fresh and cool.']],
+  far:'Small floating meadow islands with windmills. Hundreds of tiny kites far away, with long tails.',
+  mid:'Long, flat "stacked plate" clouds in rows. They move fast to the right. Updrafts: glowing mint columns that push you up. Spiky kites float between them.',
+  near:'Paper streamers, confetti bits and kite tails that flutter past.',
+  below:'The cloud floor far down, now with big gaps. Kite shadows slide across it.',
+  next:'From 3,900 studs the wind lines get longer and faster. Clouds stretch into thin streaks. The wind sound gets stronger.',
+  sound:'Fabric flapping and kite strings humming in a light wind.',
+  weather:[['Ideas','Kite Festival (many more kites), Gusty (streamers fly sideways), Clear.']],weatherIdea:true,
+  wow:'Ride a glowing updraft straight up while a wall of colourful kites flies past you.'},
+ {id:'wind',name:'Windways',from:4000,to:8000,phase:'Phase 2',pc:'kite',zc:'#3E5FCF',zc2:'#5170D8',jc:'#7E9BDC',
+  sky:[['Sky top','#3E5FCF','Strong, deep blue.'],['Horizon','#A9C4E8','Steel blue.'],['Sun','#F2F6FF','Small and pale.'],['Fog','#B8CBE6','Steel blue. Medium.'],['Light','#E6EEFF','Brightness 2.6, cool.']],
+  far:'A huge, slow spiral of wind on the horizon. Floating rock arches.',
+  mid:'Long thin streak clouds racing sideways in lanes, like rivers of wind. Gust walls show as bright white bands.',
+  near:'Fast white wind lines, seagull feathers and leaves.',
+  below:'A cloud sea with big swirl shapes.',
+  next:'From 7,900 studs the light gets dimmer. Dark cloud bottoms appear above you. A far thunder rumble.',
+  sound:'Rushing wind with whistles and seagull calls.',
+  weather:[['Ideas','Calm (slow lanes), Gale (faster lanes, more gust walls).']],weatherIdea:true,
+  wow:'A seagull flock sweeps past inside a wind river, and the whole sky seems to flow.'},
+ {id:'thunder',name:'Thunderhead',from:8000,to:15000,phase:'Phase 3 · Storm',pc:'storm',zc:'#6B4FD8',zc2:'#7C63E0',jc:'#4B3A8C',
+  sky:[['Sky top','#1B1440','Dark purple, almost night.'],['Horizon','#4B3A8C','Storm purple.'],['Sun','#8C7FD9','Hidden. Only a dim purple glow.'],['Fog','#2A2156','Close. You see about 900 studs.'],['Light','#9C8CFF','Brightness 1.2, purple. Bolts: #FFE600.']],
+  far:'Giant anvil storm clouds. Lightning flashes inside them.',
+  mid:'Heavy dark block clouds, purple-grey with lit edges. They churn slowly. Neon yellow bolts jump between them. Storm eagles hunt here.',
+  near:'Slanted rain streaks and yellow sparks.',
+  below:'A dark storm sea of clouds that glows from inside when lightning hits.',
+  next:'From 14,900 studs the rain turns into small ice bits. Colours go cold blue-white. You hear ticking.',
+  sound:'Deep thunder rumbles over heavy rain.',
+  weather:[['Ideas','Storm (more bolts), Calm Eye (a round hole of clear sky above you).']],weatherIdea:true,
+  wow:'A bolt strikes right next to you and the whole sky flashes white for a moment.'},
+ {id:'hail',name:'Hail Belt',from:15000,to:25000,phase:'Phase 3 · Storm',pc:'storm',zc:'#4FA6D6',zc2:'#63B4E0',jc:'#D8ECF7',
+  sky:[['Sky top','#2C4A7A','Cold dark blue.'],['Horizon','#D8ECF7','Icy white.'],['Sun','#FFFFFF','Cold white, with a halo ring and two sun dogs.'],['Fog','#CFE6F5','Icy. Medium.'],['Light','#DDF3FF','Brightness 2.2, icy blue.']],
+  far:'Floating ice cliffs with icicles. Frozen cloud mountains.',
+  mid:'Ice crystal sheets: flat, glassy cyan plates that turn slowly and sparkle.',
+  near:'Hail bits (small white cubes), snowflakes and frost sparkles.',
+  below:'A frozen cloud floor, white-blue with cracks.',
+  next:'From 24,900 studs the air gets thin. The sky turns navy, the first stars appear and the sound gets quiet.',
+  sound:'Icy wind with ice tinkling and hail ticks.',
+  weather:[['Ideas','Hailstorm (much more hail), Diamond Dust (calm and sparkly).']],weatherIdea:true,
+  wow:'The sun halo ring appears, and all the ice sheets light up like glass.'},
+ {id:'strato',name:'Stratosphere',from:25000,to:50000,phase:'Phase 4 · Space',pc:'space',zc:'#1D3E8A',zc2:'#284C9C',jc:'#0B1638',
+  sky:[['Sky top','#050B24','Nearly black navy.'],['Horizon','#3D7BD9','A thin bright blue line.'],['Sun','#FFFFFF','Small and hard, with a sharp glare.'],['Fog','','Almost none. You see everything.'],['Light','#FFFFFF','Brightness 3, pure white.']],
+  far:'The curve of the planet with a thin glowing blue line. The first stars.',
+  mid:'Almost no clouds. Thin silver-blue glowing bands far below. Satellites drift past.',
+  near:'Space dust specks and meteor streaks. The Vacuum pulls at your air.',
+  below:'The curved planet: blue sea, white cloud swirls, green land.',
+  next:'From 49,900 studs the blue line slips below you. The sky turns fully black. You feel lighter.',
+  sound:'A low hum with radio beeps from the satellites.',
+  weather:[['Ideas','Meteor Shower (many more meteors), Solar Wind (dust flows sideways).']],weatherIdea:true,
+  wow:'The planet curve appears. The start map is a tiny green dot far below.'},
+ {id:'orbit',name:'Orbit',from:50000,to:null,phase:'Phase 4 · Space',pc:'space',zc:'#3A3F52',zc2:'#474D62',jc:'#9A9AA6',
+  sky:[['Sky top','#000000','Black space.'],['Horizon','#0A0A1A','Black with a hint of blue.'],['Sun','#FFFFFF','White, with a lens flare. Moons: grey studs #9A9AA6.'],['Fog','','None.'],['Light','#E8E8FF','Brightness 2, cool white.']],
+  far:'Big grey stud moons, a ringed planet and a field of stars.',
+  mid:'Floating moon rocks (grey stud chunks). The Moon Hub sits on its own rock. Low gravity.',
+  near:'Star twinkles and slow space dust.',
+  below:'The whole planet as a ball, with a glowing blue ring around it.',
+  next:'This is the top. No next zone yet.',
+  sound:'A deep, slow space pad with soft beeps from the Moon Hub.',
+  weather:[['Ideas','Solar Flare (orange light flashes), Moon Rise.']],weatherIdea:true,
+  wow:'Float in low gravity next to a giant studded moon, with the planet glowing below you.'}
+];
+const fmt=n=>n.toLocaleString('en-US');
+const range=z=>z.to==null?`${fmt(z.from)}+ studs`:`${fmt(z.from)} – ${fmt(z.to)} studs`;
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* ---------------- build DOM ---------------- */
+const zonesEl=document.getElementById('zones'),jump=document.getElementById('jump');
+const soundIcon='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#FFC83D" stroke="#1E2433" stroke-width="2" stroke-linejoin="round"/><path d="M16 9c1.2 1.6 1.2 4.4 0 6M18.5 6.5c2.6 3 2.6 8 0 11" fill="none" stroke="#1E2433" stroke-width="2" stroke-linecap="round"/></svg>';
+Z.forEach((z,i)=>{
+  jump.insertAdjacentHTML('beforeend',`<a href="#${z.id}"><i style="background:${z.jc}"></i><span><b>${z.name}</b><small>${range(z)}</small></span></a>`);
+  const sw=z.sky.map(([k,hex,v])=>`<li><span class="sw${hex?'':' none'}" style="${hex?`background:${hex}`:''}"></span><div><div class="k">${k}${hex?`<code>${hex}</code>`:''}</div><div class="v">${esc(v)}</div></div></li>`).join('');
+  const L=[['far','Far',z.far],['mid','Middle',z.mid],['near','Near',z.near],['below','Below you',z.below],['next','Transition',z.next]];
+  const layers=L.map(([c,n,tx])=>`<li><span class="tag ${c}">${n}</span><p>${esc(tx)}</p></li>`).join('');
+  const wx=z.weather.map(([n,tx])=>`<li><b>${n}:</b> ${esc(tx)}</li>`).join('');
+  zonesEl.insertAdjacentHTML('beforeend',`
+  <article class="zone-card" id="${z.id}" style="--zc:${z.zc};--zc2:${z.zc2}">
+    <div class="zone-head"><span class="zone-num">${i+1}</span><div class="names"><h3 class="stroke">${z.name}</h3><span class="range">${range(z)}</span></div><span class="pill ${z.pc}">${z.phase}</span></div>
+    <div class="strip"><canvas data-zone="${z.id}" aria-label="Mock-up of ${z.name}" role="img"></canvas><span class="cap">Mock-up · far → near</span></div>
+    <div class="zone-body">
+      <div class="box"><h4>Sky</h4><ul class="swatches">${sw}</ul><div class="sound">${soundIcon}<span><b>Sound mood:</b> ${esc(z.sound)}</span></div></div>
+      <div class="box"><h4>Layers</h4><ul class="layers">${layers}</ul></div>
+    </div>
+    <div class="zone-foot">
+      <div class="weather"><h4 style="margin:0;font:400 18px/1.1 var(--display);text-transform:uppercase">Weather on top</h4><ul>${wx}</ul>${z.weatherIdea?'<span class="idea">Not decided yet. These are ideas.</span>':'<span class="idea">The weather changes every 5 minutes. The zone look stays underneath.</span>'}</div>
+      <div class="wow"><h4>WOW MOMENT</h4><p>${esc(z.wow)}</p></div>
+    </div>
+  </article>`);
+});
+
+/* hero labels */
+const ruler=document.getElementById('ruler'),bl=document.getElementById('bandLabels');
+const N=Z.length;
+[500,1500,4000,8000,15000,25000,50000].forEach((v,k)=>{ruler.insertAdjacentHTML('beforeend',`<div class="tick" style="top:${(1-(k+1)/N)*100}%"><span>${fmt(v)}</span></div>`)});
+ruler.insertAdjacentHTML('beforeend',`<div class="tick" style="top:calc(100% - 14px)"><span>0</span></div>`);
+Z.forEach((z,k)=>{bl.insertAdjacentHTML('beforeend',`<div class="band-label" style="top:${(1-(k+.5)/N)*100}%"><b>${z.name}</b><span class="pill ${z.pc}">${z.phase}</span></div>`)});
+
+/* ---------------- render ---------------- */
+const views=[];
+function addView(canvas,draw){const v={canvas,draw,vis:true,w:0,h:0};views.push(v);return v}
+function size(v){const dpr=Math.min(2,window.devicePixelRatio||1),r=v.canvas.getBoundingClientRect();const w=Math.max(1,Math.round(r.width)),h=Math.max(1,Math.round(r.height));if(w!==v.w||h!==v.h){v.w=w;v.h=h;v.canvas.width=Math.round(w*dpr);v.canvas.height=Math.round(h*dpr);v.dpr=dpr}}
+function paint(v,t){size(v);const c=v.canvas.getContext('2d');c.setTransform(v.dpr,0,0,v.dpr,0,0);c.clearRect(0,0,v.w,v.h);v.draw(c,v.w,v.h,t)}
+
+document.querySelectorAll('.strip canvas').forEach(cv=>{const f=P[cv.dataset.zone];addView(cv,(c,w,h,t)=>{f(c,w,h,t,{});const u=h/100;balloon(c,w*(cv.dataset.zone==='orbit'?.55:.6),h*.3,u*Math.min(1.1,w/h/1.8),t)})});
+
+addView(document.getElementById('columnCanvas'),(c,w,h,t)=>{
+  const bh=h/N;
+  Z.forEach((z,k)=>{const y0=h-(k+1)*bh;c.save();c.beginPath();c.rect(0,y0,w,bh);c.clip();c.translate(0,y0);P[z.id](c,w,bh,t,{hero:true});c.restore()});
+  for(let k=1;k<N;k++){const y=h-k*bh;const g=c.createLinearGradient(0,y-10,0,y+10);g.addColorStop(0,'rgba(30,36,51,0)');g.addColorStop(.5,'rgba(30,36,51,.35)');g.addColorStop(1,'rgba(30,36,51,0)');c.fillStyle=g;c.fillRect(0,y-10,w,20);c.fillStyle='rgba(255,255,255,.85)';for(let x=66;x<w;x+=16)c.fillRect(x,y-1,8,2)}
+  // flight path + balloon in Cloud Shelf ("you are here")
+  c.save();c.setLineDash([6,8]);c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=3;c.beginPath();c.moveTo(w*.42,h-bh*.2);for(let k=0;k<N*4;k++){const y=h-bh*.2-k*bh/4;c.lineTo(w*(.42+.08*Math.sin(k*.9)),y)}c.stroke();c.restore();
+  const u=bh/100;balloon(c,w*.46,h-bh*1.55,u*.9,t);
+});
+const logo=document.getElementById('logoBalloon');addView(logo,(c,w,h,t)=>{balloon(c,w*.48,h*.24,h/42,t)});
+
+if('IntersectionObserver' in window){const io=new IntersectionObserver(es=>es.forEach(e=>{const v=views.find(v=>v.canvas===e.target);if(v)v.vis=e.isIntersecting}),{rootMargin:'100px'});views.forEach(v=>io.observe(v.canvas))}
+views.forEach(v=>paint(v,0));
+window.addEventListener('resize',()=>views.forEach(v=>paint(v,last/1000)));
+let last=0,start=performance.now(),acc=0;
+function loop(now){const t=(now-start)/1000;if(now-acc>33){acc=now;last=now-start;views.forEach(v=>{if(v.vis)paint(v,t)})}requestAnimationFrame(loop)}
+if(!reduce)requestAnimationFrame(loop);
+})();
+</script>

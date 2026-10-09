@@ -1,0 +1,1086 @@
+<title>Balloon Abilities</title>
+<style>
+/* Stud-game look: Fredoka titles with a dark stroke, chunky outlined panels with a lip, the shop's red striped header. */
+:root{
+  --bg:#d9eeff; --panel:#ffffff; --ink:#1a0e22; --muted:#4d5b78; --line:#1a0e22; --chip:#f3f7ff;
+  --font-d:'Fredoka',"Arial Rounded MT Bold",system-ui,sans-serif; --font-b:'Nunito',system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121829; --panel:#1d2540; --ink:#f2f6ff; --muted:#a9b6d3; --line:#06040c; --chip:#26304f; color-scheme:dark;}}
+:root[data-theme="dark"]{--bg:#121829; --panel:#1d2540; --ink:#f2f6ff; --muted:#a9b6d3; --line:#06040c; --chip:#26304f; color-scheme:dark;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 16px 34px}
+header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:18px;text-align:center}
+.st{position:relative;display:inline-block}
+.st .s{position:absolute;left:0;right:0;top:0;color:transparent;-webkit-text-stroke:var(--sw,9px) #1a0e22;text-shadow:0 5px 0 rgba(10,4,20,.35);pointer-events:none}
+.st .f{position:relative;background:var(--g,linear-gradient(#ffffff 0%,#fff3a0 55%,#ffc530 100%));-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,50px);margin:0;letter-spacing:.5px;line-height:1.12}
+.sub{color:var(--muted);font-size:15px;max-width:66ch;margin:0;line-height:1.45}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pill{font-family:var(--font-d);font-size:13px;border:3px solid var(--line);border-bottom-width:5px;border-radius:11px;
+  background:var(--panel);color:var(--ink);padding:4px 11px;cursor:pointer}
+.pill[aria-pressed="true"]{background:#ffe27a;color:#2a1838}
+.pill:focus-visible,.chipb:focus-visible,.ab:focus-visible,.again:focus-visible{outline:3px solid #3d9eff;outline-offset:2px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+
+/* --- 3D stage + HUD --- */
+.stage{position:relative;aspect-ratio:16/11;border:4px solid var(--line);border-radius:22px;overflow:hidden;
+  box-shadow:0 8px 0 rgba(10,4,20,.28);background:linear-gradient(#4fa8ff 0%,#8cd0ff 45%,#d8f1ff 80%,#fff2cf 100%);user-select:none;-webkit-user-select:none}
+@media (max-width:600px){.stage{aspect-ratio:4/4.7}}
+.stage canvas{display:block;width:100%;height:100%;position:absolute;inset:0}
+.hud-name{position:absolute;left:10px;top:10px;font-family:var(--font-d);font-size:13px;letter-spacing:.6px;color:#fff;
+  border:3px solid #1a0e22;border-radius:10px;padding:3px 10px;box-shadow:0 3px 0 rgba(10,4,20,.3);background:#7a5cff}
+.meter{position:absolute;right:10px;top:10px;display:none;align-items:center;gap:7px;font-family:var(--font-d);font-size:13px;color:#fff;
+  background:#2a1838e0;border:3px solid #1a0e22;border-radius:11px;padding:4px 10px}
+.meter .bar{width:92px;height:11px;border-radius:7px;background:#ffffff33;overflow:hidden;border:2px solid #0008}
+.meter .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5ce0ff,#fff36a)}
+.ab{position:absolute;right:16px;bottom:16px;width:84px;height:84px;border-radius:50%;border:4px solid #1a0e22;padding:0;cursor:pointer;
+  background:conic-gradient(#ffffffd0 var(--cd,360deg), #00000055 0);box-shadow:0 6px 0 rgba(10,4,20,.35);transition:transform .08s}
+.ab .face{position:absolute;inset:6px;border-radius:50%;border:3px solid #1a0e22;background:var(--abg,linear-gradient(#9fe9ff,#3d9eff));
+  display:grid;place-items:center;overflow:hidden}
+.ab .face::after{content:"";position:absolute;left:8px;right:8px;top:4px;height:40%;border-radius:50%;background:linear-gradient(#ffffff99,#ffffff00)}
+.ab svg{width:44px;height:44px;position:relative;z-index:1;filter:drop-shadow(0 2px 0 #1a0e2288)}
+.ab .k{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);font-family:var(--font-d);font-size:13px;line-height:1;
+  background:#fff;color:#1a0e22;border:3px solid #1a0e22;border-bottom-width:5px;border-radius:8px;padding:3px 7px;white-space:nowrap;z-index:2}
+.ab.press{transform:translateY(4px) scale(.94)}
+.ab.ready{animation:ready 1s ease-in-out infinite}
+@keyframes ready{50%{box-shadow:0 6px 0 rgba(10,4,20,.35),0 0 0 9px #fff36a88}}
+.hint{position:absolute;right:112px;bottom:40px;font-family:var(--font-d);font-size:17px;color:#fff;white-space:nowrap;opacity:0;transition:opacity .2s;
+  -webkit-text-stroke:5px #1a0e22;paint-order:stroke fill;letter-spacing:.4px}
+.hint.on{opacity:1;animation:nudge .6s ease-in-out infinite alternate}
+@keyframes nudge{to{transform:translateX(-7px)}}
+.ft{position:absolute;pointer-events:none;font-family:var(--font-d);font-weight:600;white-space:nowrap;transform:translate(-50%,-50%);
+  -webkit-text-stroke:5px #1a0e22;paint-order:stroke fill;letter-spacing:.4px;animation:ft 1.25s ease-out forwards;font-size:20px}
+@keyframes ft{0%{opacity:0;transform:translate(-50%,-30%) scale(.4)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+  30%{transform:translate(-50%,-55%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-160%) scale(.95)}}
+.toast{position:absolute;left:50%;top:15%;transform:translate(-50%,-50%) scale(.2);opacity:0;pointer-events:none;
+  font-family:var(--font-d);font-weight:600;font-size:clamp(26px,5vw,44px);white-space:nowrap;letter-spacing:.5px;--sw:9px}
+.toast.go{animation:pop 1.7s cubic-bezier(.2,1.4,.4,1) forwards}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.2) rotate(-8deg)}
+  14%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(3deg)}
+  24%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}
+  80%{opacity:1;transform:translate(-50%,-58%) scale(1) rotate(0)}
+  100%{opacity:0;transform:translate(-50%,-80%) scale(.9)}}
+
+/* --- shop-style info card --- */
+.card{border:4px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 8px 0 rgba(10,4,20,.28);background:#ff3f4f}
+.card .hd{position:relative;padding:12px 14px 10px;text-align:center;
+  background:repeating-linear-gradient(135deg,#ff5a66 0 16px,#ff4757 16px 32px);border-bottom:4px solid var(--line)}
+.card .hd .st{font-family:var(--font-d);font-weight:600;font-size:30px;line-height:1.1;--g:linear-gradient(#fff,#fff);--sw:8px}
+.card .bd{background:var(--panel);margin:10px;border:3px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;gap:12px;align-items:center}
+.tile{width:92px;height:92px;flex:none;border:3px solid var(--line);border-radius:14px;display:grid;place-items:center;background:var(--tier,#8fa3c0);
+  background-image:radial-gradient(circle at 50% 40%,#ffffff66,#ffffff00 70%)}
+.tile img{width:88px;height:88px}
+.tier{display:inline-block;font-family:var(--font-d);font-size:12px;letter-spacing:.7px;color:#fff;border:3px solid #1a0e22;border-radius:9px;padding:2px 8px;background:var(--tier)}
+.stats{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.45}
+.abox{border:3px solid var(--line);border-radius:14px;padding:10px;background:var(--chip);display:flex;flex-direction:column;gap:7px}
+.arow{display:flex;align-items:center;gap:9px}
+.badge{width:40px;height:40px;flex:none;border-radius:11px;border:3px solid #1a0e22;display:grid;place-items:center;background:var(--abg)}
+.badge svg{width:28px;height:28px}
+.aname{font-family:var(--font-d);font-weight:600;font-size:20px;line-height:1.1}
+.type{margin-left:auto;font-family:var(--font-d);font-size:12px;border:3px solid #1a0e22;border-radius:9px;padding:2px 8px;background:#fff;color:#1a0e22;white-space:nowrap}
+.desc{margin:0;font-size:14.5px;line-height:1.45}
+.cdl{font-size:13px;color:var(--muted)}
+.later{border:3px dashed #c9971a;background:#fff6d6;color:#5a3d00;border-radius:12px;padding:8px 10px;font-size:13.5px;line-height:1.4;display:none}
+.again{font-family:var(--font-d);font-weight:600;font-size:17px;color:#fff;background:linear-gradient(#7dffa0,#2fcf5a 55%,#16a63e);
+  border:3px solid #1a0e22;border-bottom-width:7px;border-radius:14px;padding:7px 18px;cursor:pointer;-webkit-text-stroke:3.5px #0b4a1c;paint-order:stroke fill;letter-spacing:.5px}
+.again:active{transform:translateY(3px);border-bottom-width:4px}
+
+/* --- balloon picker --- */
+h2{font-family:var(--font-d);font-weight:600;font-size:24px;margin:26px 0 12px;text-align:center}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.chipb{font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--panel);border:3px solid var(--line);border-bottom-width:6px;border-radius:16px;padding:8px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;min-width:0}
+.chipb img{width:84px;height:84px;border-radius:14px;background:radial-gradient(circle at 50% 45%,#ffffff 0%,#cfe6ff 60%,#a9cff5 100%);margin-top:8px}
+.chipb .nm{font-family:var(--font-d);font-weight:600;font-size:17px;line-height:1}
+.chipb .an{font-size:12px;color:var(--muted);text-align:center;line-height:1.2}
+.chipb .tb{position:absolute;left:8px;right:8px;top:8px;height:6px;border-radius:4px;background:var(--tier)}
+.chipb .ty{position:absolute;right:6px;top:18px;font-family:var(--font-d);font-size:10px;border:2px solid #1a0e22;border-radius:6px;padding:0 5px;background:#fff;color:#1a0e22}
+.chipb[aria-pressed="true"]{background:#fff7cc;outline:3px solid #ffb300;outline-offset:1px}
+:root[data-theme="dark"] .chipb[aria-pressed="true"]{background:#3a3418}
+.note{font-size:13px;color:var(--muted);text-align:center;margin:22px auto 0;line-height:1.5;max-width:76ch}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;700&display=swap">
+
+<div class="wrap">
+  <header>
+    <h1 class="st"><span class="s" aria-hidden="true">Balloon Abilities</span><span class="f">Balloon Abilities</span></h1>
+    <p class="sub">Every balloon's special power, on the real balloon models. Pick a balloon below and watch what it does. Big powers use the ability key, the rest work by themselves.</p>
+    <div class="ctl">
+      <button class="pill" id="snd" type="button" aria-pressed="true">Sound: on</button>
+      <button class="pill" id="mKey" type="button" aria-pressed="true">Big powers on Q</button>
+      <button class="pill" id="mAuto" type="button" aria-pressed="false">Everything automatic</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <span class="hud-name" id="hudName">BUBBLE</span>
+      <div class="meter" id="meter"><span id="mLbl">SIZE</span><span class="bar"><i id="mBar"></i></span><span id="mVal">0</span></div>
+      <div class="toast" id="toast"><span class="st"><span class="s" aria-hidden="true"></span><span class="f"></span></span></div>
+      <span class="hint" id="hint">Press Q!</span>
+      <button class="ab" id="ab" type="button" aria-label="Use ability"><span class="face" id="abFace"></span><span class="k" id="abKey">AUTO</span></button>
+    </div>
+    <div class="card" id="card">
+      <div class="hd"><span class="st"><span class="s" aria-hidden="true" id="cT1">BUBBLE</span><span class="f" id="cT2">BUBBLE</span></span></div>
+      <div class="bd">
+        <div class="top">
+          <div class="tile" id="cTile"><img id="cImg" alt=""></div>
+          <div><span class="tier" id="cTier">COMMON</span><div class="stats" id="cStats"></div></div>
+        </div>
+        <div class="abox">
+          <div class="arow"><span class="badge" id="cBadge"></span><span class="aname" id="cAb">Bubble Guard</span><span class="type" id="cType">AUTO</span></div>
+          <p class="desc" id="cDesc"></p>
+          <span class="cdl" id="cCd"></span>
+        </div>
+        <div class="later" id="cLater"></div>
+        <div><button class="again" id="again" type="button">PLAY AGAIN</button></div>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="st"><span class="s" aria-hidden="true">Pick a balloon</span><span class="f" style="--g:linear-gradient(#fff,#d6ecff)">Pick a balloon</span></span></h2>
+  <div class="picker" id="picker"></div>
+  <p class="note">A preview of how each power looks and feels, made from the real balloon models. Numbers (cooldowns, %) are first guesses and easy to change. In game the ability key is <b>Q</b> on PC and a round button on phone, and Iron uses <b>Space</b> (letting out air).</p>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script>
+(function(){
+const T = THREE, PI = Math.PI, TAU = PI*2;
+const BALLOONS = {"Gumball":{"pal":{"red":["FF3B3B","P",0],"redDark":["D9232F","P",0],"pink":["FF9A9A","P",0],"white":["FFFFFF","S",0],"silver":["C9CED6","P",0],"silverDark":["8E96A3","P",0]},"knot":[0,-8.0,0],"light":null,"parts":[["B","silverDark",5,1,5,0.0,-6.0,0.0],["B","silver",3,1,3,0.0,-5.0,0.0],["B","redDark",3,1,3,0.0,-4.0,0.0],["B","redDark",3,1,2,0.0,-3.0,-2.5],["B","redDark",1,1,5,-2.0,-3.0,0.0],["B","redDark",1,1,5,2.0,-3.0,0.0],["B","redDark",1,1,3,-3.0,-3.0,0.0],["B","red",3,8,3,0.0,0.5,0.0],["B","redDark",1,1,3,3.0,-3.0,0.0],["B","redDark",3,1,2,0.0,-3.0,2.5],["B","red",5,3,2,0.0,-1.0,-2.5],["B","red",1,4,5,-3.0,-0.5,0.0],["B","red",1,5,5,3.0,0.0,0.0],["B","red",1,5,5,-2.0,0.0,1.0],["B","red",1,5,5,2.0,0.0,1.0],["B","red",3,6,2,0.0,0.5,2.5],["B","red",3,3,1,0.0,0.0,-4.0],["B","red",1,3,1,-3.0,0.0,-3.0],["B","red",1,3,1,3.0,0.0,-3.0],["B","red",1,3,3,-4.0,0.0,0.0],["B","red",1,3,3,4.0,0.0,0.0],["B","red",1,3,1,-3.0,0.0,3.0],["B","red",1,3,1,3.0,0.0,3.0],["B","red",3,3,1,0.0,0.0,4.0],["B","pink",1,1,1,-2.0,1.0,-3.0],["B","red",4,1,2,0.5,1.0,-2.5],["B","red",1,2,1,-2.0,1.5,-2.0],["B","white",2,1,1,-1.5,2.0,-3.0],["B","red",3,1,2,1.0,2.0,-2.5],["B","pink",1,1,1,-3.0,2.0,-2.0],["B","red",1,1,1,-1.0,2.0,-2.0],["B","red",1,1,4,-3.0,2.0,0.5],["B","pink",1,1,2,-1.0,3.0,-2.5],["B","red",2,1,2,0.5,3.0,-2.5],["B","pink",1,1,1,-2.0,3.0,-2.0],["B","red",1,1,5,2.0,3.0,0.0],["B","red",2,1,3,-2.5,3.0,0.0],["B","red",1,1,3,3.0,3.0,0.0],["B","red",1,1,1,-2.0,3.0,2.0],["B","redDark",1.4,0.6,1.4,0,-6.8,0],["W","redDark",1.0,0.9,0.5,0.0,-7.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","redDark",1.0,0.9,0.5,0.0,-7.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Bubble":{"pal":{"glass":["9BEBFF","G",0.45],"glass2":["B8F3FF","G",0.35],"shine":["FFFFFF","N",0.1],"pinkSheen":["FFC2F3","G",0.35],"gold":["FFE38A","G",0.35],"knot":["5AC8FA","P",0]},"knot":[0,-5.9,0],"light":null,"parts":[["B","glass2",1,3,1,3.0,-3.0,-2.0],["B","glass2",1,1,1,3.0,-3.0,-3.0],["B","glass",3,1,5,0.0,-3.0,0.0],["B","glass2",1,1,1,2.0,-3.0,-2.0],["B","glass2",1,1,1,4.0,-3.0,-2.0],["B","glass",1,2,3,-2.0,-2.5,0.0],["B","glass",1,2,3,2.0,-2.5,0.0],["B","glass2",1,1,1,3.0,-3.0,-1.0],["B","glass2",1,3,1,-4.0,-2.0,1.0],["B","glass",3,1,2,0.0,-2.0,-2.5],["B","glass",1,4,1,-2.0,-0.5,-2.0],["B","glass",1,5,1,2.0,0.0,-2.0],["B","glass",1,5,2,-3.0,0.0,-0.5],["B","pinkSheen",1,2,1,3.0,-1.5,-1.0],["B","glass2",1,1,1,-4.0,-2.0,0.0],["B","glass",1,5,2,3.0,0.0,0.5],["B","glass2",1,1,1,-5.0,-2.0,1.0],["B","glass2",1,1,1,-3.0,-2.0,1.0],["B","glass2",1,1,1,-4.0,-2.0,2.0],["B","glass",5,1,1,0.0,-2.0,2.0],["B","glass",3,5,1,0.0,0.0,3.0],["B","glass",5,3,1,0.0,0.0,-3.0],["B","glass",1,3,1,-3.0,0.0,-2.0],["B","pinkSheen",1,1,1,3.0,-1.0,-2.0],["B","glass",1,3,2,-3.0,0.0,1.5],["B","glass",1,3,2,-2.0,0.0,2.5],["B","glass",2,3,1,2.5,0.0,2.0],["B","glass",1,3,1,2.0,0.0,3.0],["B","glass",1,2,2,3.0,0.5,-1.5],["B","shine",1,1,2,-1.0,2.0,-2.5],["B","glass",2,1,2,0.5,2.0,-2.5],["B","shine",1,1,1,-2.0,2.0,-2.0],["B","glass2",1,3,3,4.0,3.0,-1.0],["B","glass",1,1,4,-2.0,2.0,0.5],["B","glass",1,1,4,2.0,2.0,0.5],["B","glass2",1,3,1,3.0,3.0,-1.0],["B","glass2",1,3,1,5.0,3.0,-1.0],["B","gold",1,1,1,-3.0,2.0,1.0],["B","glass",3,2,1,0.0,2.5,2.0],["B","glass",3,1,4,0.0,3.0,-0.5],["B","glass2",1,1,1,3.0,3.0,-2.0],["B","glass2",1,1,1,5.0,3.0,-2.0],["B","glass2",1,3,1,-3.0,4.0,-1.0],["B","glass",1,1,3,-2.0,3.0,0.0],["B","glass",1,1,3,2.0,3.0,0.0],["B","glass2",1,1,1,3.0,3.0,0.0],["B","glass2",1,1,1,5.0,3.0,0.0],["B","glass2",1,1,1,-3.0,4.0,-2.0],["B","glass2",1,1,1,-4.0,4.0,-1.0],["B","glass2",1,1,1,-2.0,4.0,-1.0],["B","glass2",1,1,1,-3.0,4.0,0.0],["B","knot",1.4,0.6,1.4,0,-4.7,0],["W","knot",1.0,0.9,0.5,0.0,-5.45,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","knot",1.0,0.9,0.5,0.0,-5.45,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Ember":{"pal":{"ember":["B8350A","P",0],"emberDark":["7A2206","P",0],"lava":["FF8A1F","N",0],"flameO":["FF6A00","N",0],"flameY":["FFD21F","N",0],"cap":["5C1A05","P",0]},"knot":[0,-6.1,0],"light":["FF8A1F",1.6,16],"parts":[["B","emberDark",1,1,3,0.0,-4.0,0.0],["B","emberDark",1,1,1,-1.0,-4.0,0.0],["B","emberDark",1,1,1,1.0,-4.0,0.0],["B","emberDark",5,1,1,0.0,-3.0,-2.0],["B","emberDark",2,1,1,-1.5,-3.0,-1.0],["B","ember",1,7,3,0.0,0.0,0.0],["B","emberDark",2,1,1,1.5,-3.0,-1.0],["B","emberDark",1,1,3,-2.0,-3.0,1.0],["B","ember",1,7,1,-1.0,0.0,0.0],["B","ember",1,7,1,1.0,0.0,0.0],["B","emberDark",1,1,3,2.0,-3.0,1.0],["B","emberDark",1,1,2,-1.0,-3.0,1.5],["B","emberDark",1,1,2,1.0,-3.0,1.5],["B","emberDark",1,1,1,0.0,-3.0,2.0],["B","ember",3,1,2,-1.0,-2.0,-2.5],["B","lava",2,1,1,1.5,-2.0,-3.0],["B","ember",1,2,1,-3.0,-1.5,-2.0],["B","ember",3,1,2,2.0,-2.0,-1.5],["B","lava",1,2,1,-3.0,-1.5,-1.0],["B","ember",2,5,1,-1.5,0.0,-1.0],["B","ember",2,3,3,-2.5,-1.0,1.0],["B","ember",2,3,2,2.5,-1.0,0.5],["B","ember",1,3,3,-1.0,-1.0,2.0],["B","ember",1,3,3,1.0,-1.0,2.0],["B","ember",1,6,1,0.0,0.5,2.0],["B","ember",1,3,2,2.0,-1.0,2.5],["B","lava",1,3,1,3.0,-1.0,2.0],["B","ember",1,4,1,-2.0,-0.5,3.0],["B","lava",1,1,1,0.0,-2.0,3.0],["B","ember",1,3,3,0.0,0.0,-3.0],["B","lava",2,1,1,-1.5,-1.0,-3.0],["B","lava",1,1,1,1.0,-1.0,-3.0],["B","ember",1,4,3,2.0,0.5,-2.0],["B","ember",2,4,1,-1.5,0.5,-2.0],["B","ember",1,5,2,1.0,1.0,-1.5],["B","lava",1,1,2,3.0,-1.0,-1.5],["B","ember",1,2,1,-4.0,-0.5,0.0],["B","lava",1,1,1,4.0,-1.0,0.0],["B","ember",1,3,2,0.0,0.0,3.5],["B","ember",1,1,2,-1.0,0.0,-3.5],["B","lava",1,1,1,1.0,0.0,-4.0],["B","ember",1,3,1,-2.0,1.0,-3.0],["B","ember",1,3,1,1.0,1.0,-3.0],["B","lava",1,3,1,-3.0,1.0,-2.0],["B","ember",1,3,2,3.0,1.0,-1.5],["B","lava",1,1,1,-4.0,0.0,-1.0],["B","ember",1,3,1,-3.0,1.0,-1.0],["B","ember",1,1,2,4.0,0.0,-0.5],["B","ember",1,1,1,-4.0,0.0,1.0],["B","lava",1,1,1,4.0,0.0,1.0],["B","lava",1,1,1,-1.0,0.0,4.0],["B","ember",1,1,1,1.0,0.0,4.0],["B","ember",1,2,1,-1.0,1.5,-3.0],["B","lava",1,1,1,-4.0,1.0,0.0],["B","ember",2,2,1,-2.5,1.5,0.0],["B","ember",3,1,1,3.0,1.0,0.0],["B","lava",1,1,2,-3.0,1.0,1.5],["B","ember",2,2,2,-1.5,1.5,1.5],["B","ember",2,3,2,1.5,2.0,1.5],["B","lava",1,2,1,3.0,1.5,1.0],["B","ember",1,2,1,3.0,1.5,2.0],["B","lava",1,2,1,-1.0,1.5,3.0],["B","lava",2,1,1,1.5,1.0,3.0],["B","lava",1,1,1,0.0,2.0,-3.0],["B","ember",1,2,1,0.0,2.5,-2.0],["B","ember",2,1,1,2.5,2.0,0.0],["B","ember",1,1,2,-3.0,2.0,1.5],["B","lava",1,1,1,-2.0,2.0,3.0],["B","ember",3,1,1,1.0,2.0,3.0],["B","lava",1,1,1,-2.0,3.0,-2.0],["B","ember",1,1,1,-1.0,3.0,-2.0],["B","ember",1,1,2,2.0,3.0,-1.5],["B","ember",1,1,4,-2.0,3.0,0.5],["B","lava",1,1,1,-1.0,3.0,-1.0],["B","lava",1,1,1,2.0,3.0,0.0],["B","lava",1,1,2,-1.0,3.0,1.5],["B","cap",3,1,1,0.0,4.0,-1.0],["B","cap",1,1,2,-1.0,4.0,0.5],["B","flameY",1,4,1,0.0,5.5,0.0],["B","cap",1,1,2,1.0,4.0,0.5],["B","cap",1,1,1,0.0,4.0,1.0],["B","flameO",1,1,1,0.0,5.0,-1.0],["B","flameO",1,1,1,-1.0,5.0,0.0],["B","flameO",1,1,1,1.0,5.0,0.0],["B","flameO",1,1,1,0.0,5.0,1.0],["B","emberDark",1.4,0.6,1.4,0,-4.9,0],["W","emberDark",1.0,0.9,0.5,0.0,-5.65,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","emberDark",1.0,0.9,0.5,0.0,-5.65,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Spike":{"pal":{"green":["6CCB2F","P",0],"greenDark":["3E8E1C","P",0],"greenLight":["A8F07A","P",0],"spike":["E9FFD8","S",0]},"knot":[0,-5.6,0],"light":null,"parts":[["B","greenDark",1,1,5,0.0,-3.0,0.0],["B","greenDark",1,1,3,-1.0,-3.0,0.0],["B","greenDark",1,1,3,1.0,-3.0,0.0],["B","greenDark",1,1,1,-2.0,-3.0,0.0],["B","greenDark",1,1,1,2.0,-3.0,0.0],["B","green",1,4,7,0.0,-0.5,0.0],["B","green",2,3,5,-1.5,-1.0,0.0],["B","green",2,5,5,1.5,0.0,0.0],["B","green",1,5,1,-3.0,0.0,0.0],["B","green",1,5,1,3.0,0.0,0.0],["B","green",1,2,1,-1.0,-0.5,-3.0],["B","green",1,3,1,1.0,0.0,-3.0],["B","green",1,3,1,-3.0,0.0,-1.0],["B","green",1,3,1,3.0,0.0,-1.0],["B","green",1,3,1,-3.0,0.0,1.0],["B","green",1,3,1,3.0,0.0,1.0],["B","green",1,3,1,-1.0,0.0,3.0],["B","green",1,3,1,1.0,0.0,3.0],["B","green",1,1,1,-2.0,0.0,-3.0],["B","green",1,1,1,2.0,0.0,-3.0],["B","green",1,1,1,-3.0,0.0,-2.0],["B","green",1,1,1,3.0,0.0,-2.0],["B","green",1,1,1,-3.0,0.0,2.0],["B","green",1,1,1,3.0,0.0,2.0],["B","green",1,1,1,-2.0,0.0,3.0],["B","green",1,1,1,2.0,0.0,3.0],["B","greenLight",1,1,1,-1.0,1.0,-3.0],["B","greenLight",1,2,1,-2.0,1.5,-2.0],["B","green",1,1,5,-1.0,1.0,0.0],["B","green",1,1,4,-2.0,1.0,0.5],["B","greenLight",1,1,1,0.0,2.0,-3.0],["B","greenLight",1,1,1,-1.0,2.0,-2.0],["B","green",1,1,6,0.0,2.0,0.5],["B","greenLight",1,1,1,-2.0,2.0,-1.0],["B","green",1,1,4,-1.0,2.0,0.5],["B","green",1,1,3,-2.0,2.0,1.0],["B","green",1,1,5,0.0,3.0,0.0],["B","green",1,1,3,-1.0,3.0,0.0],["B","green",1,1,3,1.0,3.0,0.0],["B","green",1,1,1,-2.0,3.0,0.0],["B","green",1,1,1,2.0,3.0,0.0],["W","spike",1.4,2.8,0.7,4.6,-0.35,0.0,0.0,1.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0],["W","spike",1.4,2.8,0.7,4.6,0.35,0.0,0.0,1.0,0.0,-0.0,0.0,-1.0,-1.0,0.0,0.0],["W","spike",1.4,2.8,0.7,-4.6,0.35,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0,1.0,0.0,0.0],["W","spike",1.4,2.8,0.7,-4.6,-0.35,0.0,0.0,-1.0,0.0,0.0,0.0,1.0,-1.0,0.0,0.0],["W","spike",1.4,2.8,0.7,0.0,4.6,-0.35],["W","spike",1.4,2.8,0.7,0.0,4.6,0.35,-1.0,0.0,0.0,0.0,1.0,0.0,-0.0,0.0,-1.0],["W","spike",1.4,2.8,0.7,0.0,0.35,4.6,1.0,0.0,0.0,0.0,0.0,-1.0,0.0,1.0,0.0],["W","spike",1.4,2.8,0.7,0.0,-0.35,4.6,-1.0,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0],["W","spike",1.4,2.8,0.7,0.0,-0.35,-4.6,1.0,0.0,-0.0,0.0,0.0,1.0,0.0,-1.0,0.0],["W","spike",1.4,2.8,0.7,0.0,0.35,-4.6,-1.0,0.0,0.0,-0.0,0.0,-1.0,0.0,-1.0,0.0],["W","spike",1.4,2.8,0.7,2.656,2.903,2.408,0.8165,0.5774,0.0,-0.4082,0.5774,-0.7071,-0.4082,0.5774,0.7071],["W","spike",1.4,2.8,0.7,2.656,2.408,2.903,-0.8165,0.5774,0.0,0.4082,0.5774,0.7071,0.4082,0.5774,-0.7071],["W","spike",1.4,2.8,0.7,-2.656,2.903,2.408,0.8165,-0.5774,0.0,0.4082,0.5774,-0.7071,0.4082,0.5774,0.7071],["W","spike",1.4,2.8,0.7,-2.656,2.408,2.903,-0.8165,-0.5774,0.0,-0.4082,0.5774,0.7071,-0.4082,0.5774,-0.7071],["W","spike",1.4,2.8,0.7,2.656,2.408,-2.903,0.8165,0.5774,0.0,-0.4082,0.5774,0.7071,0.4082,-0.5774,0.7071],["W","spike",1.4,2.8,0.7,2.656,2.903,-2.408,-0.8165,0.5774,0.0,0.4082,0.5774,-0.7071,-0.4082,-0.5774,-0.7071],["W","spike",1.4,2.8,0.7,-2.656,2.408,-2.903,0.8165,-0.5774,0.0,0.4082,0.5774,0.7071,-0.4082,-0.5774,0.7071],["W","spike",1.4,2.8,0.7,-2.656,2.903,-2.408,-0.8165,-0.5774,0.0,-0.4082,0.5774,-0.7071,0.4082,-0.5774,-0.7071],["W","spike",1.4,2.8,0.7,3.253,0.35,3.253,0.7071,0.7071,0.0,0.0,0.0,-1.0,-0.7071,0.7071,0.0],["W","spike",1.4,2.8,0.7,3.253,-0.35,3.253,-0.7071,0.7071,0.0,0.0,0.0,1.0,0.7071,0.7071,-0.0],["W","spike",1.4,2.8,0.7,-3.253,0.35,3.253,0.7071,-0.7071,0.0,0.0,0.0,-1.0,0.7071,0.7071,0.0],["W","spike",1.4,2.8,0.7,-3.253,-0.35,3.253,-0.7071,-0.7071,0.0,0.0,0.0,1.0,-0.7071,0.7071,0.0],["W","spike",1.4,2.8,0.7,3.253,-0.35,-3.253,0.7071,0.7071,-0.0,0.0,0.0,1.0,0.7071,-0.7071,0.0],["W","spike",1.4,2.8,0.7,3.253,0.35,-3.253,-0.7071,0.7071,0.0,-0.0,0.0,-1.0,-0.7071,-0.7071,0.0],["W","spike",1.4,2.8,0.7,-3.253,-0.35,-3.253,0.7071,-0.7071,0.0,0.0,0.0,1.0,-0.7071,-0.7071,0.0],["W","spike",1.4,2.8,0.7,-3.253,0.35,-3.253,-0.7071,-0.7071,0.0,-0.0,0.0,-1.0,0.7071,-0.7071,-0.0],["W","spike",1.4,2.8,0.7,3.944,-2.367,0.35,0.5145,0.8575,0.0,0.8575,-0.5145,0.0,0.0,0.0,-1.0],["W","spike",1.4,2.8,0.7,3.944,-2.367,-0.35,-0.5145,0.8575,0.0,-0.8575,-0.5145,0.0,0.0,0.0,1.0],["W","spike",1.4,2.8,0.7,-3.944,-2.367,0.35,0.5145,-0.8575,0.0,-0.8575,-0.5145,-0.0,0.0,0.0,-1.0],["W","spike",1.4,2.8,0.7,-3.944,-2.367,-0.35,-0.5145,-0.8575,0.0,0.8575,-0.5145,-0.0,0.0,0.0,1.0],["B","greenDark",1.4,0.6,1.4,0,-4.4,0],["W","greenDark",1.0,0.9,0.5,0.0,-5.15,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","greenDark",1.0,0.9,0.5,0.0,-5.15,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Popcorn":{"pal":{"red":["E0282E","P",0],"white":["FFF8EE","P",0],"rim":["FFFFFF","S",0],"kernel":["FFF1C9","P",0],"butter":["FFD66B","P",0],"kernelW":["FFFFFF","P",0],"gold":["FFC21A","P",0]},"knot":[0,-6.0,0],"light":null,"parts":[["B","red",1,3,1,-2.0,-3.0,-2.0],["B","white",1,7,5,-1.0,-1.0,0.0],["B","red",1,3,1,0.0,-3.0,-2.0],["B","white",1,7,5,1.0,-1.0,0.0],["B","red",1,3,1,2.0,-3.0,-2.0],["B","white",1,7,1,-2.0,-1.0,-1.0],["B","white",1,7,3,0.0,-1.0,0.0],["B","white",1,7,1,2.0,-1.0,-1.0],["B","red",1,3,1,-2.0,-3.0,0.0],["B","red",1,3,1,2.0,-3.0,0.0],["B","white",1,7,1,-2.0,-1.0,1.0],["B","white",1,7,1,2.0,-1.0,1.0],["B","red",1,3,1,-2.0,-3.0,2.0],["B","red",1,3,1,0.0,-3.0,2.0],["B","red",1,3,1,2.0,-3.0,2.0],["B","white",1,4,1,-3.0,0.5,-3.0],["B","red",1,4,1,-2.0,0.5,-3.0],["B","white",1,4,1,-1.0,0.5,-3.0],["B","red",1,4,1,0.0,0.5,-3.0],["B","white",1,4,1,1.0,0.5,-3.0],["B","red",1,4,1,2.0,0.5,-3.0],["B","white",1,4,1,3.0,0.5,-3.0],["B","red",1,4,1,-3.0,0.5,-2.0],["B","white",1,4,1,-2.0,0.5,-2.0],["B","white",1,4,1,0.0,0.5,-2.0],["B","white",1,4,1,2.0,0.5,-2.0],["B","red",1,4,1,3.0,0.5,-2.0],["B","white",1,4,1,-3.0,0.5,-1.0],["B","white",1,4,1,3.0,0.5,-1.0],["B","red",1,4,1,-3.0,0.5,0.0],["B","white",1,4,1,-2.0,0.5,0.0],["B","white",1,4,1,2.0,0.5,0.0],["B","red",1,4,1,3.0,0.5,0.0],["B","white",1,4,1,-3.0,0.5,1.0],["B","white",1,4,1,3.0,0.5,1.0],["B","red",1,4,1,-3.0,0.5,2.0],["B","white",1,4,1,-2.0,0.5,2.0],["B","white",1,4,1,0.0,0.5,2.0],["B","white",1,4,1,2.0,0.5,2.0],["B","red",1,4,1,3.0,0.5,2.0],["B","white",1,4,1,-3.0,0.5,3.0],["B","red",1,4,1,-2.0,0.5,3.0],["B","white",1,4,1,-1.0,0.5,3.0],["B","red",1,4,1,0.0,0.5,3.0],["B","white",1,4,1,1.0,0.5,3.0],["B","red",1,4,1,2.0,0.5,3.0],["B","white",1,4,1,3.0,0.5,3.0],["B","rim",7,1,1,0.0,3.0,-3.0],["B","rim",1,1,6,-3.0,3.0,0.5],["B","kernel",5,1,5,0.0,3.0,0.0],["B","rim",1,1,6,3.0,3.0,0.5],["B","rim",5,1,1,0.0,3.0,3.0],["B","kernel",1,1,7,0.0,4.0,0.0],["B","kernel",1,1,5,-2.0,4.0,0.0],["B","butter",1,1,1,-1.0,4.0,-2.0],["B","kernel",1,2,5,1.0,4.5,0.0],["B","kernelW",1,1,2,2.0,4.0,-1.5],["B","kernel",1,3,3,-1.0,5.0,0.0],["B","kernel",1,1,1,-3.0,4.0,0.0],["B","kernel",2,1,1,2.5,4.0,0.0],["B","kernelW",1,1,2,2.0,4.0,1.5],["B","butter",1,1,1,-1.0,4.0,2.0],["B","kernel",1,1,1,-1.0,5.0,-2.0],["B","butter",1,1,1,0.0,5.0,-2.0],["B","kernel",1,1,3,-2.0,5.0,0.0],["B","kernel",1,2,3,0.0,5.5,0.0],["B","kernel",1,1,3,2.0,5.0,0.0],["B","kernel",1,1,1,-1.0,5.0,2.0],["B","butter",1,1,1,0.0,5.0,2.0],["B","butter",1,1,3,1.0,6.0,0.0],["B","kernel",1,1,1,0.0,7.0,0.0],["B","butter",0.8,0.8,0.8,2.6,7.6,-1.4,0.933,0.067,0.3536,0.067,0.933,-0.3536,-0.3536,0.3536,0.866],["B","butter",0.8,0.8,0.8,-2.4,7.2,1.2,0.933,0.067,0.3536,0.067,0.933,-0.3536,-0.3536,0.3536,0.866],["B","butter",0.8,0.8,0.8,0.6,8.6,0.8,0.933,0.067,0.3536,0.067,0.933,-0.3536,-0.3536,0.3536,0.866],["B","gold",2.2,1.2,0.2,0,-1,-3.55],["B","red",1.4,0.6,1.4,0,-4.8,0],["W","red",1.0,0.9,0.5,0.0,-5.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","red",1.0,0.9,0.5,0.0,-5.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Jelly":{"pal":{"dome":["5AC8FA","G",0.3],"core":["9FE7FF","N",0.2],"rim":["3FA9FF","N",0],"spot":["FF8AE6","G",0.2],"tent":["7FD8FF","N",0.1],"tent2":["5AC8FA","G",0.2],"arm":["FFB8F1","G",0.25]},"knot":[0,-0.8,0],"light":["7FD8FF",1.2,14],"parts":[["B","rim",3,1,1,0.0,0.0,-4.0],["B","rim",2,1,1,-2.5,0.0,-3.0],["B","dome",3,1,2,0.0,0.0,-2.5],["B","rim",2,1,1,2.5,0.0,-3.0],["B","rim",1,1,1,-3.0,0.0,-2.0],["B","dome",1,1,5,-2.0,0.0,0.0],["B","dome",1,1,5,2.0,0.0,0.0],["B","rim",1,1,1,3.0,0.0,-2.0],["B","rim",1,1,3,-4.0,0.0,0.0],["B","dome",1,1,3,-3.0,0.0,0.0],["B","dome",1,1,1,-1.0,0.0,-1.0],["B","core",1,3,3,0.0,1.0,0.0],["B","dome",1,1,1,1.0,0.0,-1.0],["B","dome",1,1,3,3.0,0.0,0.0],["B","rim",1,1,3,4.0,0.0,0.0],["B","core",1,3,1,-1.0,1.0,0.0],["B","core",1,3,1,1.0,1.0,0.0],["B","dome",1,1,3,-1.0,0.0,2.0],["B","dome",1,1,3,1.0,0.0,2.0],["B","rim",1,1,2,-3.0,0.0,2.5],["B","dome",1,1,2,0.0,0.0,2.5],["B","rim",1,1,2,3.0,0.0,2.5],["B","rim",1,1,1,-2.0,0.0,3.0],["B","rim",1,1,1,2.0,0.0,3.0],["B","rim",3,1,1,0.0,0.0,4.0],["B","dome",3,1,1,0.0,1.0,-4.0],["B","dome",3,1,1,-2.0,1.0,-3.0],["B","dome",3,1,1,2.0,1.0,-3.0],["B","dome",1,2,2,-3.0,1.5,-1.5],["B","dome",1,2,2,3.0,1.5,-1.5],["B","dome",1,1,3,-4.0,1.0,0.0],["B","core",1,1,1,-1.0,1.0,-1.0],["B","core",1,1,1,1.0,1.0,-1.0],["B","dome",1,1,3,4.0,1.0,0.0],["B","dome",1,1,3,-3.0,1.0,2.0],["B","core",1,1,1,-1.0,1.0,1.0],["B","core",1,1,1,1.0,1.0,1.0],["B","dome",1,1,3,3.0,1.0,2.0],["B","dome",2,1,1,-1.5,1.0,3.0],["B","dome",2,2,1,1.5,1.5,3.0],["B","dome",3,1,1,0.0,1.0,4.0],["B","dome",1,1,2,-2.0,2.0,-2.5],["B","spot",1,1,1,-1.0,2.0,-3.0],["B","dome",3,1,1,1.0,2.0,-3.0],["B","spot",1,1,1,2.0,2.0,-2.0],["B","dome",1,1,3,-3.0,2.0,1.0],["B","dome",1,1,3,3.0,2.0,1.0],["B","dome",1,1,2,-2.0,2.0,2.5],["B","spot",1,1,1,2.0,2.0,2.0],["B","spot",1,1,1,-1.0,2.0,3.0],["B","dome",1,1,1,0.0,2.0,3.0],["B","dome",3,1,1,0.0,3.0,-2.0],["B","dome",2,1,3,-1.5,3.0,0.0],["B","spot",1,1,1,0.0,3.0,-1.0],["B","dome",2,1,3,1.5,3.0,0.0],["B","dome",1,1,1,0.0,3.0,0.0],["B","spot",1,1,1,0.0,3.0,1.0],["B","dome",3,1,1,0.0,3.0,2.0],["B","tent",0.55,1.2,0.55,3.1,-0.9,0.0],["B","tent2",0.55,1.2,0.55,3.501,-2.05,0.0],["B","tent",0.55,1.2,0.55,3.464,-3.2,0.0],["B","tent2",0.55,1.2,0.55,3.029,-4.35,0.0],["B","tent",0.55,1.2,0.55,2.672,-5.5,0.0],["B","tent2",0.55,1.2,0.55,2.46,-0.9,2.46],["B","tent",0.55,1.2,0.55,2.467,-2.05,2.467],["B","tent2",0.55,1.2,0.55,2.173,-3.2,2.173],["B","tent",0.55,1.2,0.55,1.901,-4.35,1.901],["B","tent2",0.55,1.2,0.55,1.946,-5.5,1.946],["B","tent",0.55,1.2,0.55,0.0,-0.9,3.509],["B","tent2",0.55,1.2,0.55,0.0,-2.05,3.119],["B","tent",0.55,1.2,0.55,0.0,-3.2,2.708],["B","tent2",0.55,1.2,0.55,0.0,-4.35,2.725],["B","tent",0.55,1.2,0.55,0.0,-5.5,3.152],["B","tent2",0.55,1.2,0.55,-2.237,-0.9,2.237],["B","tent",0.55,1.2,0.55,-1.932,-2.05,1.932],["B","tent2",0.55,1.2,0.55,-1.911,-3.2,1.911],["B","tent",0.55,1.2,0.55,-2.197,-4.35,2.197],["B","tent2",0.55,1.2,0.55,-2.478,-5.5,2.478],["B","tent",0.55,1.2,0.55,-2.759,-0.9,0.0],["B","tent2",0.55,1.2,0.55,-2.683,-2.05,0.0],["B","tent",0.55,1.2,0.55,-3.063,-3.2,0.0],["B","tent2",0.55,1.2,0.55,-3.483,-4.35,0.0],["B","tent",0.55,1.2,0.55,-3.485,-5.5,0.0],["B","tent2",0.55,1.2,0.55,-1.887,-0.9,-1.887],["B","tent",0.55,1.2,0.55,-2.134,-2.05,-2.134],["B","tent2",0.55,1.2,0.55,-2.445,-3.2,-2.445],["B","tent",0.55,1.2,0.55,-2.479,-4.35,-2.479],["B","tent2",0.55,1.2,0.55,-2.2,-5.5,-2.2],["B","tent",0.55,1.2,0.55,-0.0,-0.9,-2.974],["B","tent2",0.55,1.2,0.55,-0.0,-2.05,-3.428],["B","tent",0.55,1.2,0.55,-0.0,-3.2,-3.523],["B","tent2",0.55,1.2,0.55,-0.0,-4.35,-3.156],["B","tent",0.55,1.2,0.55,-0.0,-5.5,-2.727],["B","tent2",0.55,1.2,0.55,2.401,-0.9,-2.401],["B","tent",0.55,1.2,0.55,2.501,-2.05,-2.501],["B","tent2",0.55,1.2,0.55,2.263,-3.2,-2.263],["B","tent",0.55,1.2,0.55,1.948,-4.35,-1.948],["B","tent2",0.55,1.2,0.55,1.9,-5.5,-1.9],["B","arm",0.9,1.1,0.9,1.105,-1.0,0.467,0.7071,0.0,0.7071,0.0,1.0,0.0,-0.7071,0.0,0.7071],["B","arm",0.9,1.1,0.9,1.105,-2.1,0.467,0.4226,0.0,0.9063,0.0,1.0,0.0,-0.9063,0.0,0.4226],["B","arm",0.9,1.1,0.9,1.105,-3.2,0.467,0.0872,0.0,0.9962,0.0,1.0,0.0,-0.9962,0.0,0.0872],["B","arm",0.9,1.1,0.9,-0.467,-1.0,1.105,0.7071,0.0,0.7071,0.0,1.0,0.0,-0.7071,0.0,0.7071],["B","arm",0.9,1.1,0.9,-0.467,-2.1,1.105,0.4226,0.0,0.9063,0.0,1.0,0.0,-0.9063,0.0,0.4226],["B","arm",0.9,1.1,0.9,-0.467,-3.2,1.105,0.0872,0.0,0.9962,0.0,1.0,0.0,-0.9962,0.0,0.0872],["B","arm",0.9,1.1,0.9,-1.105,-1.0,-0.467,0.7071,0.0,0.7071,0.0,1.0,0.0,-0.7071,0.0,0.7071],["B","arm",0.9,1.1,0.9,-1.105,-2.1,-0.467,0.4226,0.0,0.9063,0.0,1.0,0.0,-0.9063,0.0,0.4226],["B","arm",0.9,1.1,0.9,-1.105,-3.2,-0.467,0.0872,0.0,0.9962,0.0,1.0,0.0,-0.9962,0.0,0.0872],["B","arm",0.9,1.1,0.9,0.467,-1.0,-1.105,0.7071,0.0,0.7071,0.0,1.0,0.0,-0.7071,0.0,0.7071],["B","arm",0.9,1.1,0.9,0.467,-2.1,-1.105,0.4226,0.0,0.9063,0.0,1.0,0.0,-0.9063,0.0,0.4226],["B","arm",0.9,1.1,0.9,0.467,-3.2,-1.105,0.0872,0.0,0.9962,0.0,1.0,0.0,-0.9962,0.0,0.0872]]},"Buzz":{"pal":{"yellow":["FFD21F","P",0],"black":["2A2A2A","P",0],"eye":["141414","S",0],"shine":["FFFFFF","S",0],"cheek":["FF9AB8","P",0],"wing":["F4FBFF","G",0.4],"tip":["FFD21F","N",0]},"knot":[0,-5.8,0],"light":null,"parts":[["B","yellow",3,1,5,0.0,-3.0,0.0],["B","yellow",1,1,3,-2.0,-3.0,0.0],["B","yellow",1,1,3,2.0,-3.0,0.0],["B","black",1,1,7,0.0,-2.0,0.0],["B","black",2,1,5,-1.5,-2.0,0.0],["B","black",2,1,5,1.5,-2.0,0.0],["B","black",1,1,1,-3.0,-2.0,0.0],["B","black",1,1,1,3.0,-2.0,0.0],["B","yellow",3,1,7,0.0,-1.0,0.0],["B","yellow",1,1,5,-2.0,-1.0,0.0],["B","yellow",1,1,5,2.0,-1.0,0.0],["B","yellow",1,1,3,-3.0,-1.0,0.0],["B","yellow",1,1,3,3.0,-1.0,0.0],["B","black",3,1,7,0.0,0.0,0.0],["B","black",1,1,5,-2.0,0.0,0.0],["B","black",1,1,5,2.0,0.0,0.0],["B","black",1,1,3,-3.0,0.0,0.0],["B","black",1,1,3,3.0,0.0,0.0],["B","yellow",3,1,7,0.0,1.0,0.0],["B","cheek",1,1,1,-2.0,1.0,-2.0],["B","cheek",1,1,1,2.0,1.0,-2.0],["B","yellow",2,1,3,-2.5,1.0,0.0],["B","yellow",2,1,3,2.5,1.0,0.0],["B","yellow",1,2,1,-2.0,1.5,2.0],["B","yellow",1,2,1,2.0,1.5,2.0],["B","yellow",1,1,7,0.0,2.0,0.0],["B","yellow",1,1,4,-2.0,2.0,-0.5],["B","eye",1,1,1,-1.0,2.0,-2.0],["B","eye",1,1,1,1.0,2.0,-2.0],["B","yellow",1,1,4,2.0,2.0,-0.5],["B","yellow",1,2,4,-1.0,2.5,0.5],["B","yellow",1,2,4,1.0,2.5,0.5],["B","yellow",1,1,1,-3.0,2.0,0.0],["B","yellow",1,1,1,3.0,2.0,0.0],["B","shine",1,1,1,-1.0,3.0,-2.0],["B","yellow",1,1,5,0.0,3.0,0.0],["B","shine",1,1,1,1.0,3.0,-2.0],["B","yellow",1,1,3,-2.0,3.0,0.0],["B","yellow",1,1,3,2.0,3.0,0.0],["B","wing",0.2,3.4,2.4,-2.3,4.3,0.9,0.848,-0.5299,0.0,0.5299,0.848,0.0,0.0,0.0,1.0],["B","black",0.3,2.4,0.3,-1.0,4.7,-1.5,0.9272,-0.3563,-0.1158,0.3746,0.8818,0.2865,0.0,-0.309,0.9511],["B","tip",0.7,0.7,0.7,-1.5,5.9,-1.9],["B","wing",0.2,3.4,2.4,2.3,4.3,0.9,0.848,0.5299,0.0,-0.5299,0.848,0.0,0.0,0.0,1.0],["B","black",0.3,2.4,0.3,1.0,4.7,-1.5,0.9272,0.3563,0.1158,-0.3746,0.8818,0.2865,0.0,-0.309,0.9511],["B","tip",0.7,0.7,0.7,1.5,5.9,-1.9],["W","black",1.0,1.6,0.5,0.0,-0.75,4.4,1.0,0.0,0.0,0.0,0.0,-1.0,0.0,1.0,0.0],["W","black",1.0,1.6,0.5,0.0,-1.25,4.4,-1.0,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0],["B","black",1.4,0.6,1.4,0,-4.6,0],["W","black",1.0,0.9,0.5,0.0,-5.35,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","black",1.0,0.9,0.5,0.0,-5.35,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Frost":{"pal":{"ice":["6FCBFF","P",0],"iceDark":["3A9FE0","P",0],"iceLight":["B8EAFF","P",0],"snow":["FFFFFF","N",0],"icicle":["C8F4FF","G",0.2],"crystal":["DDF6FF","N",0.1]},"knot":[0,-6.1,0],"light":["A5E4FF",0.8,12],"parts":[["B","iceDark",3,1,3,0.0,-4.0,0.0],["B","iceDark",1,1,2,0.0,-3.0,-2.5],["B","iceDark",2,1,1,-1.5,-3.0,-2.0],["B","iceDark",2,1,1,1.5,-3.0,-2.0],["B","iceDark",1,1,4,-2.0,-3.0,0.5],["B","ice",3,8,3,0.0,0.5,0.0],["B","iceDark",1,1,4,2.0,-3.0,0.5],["B","iceDark",1,1,1,-3.0,-3.0,0.0],["B","iceDark",1,1,1,3.0,-3.0,0.0],["B","iceDark",3,1,1,0.0,-3.0,2.0],["B","iceDark",1,1,1,0.0,-3.0,3.0],["B","ice",5,4,2,0.0,-0.5,-2.5],["B","ice",1,5,5,-3.0,0.0,0.0],["B","ice",1,5,5,3.0,0.0,0.0],["B","ice",1,5,5,-2.0,0.0,1.0],["B","ice",1,5,5,2.0,0.0,1.0],["B","ice",3,5,2,0.0,0.0,2.5],["B","ice",3,3,1,0.0,0.0,-4.0],["B","ice",1,3,3,-4.0,0.0,0.0],["B","ice",1,3,3,4.0,0.0,0.0],["B","ice",3,3,1,0.0,0.0,4.0],["B","ice",1,1,1,-3.0,0.0,-3.0],["B","ice",1,1,1,3.0,0.0,-3.0],["B","ice",1,1,1,-3.0,0.0,3.0],["B","ice",1,1,1,3.0,0.0,3.0],["B","iceLight",2,1,1,-1.5,2.0,-3.0],["B","ice",3,1,2,1.0,2.0,-2.5],["B","ice",2,1,1,-1.5,2.0,-2.0],["B","ice",1,1,2,0.0,3.0,-2.5],["B","iceLight",1,1,1,-2.0,3.0,-2.0],["B","ice",1,1,1,-1.0,3.0,-2.0],["B","ice",2,1,1,1.5,3.0,-2.0],["B","ice",1,1,4,-2.0,3.0,0.5],["B","ice",1,1,4,2.0,3.0,0.5],["B","ice",1,1,1,-3.0,3.0,0.0],["B","ice",1,1,1,3.0,3.0,0.0],["B","ice",3,1,1,0.0,3.0,2.0],["B","ice",1,1,1,0.0,3.0,3.0],["B","snow",0.45,5.4,0.3,0,0.6,-4.55],["B","snow",0.35,1.2,0.3,-0.318,2.718,-4.55,0.7071,-0.7071,0.0,0.7071,0.7071,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,0.318,2.718,-4.55,0.7071,0.7071,0.0,-0.7071,0.7071,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,-0.318,-1.518,-4.55,0.7071,0.7071,0.0,-0.7071,0.7071,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,0.318,-1.518,-4.55,0.7071,-0.7071,0.0,0.7071,0.7071,0.0,0.0,0.0,1.0],["B","snow",0.45,5.4,0.3,0,0.6,-4.55,0.5,-0.866,0.0,0.866,0.5,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,-1.994,1.384,-4.55,-0.2588,-0.9659,0.0,0.9659,-0.2588,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,-1.675,1.935,-4.55,0.9659,-0.2588,0.0,0.2588,0.9659,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,1.675,-0.735,-4.55,0.9659,-0.2588,0.0,0.2588,0.9659,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,1.994,-0.184,-4.55,-0.2588,-0.9659,0.0,0.9659,-0.2588,0.0,0.0,0.0,1.0],["B","snow",0.45,5.4,0.3,0,0.6,-4.55,-0.5,-0.866,0.0,0.866,-0.5,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,-1.675,-0.735,-4.55,-0.9659,-0.2588,0.0,0.2588,-0.9659,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,-1.994,-0.184,-4.55,0.2588,-0.9659,0.0,0.9659,0.2588,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,1.994,1.384,-4.55,0.2588,-0.9659,0.0,0.9659,0.2588,0.0,0.0,0.0,1.0],["B","snow",0.35,1.2,0.3,1.675,1.935,-4.55,-0.9659,-0.2588,0.0,0.2588,-0.9659,0.0,0.0,0.0,1.0],["B","icicle",0.8,2.2,0.8,2.6,-4.3,0.0],["B","icicle",0.45,1.0,0.45,2.6,-5.9,0.0],["B","icicle",0.8,1.5,0.8,1.621,-3.95,2.033],["B","icicle",0.45,1.0,0.45,1.621,-5.2,2.033],["B","icicle",0.8,2.2,0.8,-0.579,-4.3,2.535],["B","icicle",0.45,1.0,0.45,-0.579,-5.9,2.535],["B","icicle",0.8,1.5,0.8,-2.343,-3.95,1.128],["B","icicle",0.45,1.0,0.45,-2.343,-5.2,1.128],["B","icicle",0.8,2.2,0.8,-2.343,-4.3,-1.128],["B","icicle",0.45,1.0,0.45,-2.343,-5.9,-1.128],["B","icicle",0.8,1.5,0.8,-0.579,-3.95,-2.535],["B","icicle",0.45,1.0,0.45,-0.579,-5.2,-2.535],["B","icicle",0.8,2.2,0.8,1.621,-4.3,-2.033],["B","icicle",0.45,1.0,0.45,1.621,-5.9,-2.033],["B","crystal",0.9,1.6,0.9,0,5.2,0,0.7071,0.0,0.7071,0.0,1.0,0.0,-0.7071,0.0,0.7071],["B","crystal",0.9,1.6,0.9,1.6,4.7,0.4,0.6409,-0.4226,0.6409,0.2988,0.9063,0.2988,-0.7071,0.0,0.7071],["B","crystal",0.9,1.6,0.9,-1.5,4.8,-0.3,0.6645,0.342,0.6645,-0.2418,0.9397,-0.2418,-0.7071,0.0,0.7071],["B","iceDark",1.4,0.6,1.4,0,-4.9,0],["W","iceDark",1.0,0.9,0.5,0.0,-5.65,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","iceDark",1.0,0.9,0.5,0.0,-5.65,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Volt":{"pal":{"blue":["1F6BFF","P",0],"blueDark":["1440B8","P",0],"blueLight":["7FB2FF","P",0],"bolt":["FFD21F","N",0],"spark":["FFF3A0","N",0]},"knot":[0,-6.1,0],"light":["FFD21F",1.0,12],"parts":[["B","blueDark",3,1,3,0.0,-4.0,0.0],["B","blueDark",1,1,2,0.0,-3.0,-2.5],["B","bolt",1,1,1,-2.0,-3.0,-2.0],["B","blueDark",1,1,1,-1.0,-3.0,-2.0],["B","blueDark",2,1,1,1.5,-3.0,-2.0],["B","blueDark",1,1,4,-2.0,-3.0,0.5],["B","blue",3,7,3,0.0,0.0,0.0],["B","blueDark",1,1,4,2.0,-3.0,0.5],["B","blueDark",1,1,1,-3.0,-3.0,0.0],["B","blueDark",1,1,1,3.0,-3.0,0.0],["B","blueDark",3,1,1,0.0,-3.0,2.0],["B","blueDark",1,1,1,0.0,-3.0,3.0],["B","bolt",2,1,1,-1.5,-2.0,-3.0],["B","blue",3,3,2,1.0,-1.0,-2.5],["B","blue",3,5,1,-2.0,0.0,-2.0],["B","blue",1,5,5,3.0,0.0,0.0],["B","blue",2,5,4,-2.5,0.0,0.5],["B","blue",1,5,5,2.0,0.0,1.0],["B","blue",3,5,2,0.0,0.0,2.5],["B","blue",1,5,1,-2.0,0.0,3.0],["B","bolt",2,1,1,-0.5,-1.0,-4.0],["B","blue",1,1,1,1.0,-1.0,-4.0],["B","blue",2,2,1,-1.5,-0.5,-3.0],["B","blue",1,3,3,-4.0,0.0,0.0],["B","blue",1,3,3,4.0,0.0,0.0],["B","blue",3,3,1,0.0,0.0,4.0],["B","blue",1,1,1,-1.0,0.0,-4.0],["B","bolt",2,2,1,0.5,0.5,-4.0],["B","blue",1,1,1,-3.0,0.0,-3.0],["B","blue",1,1,1,3.0,0.0,-3.0],["B","blue",1,1,1,-3.0,0.0,3.0],["B","blue",1,1,1,3.0,0.0,3.0],["B","bolt",1,1,1,-1.0,1.0,-4.0],["B","bolt",1,1,1,-2.0,1.0,-3.0],["B","blue",3,1,1,0.0,1.0,-3.0],["B","bolt",1,1,1,2.0,1.0,-3.0],["B","blue",3,2,1,1.0,1.5,-2.0],["B","blueLight",1,1,1,-2.0,2.0,-3.0],["B","bolt",2,1,1,-0.5,2.0,-3.0],["B","blue",2,1,1,1.5,2.0,-3.0],["B","bolt",1,1,1,0.0,3.0,-3.0],["B","blueLight",1,1,1,-2.0,3.0,-2.0],["B","blue",2,1,1,-0.5,3.0,-2.0],["B","bolt",1,1,1,1.0,3.0,-2.0],["B","blue",1,1,5,2.0,3.0,0.0],["B","blue",1,1,4,-2.0,3.0,0.5],["B","blue",1,1,1,-3.0,3.0,0.0],["B","blue",1,1,1,3.0,3.0,0.0],["B","blue",3,1,1,0.0,3.0,2.0],["B","blue",1,1,1,0.0,3.0,3.0],["B","blue",2,1,3,-0.5,4.0,0.0],["B","bolt",1,1,1,1.0,4.0,-1.0],["B","blue",1,1,2,1.0,4.0,0.5],["B","spark",0.45,0.9,0.45,0.45,5.1,0.0,0.8575,0.5145,-0.0,-0.5145,0.8575,0.0,0.0,0.0,1.0],["B","spark",0.45,0.9,0.45,0.0,5.8,0.0,0.8575,-0.5145,0.0,0.5145,0.8575,-0.0,0.0,0.0,1.0],["B","spark",0.45,0.9,0.45,0.45,6.5,0.0,0.8575,0.5145,-0.0,-0.5145,0.8575,0.0,0.0,0.0,1.0],["B","spark",0.45,0.9,0.45,4.113,3.177,0.5,0.0,0.9701,-0.2425,0.0,0.2425,0.9701,1.0,0.0,0.0],["B","spark",0.45,0.9,0.45,4.29,3.99,0.5,0.9701,0.2425,-0.0,-0.2425,0.9701,0.0,0.0,0.0,1.0],["B","spark",0.45,0.9,0.45,5.103,4.167,0.5,0.0,0.9701,-0.2425,0.0,0.2425,0.9701,1.0,0.0,0.0],["B","spark",0.45,0.9,0.45,-3.372,3.408,-0.502,0.9716,-0.2366,0.0,0.2347,0.9642,-0.1236,0.0292,0.1201,0.9923],["B","spark",0.45,0.9,0.45,-4.18,3.58,-0.404,0.1166,-0.9642,-0.2383,-0.0286,0.2366,-0.9712,0.9928,0.1201,-0.0],["B","spark",0.45,0.9,0.45,-4.352,4.388,-0.306,0.9716,-0.2366,0.0,0.2347,0.9642,-0.1236,0.0292,0.1201,0.9923],["B","blueDark",1.4,0.6,1.4,0,-4.9,0],["W","blueDark",1.0,0.9,0.5,0.0,-5.65,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","blueDark",1.0,0.9,0.5,0.0,-5.65,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Thorn":{"pal":{"thorn":["2E7D32","P",0],"vine":["1B5E20","P",0],"tip":["8A5A2E","P",0],"rose":["D6204A","P",0],"roseDark":["A3122F","P",0],"leaf":["43A047","P",0]},"knot":[0,-5.9,0],"light":null,"parts":[["B","thorn",3,6,2,0.0,-0.5,-1.5],["B","thorn",1,7,2,-2.0,0.0,-0.5],["B","vine",1,1,1,2.0,-3.0,-1.0],["B","thorn",2,6,1,-0.5,-0.5,0.0],["B","vine",1,1,3,1.0,-3.0,1.0],["B","thorn",1,7,2,2.0,0.0,0.5],["B","vine",2,1,1,-1.5,-3.0,1.0],["B","thorn",1,7,1,0.0,0.0,1.0],["B","thorn",1,7,1,-1.0,0.0,2.0],["B","vine",1,1,1,0.0,-3.0,2.0],["B","thorn",3,1,1,0.0,-2.0,-3.0],["B","thorn",1,4,1,-2.0,-0.5,-2.0],["B","thorn",1,5,2,2.0,0.0,-1.5],["B","thorn",1,2,1,-3.0,-1.5,-1.0],["B","thorn",1,1,3,3.0,-2.0,0.0],["B","vine",1,2,1,-3.0,-1.5,0.0],["B","thorn",1,5,4,1.0,0.0,1.5],["B","thorn",3,5,1,-2.0,0.0,1.0],["B","thorn",1,5,1,-2.0,0.0,2.0],["B","thorn",1,6,1,0.0,0.5,2.0],["B","vine",1,1,1,2.0,-2.0,2.0],["B","thorn",1,2,1,-1.0,-1.5,3.0],["B","vine",1,1,1,0.0,-2.0,3.0],["B","thorn",3,3,1,-1.0,0.0,-3.0],["B","vine",1,2,1,1.0,-0.5,-3.0],["B","thorn",1,3,1,2.0,0.0,-3.0],["B","thorn",1,3,1,-3.0,0.0,-2.0],["B","thorn",1,2,3,3.0,-0.5,-1.0],["B","vine",1,2,1,3.0,-0.5,1.0],["B","thorn",1,3,1,-3.0,0.0,2.0],["B","thorn",2,3,1,2.5,0.0,2.0],["B","thorn",1,3,1,-2.0,0.0,3.0],["B","thorn",1,4,1,0.0,0.5,3.0],["B","thorn",1,3,1,2.0,0.0,3.0],["B","vine",1,2,1,-3.0,0.5,-1.0],["B","thorn",1,3,1,-3.0,1.0,0.0],["B","vine",1,2,1,-1.0,0.5,3.0],["B","thorn",1,2,1,1.0,1.5,-3.0],["B","thorn",1,1,2,3.0,1.0,-1.5],["B","vine",1,2,1,3.0,1.5,0.0],["B","thorn",1,2,1,3.0,1.5,1.0],["B","thorn",1,1,1,-1.0,2.0,-3.0],["B","vine",1,1,1,0.0,2.0,-3.0],["B","vine",1,1,1,-2.0,2.0,-2.0],["B","thorn",1,1,1,-3.0,2.0,-1.0],["B","thorn",1,1,1,3.0,2.0,-1.0],["B","thorn",1,1,1,2.0,2.0,2.0],["B","thorn",1,1,1,-1.0,2.0,3.0],["B","vine",2,1,1,-0.5,3.0,-2.0],["B","thorn",1,1,1,1.0,3.0,-2.0],["B","vine",1,1,2,-1.0,3.0,-0.5],["B","thorn",1,1,2,0.0,3.0,-0.5],["B","vine",2,1,1,1.5,3.0,-1.0],["B","thorn",1,1,3,1.0,3.0,1.0],["B","vine",1,1,1,-2.0,3.0,1.0],["B","thorn",1,1,1,-1.0,3.0,1.0],["B","rose",3,1,3,0.0,4.0,0.0],["B","roseDark",1,1,1,-2.0,4.0,0.0],["B","roseDark",1,1,1,2.0,4.0,0.0],["B","roseDark",3,1,1,0.0,5.0,-1.0],["B","roseDark",1,1,2,-1.0,5.0,0.5],["B","rose",1,2,1,0.0,5.5,0.0],["B","roseDark",1,1,2,1.0,5.0,0.5],["B","roseDark",1,1,1,0.0,5.0,1.0],["W","tip",0.9,1.8,0.45,3.634,0.513,-2.252,0.5345,0.8452,0.0,-0.2673,0.169,0.9487,0.8018,-0.5071,0.3162],["W","tip",0.9,1.8,0.45,3.634,0.94,-2.109,-0.5345,0.8452,0.0,0.2673,0.169,-0.9487,-0.8018,-0.5071,-0.3162],["W","tip",0.9,1.8,0.45,-3.715,0.921,-1.973,0.5037,-0.8639,0.0,0.4445,0.2592,0.8575,-0.7408,-0.4319,0.5145],["W","tip",0.9,1.8,0.45,-3.715,1.307,-1.742,-0.5037,-0.8639,0.0,-0.4445,0.2592,-0.8575,0.7408,-0.4319,-0.5145],["W","tip",0.9,1.8,0.45,2.114,2.635,2.67,0.8709,0.4915,0.0,-0.3237,0.5735,-0.7526,-0.3699,0.6554,0.6585],["W","tip",0.9,1.8,0.45,2.114,2.297,2.966,-0.8709,0.4915,0.0,0.3237,0.5735,0.7526,0.3699,0.6554,-0.6585],["W","tip",0.9,1.8,0.45,-2.336,2.19,2.879,0.8395,-0.5433,0.0,0.3014,0.4657,-0.8321,0.4521,0.6985,0.5547],["W","tip",0.9,1.8,0.45,-2.336,1.815,3.129,-0.8395,-0.5433,0.0,-0.3014,0.4657,0.8321,-0.4521,0.6985,-0.5547],["W","tip",0.9,1.8,0.45,0.809,0.998,-4.11,0.9821,0.1881,0.0,-0.0541,0.2822,0.9578,0.1802,-0.9407,0.2873],["W","tip",0.9,1.8,0.45,0.809,1.429,-3.98,-0.9821,0.1881,0.0,0.0541,0.2822,-0.9578,-0.1802,-0.9407,-0.2873],["W","tip",0.9,1.8,0.45,3.743,-1.338,1.656,0.4924,0.8704,0.0,0.6155,-0.3482,-0.7071,-0.6155,0.3482,-0.7071],["W","tip",0.9,1.8,0.45,3.743,-1.656,1.338,-0.4924,0.8704,0.0,-0.6155,-0.3482,0.7071,0.6155,0.3482,0.7071],["W","tip",0.9,1.8,0.45,-4.11,-0.998,0.809,0.1802,-0.9407,0.2873,0.0541,-0.2822,-0.9578,0.9821,0.1881,0.0],["W","tip",0.9,1.8,0.45,-3.98,-1.429,0.809,-0.1802,-0.9407,-0.2873,-0.0541,-0.2822,0.9578,-0.9821,0.1881,0.0],["W","tip",0.9,1.8,0.45,1.188,3.894,-1.403,0.9611,0.2762,0.0,-0.2645,0.9206,0.2873,0.0794,-0.2762,0.9578],["W","tip",0.9,1.8,0.45,1.188,4.023,-0.972,-0.9611,0.2762,0.0,0.2645,0.9206,-0.2873,-0.0794,-0.2762,-0.9578],["W","tip",0.9,1.8,0.45,-1.449,-2.012,-3.521,0.9416,-0.3369,0.0,-0.1506,-0.4211,0.8944,-0.3013,-0.8422,-0.4472],["W","tip",0.9,1.8,0.45,-1.449,-1.609,-3.722,-0.9416,-0.3369,0.0,0.1506,-0.4211,-0.8944,0.3013,-0.8422,0.4472],["W","tip",0.9,1.8,0.45,2.638,-1.846,-2.859,0.7896,0.6136,0.0,0.298,-0.3835,0.8742,0.5364,-0.6903,-0.4856],["W","tip",0.9,1.8,0.45,2.638,-1.452,-3.077,-0.7896,0.6136,0.0,-0.298,-0.3835,-0.8742,-0.5364,-0.6903,0.4856],["B","leaf",2.2,0.3,1.2,-1.9,3.8,0.8,0.9397,0.342,0.0,-0.342,0.9397,0.0,0.0,0.0,1.0],["B","leaf",2.2,0.3,1.2,1.9,3.8,0.8,0.9397,-0.342,0.0,0.342,0.9397,0.0,0.0,0.0,1.0],["B","vine",1.4,0.6,1.4,0,-4.7,0],["W","vine",1.0,0.9,0.5,0.0,-5.45,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","vine",1.0,0.9,0.5,0.0,-5.45,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Clock":{"pal":{"gold":["FFC21A","P",0],"goldDark":["D99A00","P",0],"glass":["DDF6FF","G",0.45],"sand":["E8C27A","P",0],"sandDark":["C99A4A","P",0],"face":["FFFFFF","S",0],"hand":["2A2A2A","S",0]},"knot":[0,-8.0,0],"light":null,"parts":[["B","goldDark",5,1,5,0.0,-6.0,0.0],["B","gold",7,1,7,0.0,-5.0,0.0],["B","goldDark",1,9,1,-3.0,0.0,-3.0],["B","goldDark",1,9,1,3.0,0.0,-3.0],["B","sand",5,1,5,0.0,-4.0,0.0],["B","goldDark",1,9,1,-3.0,0.0,3.0],["B","goldDark",1,9,1,3.0,0.0,3.0],["B","glass",5,1,1,0.0,-3.0,-2.0],["B","glass",1,1,4,-2.0,-3.0,0.5],["B","sandDark",3,1,3,0.0,-3.0,0.0],["B","glass",1,1,4,2.0,-3.0,0.5],["B","glass",3,1,1,0.0,-3.0,2.0],["B","glass",3,2,1,0.0,-1.5,-1.0],["B","glass",1,2,2,-1.0,-1.5,0.5],["B","sand",1,6,1,0.0,0.5,0.0],["B","glass",1,2,2,1.0,-1.5,0.5],["B","glass",1,2,1,0.0,-1.5,1.0],["B","glass",3,2,1,0.0,1.5,-1.0],["B","glass",1,2,2,-1.0,1.5,0.5],["B","glass",1,2,2,1.0,1.5,0.5],["B","glass",1,2,1,0.0,1.5,1.0],["B","glass",5,2,1,0.0,3.5,-2.0],["B","glass",1,2,4,-2.0,3.5,0.5],["B","sand",3,1,1,0.0,3.0,-1.0],["B","glass",1,2,4,2.0,3.5,0.5],["B","sand",1,1,2,-1.0,3.0,0.5],["B","sand",1,1,2,1.0,3.0,0.5],["B","sand",1,1,1,0.0,3.0,1.0],["B","glass",3,2,1,0.0,3.5,2.0],["B","glass",3,1,3,0.0,4.0,0.0],["B","gold",7,1,7,0.0,5.0,0.0],["B","goldDark",5,1,5,0.0,6.0,0.0],["B","gold",1,1,1,0.0,7.0,0.0],["B","face",2.6,2.6,0.2,0,5,-3.6],["B","hand",0.25,1.1,0.1,0,5.45,-3.75],["B","hand",0.8,0.25,0.1,0.35,5,-3.75],["B","goldDark",1.4,0.6,1.4,0,-6.8,0],["W","goldDark",1.0,0.9,0.5,0.0,-7.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","goldDark",1.0,0.9,0.5,0.0,-7.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Flame":{"pal":{"red":["E0301E","P",0],"orange":["FF6A00","P",0],"amber":["FF9A1F","N",0],"yellow":["FFD21F","N",0],"core":["FFF3A0","N",0],"dark":["8A1A0A","P",0]},"knot":[0,-6.1,0],"light":["FF8A1F",2.2,20],"parts":[["B","dark",3,1,3,0.0,-4.0,0.0],["B","red",1,1,7,0.0,-3.0,0.0],["B","red",2,2,5,-1.5,-2.5,0.0],["B","red",2,2,5,1.5,-2.5,0.0],["B","red",1,2,1,-3.0,-2.5,0.0],["B","red",1,2,1,3.0,-2.5,0.0],["B","red",1,1,1,-2.0,-2.0,-3.0],["B","core",3,2,1,0.0,-1.5,-3.0],["B","red",1,1,1,2.0,-2.0,-3.0],["B","red",1,1,2,-3.0,-2.0,-1.5],["B","red",1,1,6,0.0,-2.0,0.5],["B","red",1,1,2,3.0,-2.0,-1.5],["B","red",1,1,2,-3.0,-2.0,1.5],["B","red",1,1,2,3.0,-2.0,1.5],["B","red",2,1,1,-1.5,-2.0,3.0],["B","red",2,1,1,1.5,-2.0,3.0],["B","orange",1,3,7,-2.0,0.0,0.0],["B","orange",1,3,7,2.0,0.0,0.0],["B","orange",1,3,5,-3.0,0.0,0.0],["B","orange",3,3,6,0.0,0.0,0.5],["B","orange",1,3,5,3.0,0.0,0.0],["B","orange",1,2,1,-1.0,0.5,-3.0],["B","core",2,1,1,0.5,0.0,-3.0],["B","core",1,1,1,0.0,1.0,-3.0],["B","orange",1,1,1,1.0,1.0,-3.0],["B","amber",3,1,7,1.0,2.0,0.0],["B","amber",1,1,5,-1.0,2.0,0.0],["B","amber",1,1,5,3.0,2.0,0.0],["B","amber",1,1,3,-2.0,2.0,0.0],["B","amber",1,1,3,4.0,2.0,0.0],["B","amber",3,1,5,1.0,3.0,0.0],["B","amber",1,2,3,-1.0,3.5,0.0],["B","amber",1,1,3,3.0,3.0,0.0],["B","amber",3,1,1,0.0,4.0,-2.0],["B","amber",1,1,3,-2.0,4.0,0.0],["B","amber",3,1,3,1.0,4.0,0.0],["B","amber",3,1,1,0.0,4.0,2.0],["B","yellow",3,1,3,-1.0,5.0,0.0],["B","yellow",1,1,3,-1.0,6.0,0.0],["B","yellow",1,1,1,-2.0,6.0,0.0],["B","yellow",1,1,1,0.0,6.0,0.0],["B","yellow",1,1,1,-1.0,7.0,0.0],["B","yellow",1.0,1.6,1.0,3.6,3.5,0.5,0.9659,0.2588,0.0,-0.2588,0.9659,0.0,0.0,0.0,1.0],["B","yellow",0.9,1.44,0.9,-3.4,2.4,-0.4,0.9659,-0.2588,0.0,0.2588,0.9659,0.0,0.0,0.0,1.0],["B","yellow",0.7,1.12,0.7,2.2,6.4,-0.6,0.9659,0.2588,0.0,-0.2588,0.9659,0.0,0.0,0.0,1.0],["B","yellow",0.6,0.96,0.6,-1.8,7.2,0.4,0.9659,-0.2588,0.0,0.2588,0.9659,0.0,0.0,0.0,1.0],["B","dark",1.4,0.6,1.4,0,-4.9,0],["W","dark",1.0,0.9,0.5,0.0,-5.65,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","dark",1.0,0.9,0.5,0.0,-5.65,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Whale":{"pal":{"whale":["2C5FD9","P",0],"whaleDark":["1E3F9E","P",0],"belly":["D8E6FF","P",0],"groove":["B9CFF5","P",0],"eyeW":["FFFFFF","S",0],"eyeB":["141414","S",0],"mouth":["1E3A8A","P",0],"spout":["8FE9FF","N",0.2]},"knot":[0,-5.1,0],"light":null,"parts":[["B","groove",1,1,8,0.0,-2.0,-0.5],["B","belly",1,2,7,-1.0,-1.5,0.0],["B","belly",1,2,7,1.0,-1.5,0.0],["B","groove",1,1,5,-2.0,-2.0,0.0],["B","groove",1,1,5,2.0,-2.0,0.0],["B","whale",1,4,1,0.0,-0.5,4.0],["B","mouth",1,1,1,0.0,-1.0,-5.0],["B","mouth",2,1,1,-1.5,-1.0,-4.0],["B","belly",1,1,8,0.0,-1.0,-0.5],["B","mouth",2,1,1,1.5,-1.0,-4.0],["B","belly",1,1,7,-2.0,-1.0,0.0],["B","belly",1,1,7,2.0,-1.0,0.0],["B","belly",1,1,3,-3.0,-1.0,0.0],["B","belly",1,1,3,3.0,-1.0,0.0],["B","whale",2,3,1,-1.5,0.0,4.0],["B","whale",2,3,1,1.5,0.0,4.0],["B","whale",1,3,2,0.0,0.0,5.5],["B","whale",3,1,9,0.0,0.0,-1.0],["B","whale",1,2,8,-2.0,0.5,-0.5],["B","whale",1,2,8,2.0,0.5,-0.5],["B","whale",1,1,5,-3.0,0.0,0.0],["B","whale",1,1,5,3.0,0.0,0.0],["B","whale",1,1,2,-1.0,0.0,5.5],["B","whale",1,1,2,1.0,0.0,5.5],["B","whale",1,2,2,0.0,0.5,7.5],["B","whale",1,1,9,0.0,1.0,-1.0],["B","whale",1,1,8,-1.0,1.0,-0.5],["B","whale",1,1,8,1.0,1.0,-0.5],["B","whale",1,1,3,-3.0,1.0,0.0],["B","whale",1,1,3,3.0,1.0,0.0],["B","whale",1,1,1,-1.0,1.0,6.0],["B","whale",1,1,1,1.0,1.0,6.0],["B","whaleDark",7,1,1,0.0,1.0,9.0],["B","whaleDark",4,1,1,-2.5,1.0,10.0],["B","whaleDark",4,1,1,2.5,1.0,10.0],["B","whaleDark",1,1,9,0.0,2.0,0.0],["B","whaleDark",1,1,7,-1.0,2.0,0.0],["B","whaleDark",1,1,7,1.0,2.0,0.0],["B","whaleDark",1,1,5,-2.0,2.0,0.0],["B","whaleDark",1,1,5,2.0,2.0,0.0],["B","whaleDark",1,1,1,0.0,2.0,6.0],["B","eyeW",0.3,1.2,1.2,-3.3,0.2,-3.2],["B","eyeB",0.3,0.7,0.7,-3.45,0.1,-3.4],["W","whaleDark",0.4,1.4,2.8,-3.6,-1.4,-0.6,-0.8192,0.5736,0.0,0.5736,0.8192,-0.0,-0.0,0.0,-1.0],["B","eyeW",0.3,1.2,1.2,3.3,0.2,-3.2],["B","eyeB",0.3,0.7,0.7,3.45,0.1,-3.4],["W","whaleDark",0.4,1.4,2.8,3.6,-1.4,-0.6,-0.8192,-0.5736,0.0,-0.5736,0.8192,0.0,-0.0,0.0,-1.0],["B","spout",0.6,0.8,0.6,0,3.4,-2.6],["B","spout",0.6,0.8,0.6,0,4.3,-2.6],["B","spout",0.6,0.8,0.6,-0.6,5.0,-2.6],["B","spout",0.6,0.8,0.6,0.6,5.0,-2.6],["B","spout",0.6,0.8,0.6,-1.1,5.5,-2.6],["B","spout",0.6,0.8,0.6,1.1,5.5,-2.6],["B","whaleDark",1.4,0.6,1.4,0,-3.9,0],["W","whaleDark",1.0,0.9,0.5,0.0,-4.65,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","whaleDark",1.0,0.9,0.5,0.0,-4.65,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Iron":{"pal":{"iron":["7A808A","P",0],"ironDark":["5A606A","P",0],"ironLight":["A5ABB5","P",0],"bolt":["3A3F47","P",0],"hot":["FF6A1F","N",0]},"knot":[0,-5.0,0],"light":null,"parts":[["B","iron",7,1,9,0.0,-3.0,0.0],["B","ironDark",7,1,9,0.0,-2.0,0.0],["B","ironDark",3,3,5,0.0,0.0,0.0],["B","ironDark",5,1,1,0.0,1.0,-3.0],["B","ironDark",1,1,6,-2.0,1.0,0.5],["B","ironDark",1,1,6,2.0,1.0,0.5],["B","ironDark",3,1,1,0.0,1.0,3.0],["B","iron",1,1,13,0.0,2.0,-2.0],["B","iron",1,1,12,-1.0,2.0,-1.5],["B","iron",1,1,12,1.0,2.0,-1.5],["B","iron",1,1,10,-2.0,2.0,-0.5],["B","iron",1,1,10,2.0,2.0,-0.5],["B","iron",1,1,3,0.0,3.0,-7.0],["B","iron",1,1,2,-1.0,3.0,-6.5],["B","iron",1,1,2,1.0,3.0,-6.5],["B","ironLight",5,1,7,0.0,3.0,-2.0],["B","ironLight",2,1,3,-1.5,3.0,3.0],["B","bolt",1,1,1,0.0,3.0,2.0],["B","ironLight",2,1,3,1.5,3.0,3.0],["B","ironLight",1,1,2,0.0,3.0,3.5],["W","iron",1,2,1.6,0,2.5,-9.3,-1.0,0.0,0.0,0.0,1.0,0.0,-0.0,0.0,-1.0],["B","bolt",0.3,0.6,0.6,-3.55,-2.5,-3],["B","bolt",0.3,0.6,0.6,-3.55,-2.5,3],["B","bolt",0.3,0.6,0.6,3.55,-2.5,-3],["B","bolt",0.3,0.6,0.6,3.55,-2.5,3],["B","hot",0.4,0.2,3.5,0,3.6,-2],["B","bolt",1.4,0.6,1.4,0,-3.8,0],["W","bolt",1.0,0.9,0.5,0.0,-4.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","bolt",1.0,0.9,0.5,0.0,-4.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Void":{"pal":{"void":["120E1A","P",0],"voidDark":["0A070F","P",0],"eye":["B266FF","N",0],"fleck":["6A2BD9","N",0.2],"ring":["8A3FFF","N",0]},"knot":[0,-6.1,0],"light":["8A3FFF",1.4,16],"parts":[["B","voidDark",3,1,3,0.0,-4.0,0.0],["B","voidDark",1,1,2,0.0,-3.0,-2.5],["B","voidDark",2,1,1,-1.5,-3.0,-2.0],["B","voidDark",2,1,1,1.5,-3.0,-2.0],["B","voidDark",1,1,4,-2.0,-3.0,0.5],["B","void",3,8,3,0.0,0.5,0.0],["B","voidDark",1,1,4,2.0,-3.0,0.5],["B","voidDark",1,1,1,-3.0,-3.0,0.0],["B","voidDark",1,1,1,3.0,-3.0,0.0],["B","voidDark",2,1,1,-0.5,-3.0,2.0],["B","fleck",1,1,1,1.0,-3.0,2.0],["B","voidDark",1,1,1,0.0,-3.0,3.0],["B","fleck",1,1,1,-2.0,-2.0,-3.0],["B","void",4,4,2,0.5,-0.5,-2.5],["B","void",2,1,5,-2.5,-2.0,0.0],["B","void",1,2,3,3.0,-1.5,-1.0],["B","void",1,4,5,2.0,-0.5,1.0],["B","fleck",1,1,1,3.0,-2.0,1.0],["B","void",3,6,1,0.0,0.5,2.0],["B","void",1,3,1,3.0,-1.0,2.0],["B","void",2,5,1,-1.5,0.0,3.0],["B","fleck",1,1,1,0.0,-2.0,3.0],["B","void",1,5,1,1.0,0.0,3.0],["B","void",1,3,1,-1.0,0.0,-4.0],["B","eye",1,3,1,0.0,0.0,-4.0],["B","void",1,2,1,1.0,-0.5,-4.0],["B","void",1,4,6,-2.0,0.5,-0.5],["B","fleck",1,1,1,-3.0,-1.0,-2.0],["B","void",2,1,3,-3.5,-1.0,0.0],["B","void",1,1,3,4.0,-1.0,0.0],["B","void",1,4,1,3.0,0.5,1.0],["B","void",1,1,1,-3.0,-1.0,2.0],["B","void",1,2,2,0.0,-0.5,3.5],["B","fleck",1,1,1,-1.0,-1.0,4.0],["B","void",1,3,1,1.0,0.0,4.0],["B","void",1,1,5,-3.0,0.0,-1.0],["B","void",1,1,1,3.0,0.0,-3.0],["B","fleck",1,1,1,3.0,0.0,-2.0],["B","fleck",1,1,1,-4.0,0.0,-1.0],["B","void",2,2,2,3.5,0.5,-0.5],["B","void",1,2,2,-4.0,0.5,0.5],["B","fleck",1,1,1,4.0,0.0,1.0],["B","fleck",1,1,1,-3.0,0.0,2.0],["B","void",1,1,1,-3.0,0.0,3.0],["B","void",1,1,1,3.0,0.0,3.0],["B","void",1,2,1,-1.0,0.5,4.0],["B","fleck",1,1,1,1.0,1.0,-4.0],["B","void",1,1,5,-3.0,1.0,0.0],["B","void",1,2,1,3.0,1.5,-2.0],["B","void",1,1,1,-4.0,1.0,-1.0],["B","void",1,1,1,4.0,1.0,1.0],["B","fleck",1,1,1,3.0,1.0,2.0],["B","void",1,3,1,0.0,2.0,3.0],["B","fleck",1,1,1,0.0,1.0,4.0],["B","void",1,1,2,-1.0,2.0,-2.5],["B","eye",1,1,1,0.0,2.0,-3.0],["B","void",2,1,2,1.5,2.0,-2.5],["B","void",1,1,1,-3.0,2.0,-2.0],["B","void",1,2,1,0.0,2.5,-2.0],["B","fleck",1,1,1,-3.0,2.0,-1.0],["B","void",2,1,2,2.5,2.0,-0.5],["B","void",1,1,3,-3.0,2.0,1.0],["B","void",1,2,2,2.0,2.5,1.5],["B","void",1,1,1,3.0,2.0,2.0],["B","fleck",1,1,1,2.0,2.0,3.0],["B","void",1,1,1,0.0,3.0,-3.0],["B","void",1,1,5,-2.0,3.0,0.0],["B","fleck",1,1,1,-1.0,3.0,-2.0],["B","void",2,1,1,1.5,3.0,-2.0],["B","void",1,1,2,2.0,3.0,-0.5],["B","void",1,1,1,-3.0,3.0,0.0],["B","void",1,1,1,3.0,3.0,0.0],["B","ring",0.8,0.8,0.8,6.2,0.0,0.0,1.0,0.0,0.0,0.0,0.9272,-0.3746,0.0,0.3746,0.9272],["B","fleck",0.8,0.8,0.8,5.897,-0.718,1.776,0.9511,0.0,-0.309,-0.1158,0.9272,-0.3563,0.2865,0.3746,0.8818],["B","ring",0.8,0.8,0.8,5.016,-1.365,3.379,0.809,0.0,-0.5878,-0.2202,0.9272,-0.3031,0.545,0.3746,0.7501],["B","fleck",0.8,0.8,0.8,3.644,-1.879,4.651,0.5878,0.0,-0.809,-0.3031,0.9272,-0.2202,0.7501,0.3746,0.545],["B","ring",0.8,0.8,0.8,1.916,-2.209,5.467,0.309,0.0,-0.9511,-0.3563,0.9272,-0.1158,0.8818,0.3746,0.2865],["B","fleck",0.8,0.8,0.8,0.0,-2.323,5.749,0.0,0.0,-1.0,-0.3746,0.9272,-0.0,0.9272,0.3746,0.0],["B","ring",0.8,0.8,0.8,-1.916,-2.209,5.467,-0.309,0.0,-0.9511,-0.3563,0.9272,0.1158,0.8818,0.3746,-0.2865],["B","fleck",0.8,0.8,0.8,-3.644,-1.879,4.651,-0.5878,0.0,-0.809,-0.3031,0.9272,0.2202,0.7501,0.3746,-0.545],["B","ring",0.8,0.8,0.8,-5.016,-1.365,3.379,-0.809,0.0,-0.5878,-0.2202,0.9272,0.3031,0.545,0.3746,-0.7501],["B","fleck",0.8,0.8,0.8,-5.897,-0.718,1.776,-0.9511,0.0,-0.309,-0.1158,0.9272,0.3563,0.2865,0.3746,-0.8818],["B","ring",0.8,0.8,0.8,-6.2,-0.0,0.0,-1.0,0.0,-0.0,-0.0,0.9272,0.3746,0.0,0.3746,-0.9272],["B","fleck",0.8,0.8,0.8,-5.897,0.718,-1.776,-0.9511,0.0,0.309,0.1158,0.9272,0.3563,-0.2865,0.3746,-0.8818],["B","ring",0.8,0.8,0.8,-5.016,1.365,-3.379,-0.809,0.0,0.5878,0.2202,0.9272,0.3031,-0.545,0.3746,-0.7501],["B","fleck",0.8,0.8,0.8,-3.644,1.879,-4.651,-0.5878,0.0,0.809,0.3031,0.9272,0.2202,-0.7501,0.3746,-0.545],["B","ring",0.8,0.8,0.8,-1.916,2.209,-5.467,-0.309,0.0,0.9511,0.3563,0.9272,0.1158,-0.8818,0.3746,-0.2865],["B","fleck",0.8,0.8,0.8,-0.0,2.323,-5.749,-0.0,0.0,1.0,0.3746,0.9272,0.0,-0.9272,0.3746,-0.0],["B","ring",0.8,0.8,0.8,1.916,2.209,-5.467,0.309,0.0,0.9511,0.3563,0.9272,-0.1158,-0.8818,0.3746,0.2865],["B","fleck",0.8,0.8,0.8,3.644,1.879,-4.651,0.5878,0.0,0.809,0.3031,0.9272,-0.2202,-0.7501,0.3746,0.545],["B","ring",0.8,0.8,0.8,5.016,1.365,-3.379,0.809,0.0,0.5878,0.2202,0.9272,-0.3031,-0.545,0.3746,0.7501],["B","fleck",0.8,0.8,0.8,5.897,0.718,-1.776,0.9511,0.0,0.309,0.1158,0.9272,-0.3563,-0.2865,0.3746,0.8818],["B","voidDark",1.4,0.6,1.4,0,-4.9,0],["W","voidDark",1.0,0.9,0.5,0.0,-5.65,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","voidDark",1.0,0.9,0.5,0.0,-5.65,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Sun":{"pal":{"sun":["FFC21A","P",0],"sunDark":["F29A00","P",0],"sunLight":["FFE36B","P",0],"ray":["FFB000","P",0],"rayLight":["FFD84A","P",0],"core":["FFF3A0","N",0.1]},"knot":[0,-5.7,0],"light":["FFC21A",1.8,18],"parts":[["B","sunDark",3,1,5,0.0,-3.0,0.0],["B","sunDark",1,1,3,-2.0,-3.0,0.0],["B","sunDark",1,1,3,2.0,-3.0,0.0],["B","sunDark",3,1,1,0.0,-2.0,-3.0],["B","sunDark",1,1,1,-2.0,-2.0,-2.0],["B","sun",3,5,5,0.0,0.0,0.0],["B","sunDark",1,1,1,2.0,-2.0,-2.0],["B","sunDark",1,1,3,-3.0,-2.0,0.0],["B","sun",1,5,3,-2.0,0.0,0.0],["B","sun",1,6,3,2.0,0.5,0.0],["B","sunDark",1,1,3,3.0,-2.0,0.0],["B","sunDark",1,1,1,-2.0,-2.0,2.0],["B","sunDark",1,1,1,2.0,-2.0,2.0],["B","sunDark",3,1,1,0.0,-2.0,3.0],["B","sun",5,1,1,0.0,-1.0,-3.0],["B","sun",2,2,1,-2.5,-0.5,-2.0],["B","sun",2,3,1,2.5,0.0,-2.0],["B","sun",1,3,4,-3.0,0.0,0.5],["B","sun",1,3,4,3.0,0.0,0.5],["B","sun",1,3,2,-2.0,0.0,2.5],["B","sun",1,3,2,2.0,0.0,2.5],["B","sun",3,4,1,0.0,0.5,3.0],["B","sun",1,1,1,-2.0,0.0,-3.0],["B","core",3,3,1,0.0,1.0,-3.0],["B","sun",1,2,1,2.0,0.5,-3.0],["B","sunLight",1,1,1,-2.0,1.0,-3.0],["B","sunLight",1,1,1,-3.0,1.0,-2.0],["B","sun",1,1,1,-2.0,1.0,-2.0],["B","sunLight",1,1,1,-2.0,2.0,-2.0],["B","sun",1,1,1,2.0,2.0,-2.0],["B","sun",1,1,3,-3.0,2.0,0.0],["B","sun",1,1,3,3.0,2.0,0.0],["B","sun",1,1,1,-2.0,2.0,2.0],["B","sun",1,1,1,2.0,2.0,2.0],["B","sunLight",1,1,1,-1.0,3.0,-2.0],["B","sun",2,1,5,0.5,3.0,0.0],["B","sunLight",1,1,1,-2.0,3.0,-1.0],["B","sun",1,1,4,-1.0,3.0,0.5],["B","sun",1,1,2,-2.0,3.0,0.5],["W","ray",1.6,2.8,0.8,4.8,-0.4,0.0,0.0,1.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,4.8,0.4,0.0,0.0,1.0,0.0,-0.0,0.0,-1.0,-1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,4.011,1.854,0.0,0.0,0.866,-0.5,0.0,0.5,0.866,1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,3.611,2.546,0.0,0.0,0.866,0.5,-0.0,0.5,-0.866,-1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,2.746,3.957,0.0,0.0,0.5,-0.866,0.0,0.866,0.5,1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,2.054,4.357,0.0,0.0,0.5,0.866,-0.0,0.866,-0.5,-1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,0.4,4.4,0.0,0.0,0.0,-1.0,0.0,1.0,0.0,1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,-0.4,4.4,0.0,0.0,0.0,1.0,-0.0,1.0,-0.0,-1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,-2.054,4.357,0.0,0.0,-0.5,-0.866,0.0,0.866,-0.5,1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,-2.746,3.957,0.0,0.0,-0.5,0.866,0.0,0.866,0.5,-1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,-3.611,2.546,0.0,0.0,-0.866,-0.5,0.0,0.5,-0.866,1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,-4.011,1.854,0.0,0.0,-0.866,0.5,0.0,0.5,0.866,-1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,-4.8,0.4,0.0,0.0,-1.0,-0.0,0.0,0.0,-1.0,1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,-4.8,-0.4,0.0,0.0,-1.0,0.0,0.0,0.0,1.0,-1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,-4.011,-1.854,0.0,0.0,-0.866,0.5,0.0,-0.5,-0.866,1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,-3.611,-2.546,0.0,-0.0,-0.866,-0.5,0.0,-0.5,0.866,-1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,-2.746,-3.957,0.0,0.0,-0.5,0.866,0.0,-0.866,-0.5,1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,-2.054,-4.357,0.0,-0.0,-0.5,-0.866,0.0,-0.866,0.5,-1.0,0.0,0.0],["W","ray",1.6,2.8,0.8,2.054,-4.357,0.0,0.0,0.5,0.866,0.0,-0.866,0.5,1.0,0.0,-0.0],["W","ray",1.6,2.8,0.8,2.746,-3.957,0.0,-0.0,0.5,-0.866,-0.0,-0.866,-0.5,-1.0,0.0,0.0],["W","rayLight",1.6,2.0,0.8,3.611,-2.546,0.0,0.0,0.866,0.5,0.0,-0.5,0.866,1.0,0.0,-0.0],["W","rayLight",1.6,2.0,0.8,4.011,-1.854,0.0,-0.0,0.866,-0.5,-0.0,-0.5,-0.866,-1.0,0.0,0.0],["B","sunDark",1.4,0.6,1.4,0,-4.5,0],["W","sunDark",1.0,0.9,0.5,0.0,-5.25,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","sunDark",1.0,0.9,0.5,0.0,-5.25,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Crown":{"pal":{"gold":["FFC21A","P",0],"goldDark":["D99A00","P",0],"velvet":["7A1FB8","P",0],"pearl":["FFFFFF","N",0.1],"ruby":["D6204A","N",0],"sapphire":["1F6BFF","N",0],"emerald":["2EBE5A","N",0]},"knot":[0,-5.0,0],"light":null,"parts":[["B","goldDark",5,1,2,0.0,-3.0,-3.5],["B","goldDark",1,1,7,-3.0,-3.0,0.0],["B","goldDark",1,1,7,3.0,-3.0,0.0],["B","goldDark",1,1,5,-4.0,-3.0,0.0],["B","goldDark",1,1,1,-2.0,-3.0,-2.0],["B","goldDark",1,1,1,2.0,-3.0,-2.0],["B","goldDark",1,1,5,4.0,-3.0,0.0],["B","goldDark",1,1,3,-2.0,-3.0,3.0],["B","goldDark",1,1,3,2.0,-3.0,3.0],["B","goldDark",3,1,2,0.0,-3.0,3.5],["B","gold",3,4,2,0.0,-0.5,-3.5],["B","gold",2,4,1,-2.5,-0.5,-3.0],["B","gold",2,4,1,2.5,-0.5,-3.0],["B","gold",1,4,6,-3.0,-0.5,0.5],["B","velvet",5,5,5,0.0,0.0,0.0],["B","gold",1,4,6,3.0,-0.5,0.5],["B","gold",1,4,3,-4.0,-0.5,0.0],["B","gold",1,4,3,4.0,-0.5,0.0],["B","gold",5,4,1,0.0,-0.5,3.0],["B","gold",3,4,1,0.0,-0.5,4.0],["B","gold",1,2,1,0.0,2.5,-4.0],["B","gold",1,2,1,-3.0,2.5,-3.0],["B","gold",1,2,1,3.0,2.5,-3.0],["B","gold",1,2,1,-4.0,2.5,0.0],["B","gold",1,2,1,4.0,2.5,0.0],["B","gold",1,2,1,-3.0,2.5,3.0],["B","gold",1,2,1,3.0,2.5,3.0],["B","gold",1,2,1,0.0,2.5,4.0],["B","velvet",3,1,3,0.0,3.0,0.0],["B","pearl",0.8,0.8,0.8,4,4.1,0,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,3,4.1,3,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,0,4.1,4,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,-3,4.1,3,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,-4,4.1,0,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,-3,4.1,-3,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,0,4.1,-4,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","pearl",0.8,0.8,0.8,3,4.1,-3,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","ruby",0.9,1.3,0.3,-4.414,-0.5,-0.875,0.1945,0.0,0.9809,0.0,1.0,-0.0,-0.9809,0.0,0.1945],["B","sapphire",0.9,1.3,0.3,-3.305,-0.5,-3.054,0.6786,0.0,0.7345,0.0,1.0,-0.0,-0.7345,0.0,0.6786],["B","emerald",0.9,1.3,0.3,-1.222,-0.5,-4.331,0.9624,0.0,0.2715,0.0,1.0,-0.0,-0.2715,0.0,0.9624],["B","ruby",0.9,1.3,0.3,1.222,-0.5,-4.331,0.9624,0.0,-0.2715,0.0,1.0,0.0,0.2715,0.0,0.9624],["B","sapphire",0.9,1.3,0.3,3.305,-0.5,-3.054,0.6786,0.0,-0.7345,0.0,1.0,0.0,0.7345,0.0,0.6786],["B","emerald",0.9,1.3,0.3,4.414,-0.5,-0.875,0.1945,0.0,-0.9809,0.0,1.0,0.0,0.9809,0.0,0.1945],["B","ruby",1.1,1.1,1.1,0,5.0,0,0.8536,-0.5,0.1464,0.5,0.7071,-0.5,0.1464,0.5,0.8536],["B","goldDark",1.4,0.6,1.4,0,-3.8,0],["W","goldDark",1.0,0.9,0.5,0.0,-4.55,0.25,1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,-1.0],["W","goldDark",1.0,0.9,0.5,0.0,-4.55,-0.25,-1.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,1.0]]},"Cluck":{"pal":{"white":["FFFFFF","P",0],"shade":["E4E6EA","P",0],"red":["D6204A","P",0],"beak":["FFA51F","P",0],"eye":["141414","S",0],"leg":["FF9A1F","P",0]},"knot":[0,-2.6,1.5],"light":null,"parts":[["B","shade",3,1,6,0.0,-2.0,0.5],["B","shade",1,1,4,-2.0,-2.0,0.5],["B","shade",1,1,4,2.0,-2.0,0.5],["B","white",5,3,6,0.0,0.0,0.5],["B","white",3,3,1,0.0,2.0,4.0],["B","white",5,1,5,0.0,2.0,0.0],["B","white",3,1,1,0.0,2.0,3.0],["B","red",1,1,1,0.0,3.0,-4.0],["B","white",3,4,3,0.0,4.5,-2.0],["B","shade",3,1,1,0.0,4.0,4.0],["B","shade",1,1,1,0.0,5.0,4.0],["B","red",1,1,3,0.0,7.0,-2.0],["B","red",1,1,1,0.0,8.0,-2.0],["W","beak",1.0,1.4,0.5,0.0,4.35,-4.2,1.0,0.0,-0.0,0.0,0.0,1.0,0.0,-1.0,0.0],["W","beak",1.0,1.4,0.5,0.0,4.85,-4.2,-1.0,0.0,0.0,-0.0,0.0,-1.0,0.0,-1.0,0.0],["B","eye",0.2,0.7,0.7,-1.6,5.2,-2.2],["B","shade",0.6,3.0,4.0,-2.8,0.2,0.5,0.9848,0.1736,0.0,-0.1736,0.9848,0.0,0.0,0.0,1.0],["B","leg",0.4,1.8,0.4,-1.0,-3.4,0.5],["B","leg",1.3,0.3,1.6,-1.0,-4.4,0.1],["B","eye",0.2,0.7,0.7,1.6,5.2,-2.2],["B","shade",0.6,3.0,4.0,2.8,0.2,0.5,0.9848,-0.1736,0.0,0.1736,0.9848,0.0,0.0,0.0,1.0],["B","leg",0.4,1.8,0.4,1.0,-3.4,0.5],["B","leg",1.3,0.3,1.6,1.0,-4.4,0.1],["B","shade",1.2,0.5,1.2,0,-2.8,1.5]]}};
+const rnd = function(a,b){ return a + Math.random()*(b-a); };
+
+/* ---------------- ability list ---------------- */
+const TIERS = {Common:'#8fa3c0', Uncommon:'#3fc95a', Rare:'#3d9eff', Epic:'#a35cff', Legendary:'#ff9a1f', Mythic:'#ff3f7f', Secret:'linear-gradient(135deg,#ff6a8a,#ffd36a,#6ef0a0,#6ac8ff,#c58cff)'};
+const STATS = {Bubble:['Common',1,6],Ember:['Common',1.1,3],Spike:['Uncommon',1.3,4],Popcorn:['Uncommon',1.3,3],Jelly:['Uncommon',1.4,4],Buzz:['Rare',1.8,5],
+  Frost:['Rare',2,6],Volt:['Epic',3,7],Thorn:['Epic',3,12],Clock:['Epic',3.2,8],Flame:['Legendary',5,9],Whale:['Legendary',5.5,12],Iron:['Legendary',6,14],
+  Void:['Mythic',10,12],Sun:['Mythic',10,11],Crown:['Mythic',9,13],Cluck:['Secret',12,10]};
+// key: 'auto' always automatic, 'q' = ability key in "Big powers on Q" mode, 'space' = letting out air
+const AB = [
+ {id:'Bubble', ab:'Bubble Guard', key:'auto', cd:'A new bubble every 20 s (max 3)', bg:'linear-gradient(#e6fbff,#7fdcff)',
+  desc:'3 bubbles circle your balloon. Each one blocks a hit and pops with a crackle.'},
+ {id:'Ember', ab:'Warm Glow', key:'auto', cd:'Always on', bg:'linear-gradient(#ffe08a,#ff7a1f)',
+  desc:'Your balloon glows like a campfire and earns +10% coins while you fly.',
+  later:'Night isn\'t in the game yet, so the +10% is on all the time for now. When day and night come, it glows brighter at night and gives the bonus then.'},
+ {id:'Spike', ab:'Spike Burst', key:'auto', cd:'After every hit, 3 s of spikes', bg:'linear-gradient(#ff9aa8,#e0204a)',
+  desc:'When something hits you, spikes shoot out for 3 seconds and pop any bird that comes close.'},
+ {id:'Popcorn', ab:'Kernel Pop', key:'auto', cd:'Every 25 size', bg:'linear-gradient(#fffbe0,#ffd23a)',
+  desc:'Every 25 size a kernel pops off and rains coins down for the players below you.'},
+ {id:'Jelly', ab:'Sting Field', key:'auto', cd:'Always on', bg:'linear-gradient(#ffc8f0,#ff6fc8)',
+  desc:'Glowing tentacles hang below you and slow down anything that comes up from below.'},
+ {id:'Buzz', ab:'Bee Guard', key:'auto', cd:'One sting every 15 s', bg:'linear-gradient(#fff36a,#ffb300)',
+  desc:'3 bees fly around you. Every 15 seconds one of them chases a bird away.'},
+ {id:'Frost', ab:'Deep Freeze', key:'q', cd:'Cooldown 45 s', bg:'linear-gradient(#e8fbff,#5ccfff)',
+  desc:'An ice blast freezes every hazard near you for 4 seconds.', autoDesc:'In automatic mode it fires by itself on the first hit of each flight.'},
+ {id:'Volt', ab:'Static Charge', key:'auto', cd:'Fills while you fly', bg:'linear-gradient(#fff9a0,#3dc8ff)',
+  desc:'Crackles with static while you fly. Land with a full charge for +25% coins.',
+  later:'Its real power comes with the Thunderhead zone: it soaks up lightning strikes and turns them into bonus coins.'},
+ {id:'Thorn', ab:'Thorn Hide', key:'auto', cd:'Always on', bg:'linear-gradient(#b9ff8a,#3a9a2a)',
+  desc:'Thick thorns: every hit only does half damage. No riders can hold on.'},
+ {id:'Clock', ab:'Slow Time', key:'q', cd:'Cooldown 20 s', bg:'linear-gradient(#f0e6ff,#8f7bff)',
+  desc:'Time slows down around you: hazards nearby move at half speed for 5 seconds.', autoDesc:'In automatic mode it fires by itself every 20 seconds.'},
+ {id:'Flame', ab:'Lava Rise', key:'auto', cd:'Lava blobs every 8 s', bg:'linear-gradient(#ffd36a,#ff3b1f)',
+  desc:'Blobs of lava float up from your balloon and burn any hazard above you.'},
+ {id:'Whale', ab:'Whale Song', key:'q', cd:'Cooldown 40 s', bg:'linear-gradient(#cfe8ff,#3d7bff)',
+  desc:'A deep song calms every bird nearby. They stop attacking and circle you for 10 seconds.', autoDesc:'In automatic mode it sings by itself when birds come close.'},
+ {id:'Iron', ab:'Iron Slam', key:'space', cd:'Uses Space (letting out air)', bg:'linear-gradient(#e6ebf2,#7c8696)',
+  desc:'Let out air and you drop like a rock. The slam crushes any hazard below you.'},
+ {id:'Void', ab:'Devour', key:'auto', cd:'Always on', bg:'linear-gradient(#c58cff,#2a0f4a)',
+  desc:'A black hole swirls around you. Hazards that get too close are eaten: +5 size each.'},
+ {id:'Sun', ab:'Sun Heat', key:'auto', cd:'Every 12 s', bg:'linear-gradient(#fff7b0,#ffb020)',
+  desc:'Burning hot. Birds that fly too close get scorched and flee.',
+  later:'Its full power comes with the Hail Belt and Space zones: it melts hail and meteors, and the Vacuum can\'t shrink it.'},
+ {id:'Crown', ab:'Royal Guard', key:'auto', cd:'Every 25 s', bg:'linear-gradient(#fff3a0,#ffb300)',
+  desc:'A golden shield flashes up and bounces a hit straight back.',
+  later:'When pins come to the game (Storm update), it is immune to pins and bounces them back at the thrower.'},
+ {id:'Cluck', ab:'Squawk!', key:'auto', cd:'Every 30 s', bg:'linear-gradient(#ffffff,#ffc94a)',
+  desc:'Squawks every 30 seconds and does a random power: Freeze, Slow Time, Lava, Song or Devour.'},
+];
+
+/* ---------------- icons (white, dark outline) ---------------- */
+const IC = {
+ Bubble:'<circle cx="20" cy="26" r="13"/><circle cx="35" cy="13" r="7"/><circle cx="37" cy="33" r="5"/><path d="M13 21a8 8 0 0 1 7-6" fill="none" stroke-width="3.5"/>',
+ Ember:'<path d="M24 5c3 9 13 13 13 25a13 13 0 0 1-26 0c0-7 5-10 6-17 3 4 4 6 4 9 3-4 4-9 3-17z"/>',
+ Spike:'<path d="M24 3l5 12 12-5-5 12 12 5-12 4 5 12-12-5-5 12-4-12-12 5 5-12-12-4 12-5-5-12 12 5z"/>',
+ Popcorn:'<path d="M12 22c-6-1-6-10 1-10 0-7 9-8 11-3 3-6 12-4 11 3 7 0 7 9 1 10z"/><path d="M12 22h24l-4 22H16z"/>',
+ Jelly:'<path d="M8 22a16 14 0 0 1 32 0z"/><path d="M12 22c0 8-4 10-1 18M20 22c0 8 3 10 0 19M28 22c0 8-3 10 0 19M36 22c0 8 4 10 1 18" fill="none" stroke-width="4"/>',
+ Buzz:'<ellipse cx="24" cy="28" rx="11" ry="13"/><path d="M14 23h20M13 31h22" fill="none" stroke-width="4"/><ellipse cx="13" cy="12" rx="7" ry="5"/><ellipse cx="35" cy="12" rx="7" ry="5"/>',
+ Frost:'<path d="M24 4v40M6.7 14l34.6 20M6.7 34l34.6-20M18 8l6 6 6-6M18 40l6-6 6 6" fill="none" stroke-width="5"/>',
+ Volt:'<path d="M28 3L9 27h12l-4 18 22-26H27z"/>',
+ Thorn:'<path d="M24 4l8 10-4 1 7 9-4 1 7 11H10l7-11-4-1 7-9-4-1z"/><rect x="21" y="36" width="6" height="8"/>',
+ Clock:'<circle cx="24" cy="25" r="18"/><path d="M24 14v12l8 5" fill="none" stroke-width="4"/><rect x="19" y="2" width="10" height="5" rx="2"/>',
+ Flame:'<circle cx="16" cy="32" r="9"/><circle cx="31" cy="20" r="7"/><circle cx="24" cy="8" r="5"/>',
+ Whale:'<path d="M6 28c0-9 9-14 19-14s15 6 15 13c3-3 5-5 6-9 1 6-1 11-6 13-3 5-9 8-17 8C12 39 6 35 6 28z"/><path d="M14 8c2-3 6-3 7 0" fill="none" stroke-width="3.5"/>',
+ Iron:'<path d="M10 6h28l-4 12H14z"/><path d="M24 18v12M14 30l10 12 10-12z"/>',
+ Void:'<circle cx="24" cy="24" r="19"/><path d="M24 10a14 14 0 0 1 13 15M38 24a14 14 0 0 1-15 13M24 38a14 14 0 0 1-13-15M10 24a14 14 0 0 1 15-13" fill="none" stroke-width="3.5"/>',
+ Sun:'<circle cx="24" cy="24" r="10"/><path d="M24 3v7M24 38v7M3 24h7M38 24h7M9 9l5 5M34 34l5 5M39 9l-5 5M14 34l-5 5" fill="none" stroke-width="4.5"/>',
+ Crown:'<path d="M5 15l9 8 10-14 10 14 9-8-4 24H9z"/><rect x="9" y="40" width="30" height="5" rx="2"/>',
+ Cluck:'<path d="M14 40c-7-5-7-17 1-23 2-9 13-11 17-4l9 2-7 4c4 4 5 13 0 19z"/><path d="M23 7c1-4 6-4 6-1 2-2 6 0 3 4" />',
+};
+function icon(id){ return '<svg viewBox="0 0 48 48" aria-hidden="true"><g fill="#ffffff" stroke="#1a0e22" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">'+IC[id]+'</g></svg>'; }
+
+/* ---------------- materials & builders ---------------- */
+const matCache = new Map();
+function mat(color, o){
+  o = o||{};
+  const k = color+'|'+JSON.stringify(o);
+  if(matCache.has(k)) return matCache.get(k);
+  const p = {color:color, roughness:o.r!=null?o.r:.55, metalness:o.m||0};
+  if(o.op!=null){ p.transparent = true; p.opacity = o.op; p.depthWrite = o.op > .7; }
+  if(o.em){ p.emissive = new T.Color(o.emc!=null?o.emc:color); p.emissiveIntensity = o.em; }
+  if(o.side) p.side = T.DoubleSide;
+  const m = new T.MeshStandardMaterial(p);
+  matCache.set(k,m); return m;
+}
+const geo = {
+  box:new T.BoxGeometry(1,1,1), sph:new T.SphereGeometry(1,18,12), nub:new T.CylinderGeometry(.5,.5,1,10),
+  cone:new T.ConeGeometry(1,1,6), spark:new T.OctahedronGeometry(1,0), coin:new T.CylinderGeometry(1,1,.3,14), cyl:new T.CylinderGeometry(1,1,1,12),
+};
+// Roblox wedge: bottom face, vertical back face at +Z, slope from the bottom-front edge to the top-back edge.
+const wedgeGeo = (function(){
+  const v = [[-.5,-.5,-.5],[.5,-.5,-.5],[-.5,-.5,.5],[.5,-.5,.5],[-.5,.5,.5],[.5,.5,.5]];
+  const faces = [[0,2,3,1],[2,4,5,3],[0,1,5,4],[0,4,2],[1,3,5]];
+  const pos = [];
+  const ctr = new T.Vector3(0,-1/6,1/6);
+  faces.forEach(function(f){
+    const tris = f.length===4 ? [[f[0],f[1],f[2]],[f[0],f[2],f[3]]] : [f];
+    tris.forEach(function(t){
+      const a = new T.Vector3().fromArray(v[t[0]]), b = new T.Vector3().fromArray(v[t[1]]), c = new T.Vector3().fromArray(v[t[2]]);
+      const n = new T.Vector3().subVectors(b,a).cross(new T.Vector3().subVectors(c,a));
+      const mid = a.clone().add(b).add(c).multiplyScalar(1/3).sub(ctr);
+      if(n.dot(mid) < 0){ pos.push(a.x,a.y,a.z,c.x,c.y,c.z,b.x,b.y,b.z); } else { pos.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z); }
+    });
+  });
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); return g;
+})();
+function balloonMat(pal){
+  const hex = parseInt(pal[0],16), m = pal[1], tr = pal[2]||0;
+  const o = {};
+  if(m==='N'){ o.em = .9; o.r = .4; }
+  else if(m==='G'){ o.r = .08; o.op = Math.max(.25, 1-tr-.12); }
+  else if(m==='S'){ o.r = .32; }
+  if(m!=='G' && tr > 0) o.op = 1-tr;
+  return mat(hex, o);
+}
+function buildBalloon(name){
+  const B = BALLOONS[name];
+  const g = new T.Group();
+  const kn = B.knot;
+  const boxes = [];
+  const studs = [];
+  B.parts.forEach(function(p){
+    const shape = p[0], key = p[1], sx=p[2], sy=p[3], sz=p[4], x=p[5]-kn[0], y=p[6]-kn[1], z=p[7]-kn[2];
+    const m = new T.Mesh(shape==='W'?wedgeGeo:geo.box, balloonMat(B.pal[key]));
+    const M = new T.Matrix4();
+    if(p.length > 8){ const r = p.slice(8); M.set(r[0],r[1],r[2],x, r[3],r[4],r[5],y, r[6],r[7],r[8],z, 0,0,0,1); }
+    else { M.makeTranslation(x,y,z); boxes.push([x-sx/2,x+sx/2,y-sy/2,y+sy/2,z-sz/2,z+sz/2, B.pal[key]]); }
+    M.multiply(new T.Matrix4().makeScale(sx,sy,sz));
+    m.matrixAutoUpdate = false; m.matrix.copy(M); g.add(m);
+  });
+  // studs on exposed top faces of plastic blocks (the game's stud surface)
+  const byCol = new Map();
+  boxes.forEach(function(b){
+    if(b[6][1] !== 'P' || (b[6][2]||0) > 0) return;
+    for(let x=b[0]+.5; x<b[1]; x+=1) for(let z=b[4]+.5; z<b[5]; z+=1){
+      const yt = b[3];
+      const covered = boxes.some(function(o){ return o!==b && x>o[0] && x<o[1] && z>o[4] && z<o[5] && yt+.25>o[2] && yt+.25<o[3]; });
+      if(!covered){ const k = b[6][0]; if(!byCol.has(k)) byCol.set(k,[]); byCol.get(k).push([x,yt,z]); }
+    }
+  });
+  byCol.forEach(function(pts, hex){
+    const im = new T.InstancedMesh(geo.nub, mat(parseInt(hex,16)), pts.length), d = new T.Object3D();
+    pts.forEach(function(p,i){ d.position.set(p[0],p[1]+.1,p[2]); d.scale.set(.6,.2,.6); d.updateMatrix(); im.setMatrixAt(i,d.matrix); });
+    g.add(im);
+  });
+  if(B.light){ const L = new T.PointLight(parseInt(B.light[0],16), B.light[1]*.9, B.light[2]*2.2); g.add(L); }
+  // bounds -> centre and radius
+  const bb = new T.Box3().setFromObject(g); const c = bb.getCenter(new T.Vector3()), s = bb.getSize(new T.Vector3());
+  g.userData.center = c; g.userData.radius = Math.max(s.x,s.y,s.z)*.5; g.userData.top = bb.max.y;
+  return g;
+}
+
+/* ---------------- renderer, scene ---------------- */
+const stage = document.getElementById('stage');
+const R = new T.WebGLRenderer({antialias:true, alpha:true});
+R.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+stage.insertBefore(R.domElement, stage.firstChild);
+const S = new T.Scene();
+const cam = new T.PerspectiveCamera(38, 16/11, .5, 300);
+S.add(new T.HemisphereLight(0xffffff, 0x8aa0c8, .62));
+const sun = new T.DirectionalLight(0xfff2dc, .8); sun.position.set(-12, 22, 26); S.add(sun);
+const fill = new T.DirectionalLight(0xbfe0ff, .22); fill.position.set(18, 4, 10); S.add(fill);
+
+// blocky clouds drifting down, so it feels like rising
+const clouds = [];
+function cloud(x,y,z,s){
+  const g = new T.Group();
+  const m1 = mat(0xffffff,{r:.9, op:.92}), m2 = mat(0xe3eeff,{r:.9, op:.92});
+  [[0,0,0,6,2.4,3,m1],[-2.4,1.2,0,3.4,2.2,2.6,m1],[1.6,1.5,.2,4,2.4,2.6,m1],[3.6,.2,0,3,1.8,2.4,m2],[-3.8,-.2,0,2.6,1.6,2.2,m2]].forEach(function(b){
+    const m = new T.Mesh(geo.box, b[6]); m.scale.set(b[3],b[4],b[5]); m.position.set(b[0],b[1],b[2]); g.add(m); });
+  g.scale.setScalar(s); g.position.set(x,y,z); S.add(g); clouds.push(g); return g;
+}
+[[-30,16,-60,1.3],[26,4,-66,1.5],[-18,-16,-56,1.0],[32,-22,-62,1.2],[2,32,-70,1.6],[-40,-4,-75,1.7],[14,-32,-55,.9],[38,26,-58,1.0]].forEach(function(c){ cloud(c[0],c[1],c[2],c[3]); });
+
+/* ---------------- avatar + balloon rig ---------------- */
+const rig = new T.Group(); S.add(rig);
+const avatar = new T.Group(); rig.add(avatar);
+(function(){
+  function bx(p,x,y,z,w,h,d,c){ const m = new T.Mesh(geo.box, mat(c)); m.scale.set(w,h,d); m.position.set(x,y,z); p.add(m); return m; }
+  bx(avatar,-1.5,-6.5,0, 2,2,1, 0x3d9eff);          // torso
+  bx(avatar,-1.5,-4.85,0, 1.3,1.3,1.3, 0xffd25a);   // head
+  bx(avatar,-1.85,-4.75,-.66, .2,.32,.04, 0x1a0e22); bx(avatar,-1.15,-4.75,-.66, .2,.32,.04, 0x1a0e22);
+  bx(avatar,-1.5,-5.18,-.66, .55,.1,.04, 0x1a0e22);
+  bx(avatar,0,-4.5,0, 1,2,1, 0xffd25a);             // raised arm holding the string
+  bx(avatar,-3,-6.6,0, 1,2,1, 0xffd25a);            // other arm
+  const lL = bx(avatar,-2,-8.5,0, .98,2,1, 0x2fbf4f), lR = bx(avatar,-1,-8.5,0, .98,2,1, 0x2fbf4f);
+  avatar.userData.legs = [lL,lR];
+})();
+const string = new T.Mesh(geo.cyl, mat(0xffffff,{r:.6})); rig.add(string);
+let balloon = null;
+function setString(){
+  const a = new T.Vector3(0,-3.5,0), b = new T.Vector3(0,0,0);
+  const mid = a.clone().add(b).multiplyScalar(.5); string.position.copy(mid); string.scale.set(.09, a.distanceTo(b), .09);
+}
+setString();
+const bwrap = new T.Group(); rig.add(bwrap); // balloon sways around the knot
+
+/* ---------------- particles ---------------- */
+const parts = [];
+function burst(kind, p, n, o){
+  o = o||{};
+  for(let i=0;i<n;i++){
+    let m;
+    const c = o.c!=null ? (Array.isArray(o.c) ? o.c[i%o.c.length] : o.c) : 0xffffff;
+    if(kind==='coin'){ m = new T.Mesh(geo.coin, mat(0xffc530,{r:.25,em:.15})); m.scale.setScalar(.45); }
+    else if(kind==='spark'){ m = new T.Mesh(geo.spark, mat(c,{em:1,emc:c})); m.scale.setScalar(o.s||.28); }
+    else if(kind==='smoke'){ m = new T.Mesh(geo.sph, mat(c,{op:.55,r:1})); m.scale.setScalar(o.s||.8); }
+    else if(kind==='ball'){ m = new T.Mesh(geo.sph, mat(c,{op:o.op||1, em:o.em||0, r:.2})); m.scale.setScalar(o.s||.3); }
+    else { m = new T.Mesh(geo.box, mat(c,{em:o.em||0})); const s=o.s||.5; m.scale.set(s,s*.35,s*.75); }
+    m.position.copy(p);
+    const dir = new T.Vector3(rnd(-1,1), rnd(-1,1), rnd(-.5,.5)).normalize();
+    const v = dir.multiplyScalar((o.sp||8)*rnd(.5,1.1)); v.y += o.up||0;
+    S.add(m);
+    parts.push({m:m, v:v, life:0, max:(o.life||1.1)*rnd(.75,1.2), g:o.g!=null?o.g:14, drag:o.drag||0, grow:o.grow||0,
+      spin:new T.Vector3(rnd(-8,8),rnd(-8,8),rnd(-8,8)), s0:m.scale.clone()});
+  }
+}
+function updParts(dt){
+  for(let i=parts.length-1;i>=0;i--){
+    const p = parts[i]; p.life += dt;
+    p.v.y -= p.g*dt; if(p.drag) p.v.multiplyScalar(Math.max(0,1-p.drag*dt));
+    p.m.position.addScaledVector(p.v, dt);
+    p.m.rotation.x += p.spin.x*dt; p.m.rotation.y += p.spin.y*dt; p.m.rotation.z += p.spin.z*dt;
+    const f = p.life/p.max;
+    let k = 1 + p.grow*f;
+    if(f > .7) k *= Math.max(0,(1-f)/.3);
+    p.m.scale.copy(p.s0).multiplyScalar(k);
+    if(f >= 1){ S.remove(p.m); parts.splice(i,1); }
+  }
+}
+// flat rings that face the camera (shockwaves)
+const rings = [];
+function ring(p, color, r0, r1, dur, o){
+  o=o||{};
+  const m = new T.Mesh(new T.RingGeometry(.86,1,64), new T.MeshBasicMaterial({color:color, transparent:true, opacity:o.op||.85, side:T.DoubleSide, depthWrite:false}));
+  m.position.copy(p); if(o.flat) m.rotation.x = -PI/2;
+  S.add(m); rings.push({m:m,r0:r0,r1:r1,t:0,d:dur,op:o.op||.85});
+}
+function updRings(dt){
+  for(let i=rings.length-1;i>=0;i--){ const r = rings[i]; r.t += dt; const f = Math.min(1,r.t/r.d), e = 1-Math.pow(1-f,3);
+    r.m.scale.setScalar(r.r0+(r.r1-r.r0)*e); r.m.material.opacity = r.op*(1-f);
+    if(f>=1){ S.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); rings.splice(i,1); } }
+}
+
+/* ---------------- hazards ---------------- */
+const hz = [];
+function buildSparrow(){
+  const g = new T.Group(), b = new T.Group(); g.add(b);
+  function bx(p,x,y,z,w,h,d,c,o){ const m = new T.Mesh(geo.box, mat(c,o)); m.scale.set(w,h,d); m.position.set(x,y,z); p.add(m); return m; }
+  bx(b,0,0,0, 1.6,1.3,2.4, 0xffd21f); bx(b,0,.25,-1.45, 1.2,1.1,1.0, 0xffd21f);
+  bx(b,0,-.25,.15, 1.4,.6,1.8, 0xfff2a8);
+  const beak = new T.Mesh(wedgeGeo, mat(0xff8a1f)); beak.scale.set(.5,.4,.6); beak.rotation.y = PI; beak.position.set(0,.2,-2.2); b.add(beak);
+  bx(b,-.45,.45,-1.98, .2,.28,.06, 0x1a0e22); bx(b,.45,.45,-1.98, .2,.28,.06, 0x1a0e22);
+  bx(b,0,.35,1.6, .9,.25,1.2, 0xe0a800);
+  const wl = new T.Group(), wr = new T.Group(); wl.position.set(-.8,.3,0); wr.position.set(.8,.3,0); b.add(wl); b.add(wr);
+  bx(wl,-1.2,0,0, 2.4,.18,1.5, 0xf0b800); bx(wr,1.2,0,0, 2.4,.18,1.5, 0xf0b800);
+  g.userData = {body:b, wl:wl, wr:wr, col:0xffd21f};
+  return g;
+}
+function buildPlane(){
+  const g = new T.Group(), b = new T.Group(); g.add(b);
+  const wm = mat(0xffffff,{r:.7}), wm2 = mat(0xdfe8f5,{r:.7});
+  const l = new T.Mesh(wedgeGeo, wm); l.scale.set(2.2,.25,4.4); l.position.set(-1.1,0,0); l.rotation.z = -.12; b.add(l);
+  const r = new T.Mesh(wedgeGeo, wm2); r.scale.set(2.2,.25,4.4); r.position.set(1.1,0,0); r.rotation.z = .12; b.add(r);
+  const k = new T.Mesh(wedgeGeo, wm2); k.scale.set(.25,1.0,4.4); k.position.set(0,-.55,0); b.add(k);
+  const st = new T.Mesh(geo.box, mat(0x3d9eff)); st.scale.set(4.2,.27,.4); st.position.set(0,.02,1.2); b.add(st);
+  g.userData = {body:b, col:0xffffff};
+  return g;
+}
+function spawn(kind, from, to, speed, o){
+  o=o||{};
+  const g = kind==='plane' ? buildPlane() : buildSparrow();
+  g.position.set(from[0],from[1],from[2]);
+  S.add(g);
+  const tgt = new T.Vector3(to[0],to[1],to[2]);
+  const h = {g:g, kind:kind, vel:tgt.clone().sub(g.position).normalize().multiplyScalar(speed||12), mul:1, state:'fly', t:0, st:0, flags:{}, scale:1};
+  if(o.ref) o.ref(h);
+  hz.push(h); return h;
+}
+function killHz(h){ S.remove(h.g); const i = hz.indexOf(h); if(i>=0) hz.splice(i,1); if(h.ice){ S.remove(h.ice); } }
+function ghost(h){ // afterimage for slowed hazards
+  const c = h.g.clone(); c.traverse(function(o){ if(o.isMesh){ o.material = mat(0xb9a8ff,{op:.35}); } });
+  S.add(c); const born = now;
+  ghosts.push({m:c, born:born});
+}
+const ghosts = [];
+function updHz(dt){
+  for(let i=hz.length-1;i>=0;i--){
+    const h = hz[i]; h.t += dt; h.st += dt;
+    const ud = h.g.userData;
+    if(h.state==='fly' || h.state==='calm' || h.state==='flee'){
+      if(h.state==='calm'){
+        h.ang += dt*.9*h.mul; const c = bCenter();
+        const tp = new T.Vector3(c.x+Math.cos(h.ang)*h.rad, c.y+2+Math.sin(h.ang*2)*1.5, c.z+Math.sin(h.ang)*h.rad*.6);
+        h.vel.copy(tp).sub(h.g.position).multiplyScalar(3);
+      }
+      if(h.state==='flee'){ h.vel.y += 6*dt; h.vel.multiplyScalar(1+dt*.6); h.g.rotation.z += dt*6*(h.spin||0); }
+      h.g.position.addScaledVector(h.vel, dt*h.mul);
+      if(h.vel.lengthSq()>.01 && h.state!=='flee'){ const yaw = Math.atan2(-h.vel.x, -h.vel.z); h.g.rotation.y = yaw; h.g.rotation.x = Math.atan2(h.vel.y, Math.hypot(h.vel.x,h.vel.z))*.6; }
+      if(ud.wl){ const f = Math.sin(now*22*h.mul + i)*.7; ud.wl.rotation.z = f; ud.wr.rotation.z = -f; }
+      if(ud.body && h.kind==='plane') ud.body.rotation.z = Math.sin(now*2+i)*.15;
+      if(h.slowed && h.mul < 1 && (h.gt=(h.gt||0)+dt) > .09){ h.gt = 0; ghost(h); }
+    } else if(h.state==='frozen'){
+      if(ud.wl){ ud.wl.rotation.z = .3; ud.wr.rotation.z = -.3; }
+    } else if(h.state==='fall'){
+      h.vel.y -= 30*dt; h.g.position.addScaledVector(h.vel, dt); h.g.rotation.x += dt*5; h.g.rotation.z += dt*7;
+      if(h.smoke && (h.sm=(h.sm||0)+dt) > .06){ h.sm = 0; burst('smoke', h.g.position, 1, {c:0x6b6b78, g:-3, sp:1, life:.9, s:.7, grow:1.2}); }
+    } else if(h.state==='eaten'){
+      const c = bCenter(); h.ang += dt*(5+h.st*9); h.rad = Math.max(0, h.rad - dt*(5+h.st*6));
+      h.g.position.set(c.x+Math.cos(h.ang)*h.rad, c.y+Math.sin(h.ang)*h.rad*.8, c.z+.5);
+      h.g.rotation.z += dt*14; h.g.scale.setScalar(Math.max(.01, h.rad/h.rad0)); if(h.rad <= .05){ killHz(h); if(h.onEaten) h.onEaten(); continue; }
+    } else if(h.state==='crushed'){
+      h.g.scale.y = Math.max(.15, h.g.scale.y - dt*6);
+    }
+    if(h.ice){ h.ice.position.copy(h.g.position); }
+    const p = h.g.position;
+    if(Math.abs(p.x) > 70 || p.y > 60 || p.y < -60 || h.t > 30) killHz(h);
+  }
+  for(let i=ghosts.length-1;i>=0;i--){ const gh = ghosts[i], a = now-gh.born; if(a > .45){ S.remove(gh.m); ghosts.splice(i,1); } else gh.m.traverse(function(o){ if(o.isMesh){ o.material = mat(0xb9a8ff,{op:Math.max(.05,.35-a*.7)}); } }); }
+}
+function bCenter(){ return balloon ? balloon.userData.center.clone().applyMatrix4(bwrap.matrixWorld) : new T.Vector3(); }
+function bRad(){ return balloon ? balloon.userData.radius : 6; }
+
+/* ---------------- HUD helpers ---------------- */
+const toastEl = document.getElementById('toast');
+function toast(text, grad){
+  const s = toastEl.querySelector('.s'), f = toastEl.querySelector('.f');
+  s.textContent = text; f.textContent = text; f.style.setProperty('--g', grad||'linear-gradient(#ffffff,#fff3a0 45%,#ffc530)');
+  toastEl.classList.remove('go'); void toastEl.offsetWidth; toastEl.classList.add('go');
+}
+function ftext(text, p, color, size){
+  const v = p.clone().project(cam); if(v.z > 1) return;
+  const d = document.createElement('div'); d.className = 'ft'; d.textContent = text; d.style.color = color||'#fff';
+  if(size) d.style.fontSize = size+'px';
+  d.style.left = ((v.x+1)/2*stage.clientWidth)+'px'; d.style.top = ((1-v.y)/2*stage.clientHeight)+'px';
+  stage.appendChild(d); setTimeout(function(){ d.remove(); }, 1300);
+}
+const abBtn = document.getElementById('ab'), abFace = document.getElementById('abFace'), abKey = document.getElementById('abKey'), hint = document.getElementById('hint');
+let cdT = 0, cdD = 0;
+function startCd(d){ cdT = 0; cdD = d; }
+function updCd(dt){
+  if(cdD > 0){ cdT += dt; const f = Math.min(1, cdT/cdD); abBtn.style.setProperty('--cd', (f*360)+'deg'); if(f>=1) cdD = 0; }
+}
+function pressAnim(){ abBtn.classList.add('press'); setTimeout(function(){ abBtn.classList.remove('press'); }, 160); }
+const meter = document.getElementById('meter'), mBar = document.getElementById('mBar'), mVal = document.getElementById('mVal'), mLbl = document.getElementById('mLbl');
+function setMeter(label, f, val){ meter.style.display = 'flex'; mLbl.textContent = label; mBar.style.width = (Math.max(0,Math.min(1,f))*100)+'%'; mVal.textContent = val; }
+
+/* ---------------- sound ---------------- */
+let AC=null, soundOn=true;
+function ac(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function tone(f0, f1, dur, type, vol, delay){
+  const a = ac(); if(!a || !soundOn || a.state!=='running') return;
+  const t = a.currentTime + (delay||0);
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type||'sine'; o.frequency.setValueAtTime(f0, t); if(f1) o.frequency.exponentialRampToValueAtTime(f1, t+dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol||.15, t+.015); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+.03);
+}
+function noise(dur, freq, vol, delay, type){
+  const a = ac(); if(!a || !soundOn || a.state!=='running') return;
+  const t = a.currentTime + (delay||0);
+  const b = a.createBuffer(1, Math.floor(a.sampleRate*dur), a.sampleRate), d = b.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/d.length, 2);
+  const s = a.createBufferSource(); s.buffer = b;
+  const f = a.createBiquadFilter(); f.type = type||'lowpass'; f.frequency.value = freq||1200;
+  const g = a.createGain(); g.gain.value = vol||.2;
+  s.connect(f); f.connect(g); g.connect(a.destination); s.start(t);
+}
+const SFX = {
+  hit:function(){ tone(420,140,.16,'square',.09); noise(.12,900,.2); },
+  pop:function(){ tone(300,900,.1,'sine',.2); noise(.08,3000,.15,0,'highpass'); },
+  crackle:function(){ for(let i=0;i<7;i++) noise(.03, 4000, .18, i*.035, 'highpass'); tone(900,1500,.08,'sine',.08); },
+  coin:function(d){ [988,1319].forEach(function(f,i){ tone(f,0,.12,'square',.05,(d||0)+i*.06); }); },
+  win:function(){ [523,659,784,1047].forEach(function(f,i){ tone(f,0,.2,'triangle',.12,i*.08); }); },
+  freeze:function(){ for(let i=0;i<8;i++) tone(1800-i*120, 2400-i*100, .14,'sine',.05,i*.03); noise(.5, 5000, .12, 0, 'highpass'); },
+  tick:function(d){ tone(1500,1000,.03,'square',.06,d); },
+  slow:function(){ tone(500,120,.9,'sawtooth',.06); },
+  whoosh:function(){ noise(.5, 700, .3); },
+  burn:function(){ noise(.6, 600, .3); tone(160,60,.4,'sawtooth',.06); },
+  song:function(){ tone(160,260,.9,'sine',.16); tone(260,180,1.0,'sine',.12,.7); tone(320,220,1.2,'triangle',.06,1.4); },
+  slam:function(){ tone(120,40,.5,'sine',.3); noise(.4,400,.4); },
+  zap:function(){ for(let i=0;i<4;i++) tone(rnd(600,1600),rnd(200,500),.05,'sawtooth',.04,i*.05); },
+  buzz:function(){ tone(210,240,.35,'sawtooth',.03); },
+  gulp:function(){ tone(500,90,.35,'sine',.2); },
+  shield:function(){ tone(880,1760,.15,'triangle',.1); tone(1320,0,.25,'sine',.07,.05); },
+  bawk:function(){ tone(700,1100,.12,'square',.07); tone(900,600,.18,'square',.07,.12); tone(1000,700,.2,'square',.06,.32); },
+  kernel:function(){ tone(400,1200,.06,'square',.08); noise(.06,2500,.2); },
+};
+
+/* ---------------- shared ability effects ---------------- */
+let A = null; // current ability state
+const FX = {
+  freeze:function(){
+    const c = bCenter(); SFX.freeze(); toast('FROZEN!', 'linear-gradient(#ffffff,#d6f6ff 45%,#5ccfff)');
+    ring(c, 0xbff2ff, 1, 30, .8, {op:.9}); ring(c, 0xffffff, 1, 22, .6, {op:.6});
+    burst('spark', c, 30, {c:[0xffffff,0xbff2ff,0x7fdcff], sp:18, g:0, life:.9, drag:2});
+    hz.forEach(function(h){
+      if(h.state!=='fly' || h.g.position.distanceTo(c) > 28) return;
+      h.state = 'frozen'; h.st = 0;
+      const ice = new T.Mesh(geo.box, mat(0xbff2ff,{op:.45, r:.05, em:.25, emc:0x7fdcff})); ice.scale.set(4.6,3.6,4.6); S.add(ice); h.ice = ice;
+      ftext('FROZEN', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#bff2ff', 16);
+      setTimeout(function(){ if(hz.indexOf(h)<0) return; S.remove(h.ice); h.ice = null; burst('cube', h.g.position, 12, {c:[0xbff2ff,0xffffff], sp:9, s:.7, life:.9});
+        SFX.crackle(); h.state = 'flee'; h.spin = 0; h.vel.set(Math.sign(h.g.position.x||1)*14, 4, 0); }, 2600);
+    });
+  },
+  slow:function(){
+    const c = bCenter(); SFX.slow(); toast('SLOW TIME!', 'linear-gradient(#ffffff,#e6ddff 45%,#8f7bff)');
+    if(!clockFx) makeClockFx(); clockFx.visible = true; clockFx.userData.t = 0;
+    hz.forEach(function(h){ if(h.state==='fly' && h.g.position.distanceTo(c) < 34){ h.mul = .35; h.slowed = true; } });
+    for(let i=0;i<10;i++) SFX.tick(i*.5);
+    setTimeout(function(){ hz.forEach(function(h){ h.mul = 1; h.slowed = false; }); clockFx.visible = false; }, 5000);
+  },
+  calm:function(){
+    const c = bCenter(); SFX.song(); toast('WHALE SONG!', 'linear-gradient(#ffffff,#cfe8ff 45%,#3d7bff)');
+    for(let k=0;k<3;k++) setTimeout(function(){ ring(bCenter(), 0x8fd0ff, 2, 26, 1.4, {op:.6}); }, k*350);
+    notes(c, 10);
+    hz.forEach(function(h, i){ if(h.state==='fly' && h.kind==='sparrow'){ h.state = 'calm'; h.ang = Math.atan2(h.g.position.z-c.z, h.g.position.x-c.x); h.rad = 13+i%2*2;
+      ftext('♥', h.g.position.clone().add(new T.Vector3(0,2,0)), '#ff7fc8', 24); } });
+  },
+  lava:function(n){
+    SFX.burn();
+    const c = bCenter();
+    for(let i=0;i<(n||4);i++){
+      const b = new T.Mesh(geo.sph, mat(i%2?0xff7a1f:0xffb020,{em:1.1, emc:i%2?0xff4a10:0xff8a1f}));
+      const r = rnd(.9,1.5); b.scale.setScalar(r);
+      b.position.set(c.x+rnd(-3,3), c.y+bRad()*.8, c.z+rnd(-1,1)); S.add(b);
+      blobs.push({m:b, v:new T.Vector3(rnd(-1.5,1.5), rnd(9,13), 0), t:0, r:r, ph:rnd(0,TAU)});
+    }
+  },
+  eat:function(h){
+    if(h.state==='eaten') return;
+    h.state = 'eaten'; h.st = 0; const c = bCenter(); h.rad0 = h.rad = h.g.position.distanceTo(c); h.ang = Math.atan2(h.g.position.y-c.y, h.g.position.x-c.x);
+    SFX.gulp();
+    h.onEaten = function(){ ftext('+5 SIZE', bCenter().add(new T.Vector3(bRad()+2,-2,0)), '#e2c2ff', 22); burst('spark', bCenter(), 16, {c:[0xc58cff,0xffffff], sp:8, g:0, life:.7});
+      swell = .12; SFX.coin(); };
+  },
+};
+let swell = 0;
+const blobs = [];
+function updBlobs(dt){
+  for(let i=blobs.length-1;i>=0;i--){
+    const b = blobs[i]; b.t += dt; b.v.y -= 2*dt; b.m.position.addScaledVector(b.v, dt);
+    const w = 1+Math.sin(now*9+b.ph)*.12; b.m.scale.set(b.r*w, b.r/w, b.r*w);
+    if((b.sm=(b.sm||0)+dt) > .05){ b.sm=0; burst('spark', b.m.position, 1, {c:0xffb020, sp:1.5, g:-2, life:.5, s:.18}); }
+    let hit = false;
+    hz.forEach(function(h){ if(!hit && h.state==='fly' && h.g.position.distanceTo(b.m.position) < b.r+2.4){ hit = true;
+      h.state='fall'; h.smoke = true; h.vel.set(rnd(-4,4), 6, 0); h.g.traverse(function(o){ if(o.isMesh) o.material = mat(0x3a2a2a,{r:.9}); });
+      burst('spark', h.g.position, 22, {c:[0xff7a1f,0xffd36a,0xff3b1f], sp:10, life:.8}); SFX.burn(); ftext('BURNED!', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#ffb020', 20);
+      if(A && A.def.id==='Flame') toast('BURNED!', 'linear-gradient(#ffffff,#ffd36a 45%,#ff3b1f)'); } });
+    if(hit || b.t > 3.2){ burst('spark', b.m.position, 10, {c:[0xff7a1f,0xffd36a], sp:6, life:.6}); S.remove(b.m); blobs.splice(i,1); }
+  }
+}
+// note sprites for the whale song
+let noteTex = null;
+function notes(c, n){
+  if(!noteTex){ const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d');
+    x.lineWidth = 10; x.strokeStyle = '#1a0e22'; x.fillStyle = '#ffffff';
+    x.beginPath(); x.ellipse(44,96,20,15,-.4,0,TAU); x.stroke(); x.fill();
+    x.beginPath(); x.ellipse(98,82,20,15,-.4,0,TAU); x.stroke(); x.fill();
+    x.fillRect(58,20,10,78); x.fillRect(112,8,10,76); x.strokeRect(58,20,10,78); x.strokeRect(112,8,10,76);
+    x.beginPath(); x.moveTo(58,20); x.lineTo(122,8); x.lineTo(122,26); x.lineTo(58,38); x.closePath(); x.stroke(); x.fill();
+    noteTex = new T.CanvasTexture(cv); }
+  for(let i=0;i<n;i++){
+    const sp = new T.Sprite(new T.SpriteMaterial({map:noteTex, transparent:true, depthWrite:false, color:[0xffffff,0xcfe8ff,0xffd6f2][i%3]}));
+    sp.scale.setScalar(2.2); sp.position.copy(c); S.add(sp);
+    const a = i/n*TAU; noteList.push({s:sp, v:new T.Vector3(Math.cos(a)*7, Math.sin(a)*5+2, 0), t:0});
+  }
+}
+const noteList = [];
+function updNotes(dt){
+  for(let i=noteList.length-1;i>=0;i--){ const n = noteList[i]; n.t += dt; n.s.position.addScaledVector(n.v, dt); n.v.multiplyScalar(1-dt*.8);
+    n.s.material.rotation = Math.sin(now*4+i)*.3; n.s.material.opacity = Math.max(0, 1-n.t/2.2); if(n.t > 2.2){ S.remove(n.s); noteList.splice(i,1); } }
+}
+// clock face (Slow Time)
+let clockFx = null;
+function makeClockFx(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 512; const x = cv.getContext('2d');
+  const g = x.createRadialGradient(256,256,60,256,256,250); g.addColorStop(0,'rgba(200,190,255,0)'); g.addColorStop(.85,'rgba(170,150,255,.22)'); g.addColorStop(1,'rgba(140,120,255,.55)');
+  x.fillStyle = g; x.beginPath(); x.arc(256,256,250,0,TAU); x.fill();
+  x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 10; x.beginPath(); x.arc(256,256,240,0,TAU); x.stroke();
+  for(let i=0;i<12;i++){ const a = i/12*TAU; x.lineWidth = i%3===0 ? 14 : 7; x.beginPath(); x.moveTo(256+Math.cos(a)*200,256+Math.sin(a)*200); x.lineTo(256+Math.cos(a)*230,256+Math.sin(a)*230); x.stroke(); }
+  const face = new T.Mesh(new T.CircleGeometry(1,64), new T.MeshBasicMaterial({map:new T.CanvasTexture(cv), transparent:true, depthWrite:false}));
+  const grp = new T.Group(); grp.add(face); face.scale.setScalar(17);
+  const hand = new T.Mesh(geo.box, new T.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.9})); hand.scale.set(.6,13,.1); hand.position.y = 6.5;
+  const hp = new T.Group(); hp.add(hand); grp.add(hp); grp.userData = {hp:hp, t:0};
+  grp.position.z = -6; grp.visible = false; S.add(grp); clockFx = grp;
+}
+
+/* ---------------- per-ability setups ---------------- */
+// Each ability: init() adds its always-on parts, loop() schedules one demo cycle, near(h,d) runs every frame per hazard, hit(h) on contact.
+const DEF = {};
+function birdIn(side, y, speed, o){ const s = side<0 ? -1 : 1; const c = bCenter(); return spawn('sparrow', [s*40, c.y+y, 0], [c.x, c.y + (o&&o.ty||0), 0], speed||14, o); }
+function planeIn(side, y, ty, speed){ const s = side<0 ? -1 : 1; const c = bCenter(); return spawn('plane', [s*42, c.y+y, -1], [-s*42, c.y+ty, -1], speed||13); }
+function defaultHit(h){
+  if(h.flags.hit) return; h.flags.hit = true;
+  SFX.hit(); flash = .25; shake = .3;
+  ftext(A && A.def.id==='Thorn' ? '-½' : '-1', h.g.position.clone().add(new T.Vector3(0,2,0)), '#ff5a6e', 26);
+  burst('cube', h.g.position, 8, {c:[h.g.userData.col, 0xffffff], sp:7, s:.5});
+  h.state = 'flee'; h.spin = 1; h.vel.set(Math.sign(h.g.position.x - bCenter().x || 1)*16, 10, 0);
+}
+function popHz(h, text){
+  burst('cube', h.g.position, 18, {c:[h.g.userData.col, 0xffffff, 0xff9a1f], sp:12, s:.6, life:1});
+  SFX.pop(); ftext(text||'POP!', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#ffffff', 22); killHz(h);
+}
+
+DEF.Bubble = {
+  cycle:7.5,
+  init:function(){ A.bub = []; for(let i=0;i<3;i++) A.bub.push(makeBubble(i)); },
+  loop:function(){ A.bub.forEach(function(b){ b.alive = true; b.m.visible = true; b.m.scale.setScalar(.01); });
+    at(.6, function(){ birdIn(-1, 3, 15); }); at(3.4, function(){ birdIn(1, -1, 15); }); },
+  update:function(dt){ const c = bCenter(); A.bub.forEach(function(b,i){ const a = now*1.4 + i*TAU/3;
+    b.m.position.set(c.x+Math.cos(a)*(bRad()+1.8), c.y+Math.sin(a*1.3)*1.6, c.z+Math.sin(a)*(bRad()+1.8)*.5);
+    if(b.alive) b.m.scale.lerp(new T.Vector3(1,1,1), Math.min(1, dt*6)); }); },
+  near:function(h,d){ if(d < bRad()+2.6 && !h.flags.blk){ const b = A.bub.find(function(x){ return x.alive; });
+      if(!b) return; h.flags.blk = true; b.alive = false; b.m.visible = false; b.m.position.copy(h.g.position);
+      SFX.crackle(); burst('ball', h.g.position, 16, {c:[0xbff2ff,0xffffff], op:.7, sp:10, s:.25, g:4, life:.6});
+      ring(h.g.position, 0xffffff, .5, 5, .35, {op:.9}); ftext('BLOCKED!', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#bff2ff', 22);
+      h.state = 'flee'; h.spin = 1; h.vel.set(Math.sign(h.g.position.x||1)*18, 9, 0); } },
+};
+function makeBubble(i){
+  const g = new T.Group();
+  const s = new T.Mesh(geo.sph, mat(0x9bebff,{op:.38, r:.05, em:.12})); s.scale.setScalar(1.25); g.add(s);
+  const hl = new T.Mesh(geo.sph, mat(0xffffff,{em:.8})); hl.scale.setScalar(.28); hl.position.set(-.45,.5,-.8); g.add(hl);
+  S.add(g); A.objs.push(g); return {m:g, alive:true};
+}
+
+DEF.Ember = {
+  cycle:6,
+  init:function(){ A.light = new T.PointLight(0xff8a2a, 2.2, 30); S.add(A.light); A.objs.push(A.light);
+    A.glow = new T.Mesh(geo.sph, new T.MeshBasicMaterial({color:0xff9a3a, transparent:true, opacity:.16, depthWrite:false})); S.add(A.glow); A.objs.push(A.glow); },
+  loop:function(){ for(let k=0;k<5;k++) at(.6+k*1.1, function(){ const c = bCenter(); ftext('+10%', c.clone().add(new T.Vector3(rnd(-4,4), bRad()+.5, 0)), '#ffd36a', 20);
+      burst('coin', c.clone().add(new T.Vector3(rnd(-2,2), bRad(), 0)), 2, {sp:4, up:8, g:16, life:1}); SFX.coin(); }); },
+  update:function(dt){ const c = bCenter(); A.light.position.copy(c); A.light.intensity = 2 + Math.sin(now*7)*.5 + Math.sin(now*13)*.3;
+    A.glow.position.copy(c); A.glow.scale.setScalar(bRad()*1.35 + Math.sin(now*5)*.3);
+    if((A.em=(A.em||0)+dt) > .07){ A.em=0; burst('spark', c.clone().add(new T.Vector3(rnd(-4,4), rnd(-2,4), rnd(-2,2))), 1, {c:[0xffb020,0xff6a1f,0xffe08a][Math.floor(rnd(0,3))], sp:1, g:-5, life:1.3, s:.2}); } },
+};
+
+DEF.Spike = {
+  cycle:7.5,
+  init:function(){
+    A.sp = new T.Group(); S.add(A.sp); A.objs.push(A.sp);
+    const n = 18;
+    for(let i=0;i<n;i++){ const y = 1 - (i+.5)/n*2, r = Math.sqrt(1-y*y), a = i*2.4;
+      const dir = new T.Vector3(Math.cos(a)*r, y, Math.sin(a)*r);
+      const cone = new T.Mesh(geo.cone, mat(i%2?0xff4d6d:0xe8eef8,{em:.25, emc:0xff2a4a, r:.3}));
+      cone.userData.dir = dir; cone.quaternion.setFromUnitVectors(new T.Vector3(0,1,0), dir); A.sp.add(cone); }
+    A.spk = 0;
+  },
+  loop:function(){ at(.5, function(){ birdIn(-1, 2, 15); }); at(2.0, function(){ birdIn(1, 1, 16); }); at(2.6, function(){ birdIn(1, -4, 15); }); },
+  hit:function(h){ defaultHit(h); A.spk = 3; toast('SPIKES!', 'linear-gradient(#ffffff,#ffc2cc 45%,#ff3f66)'); SFX.zap(); ring(bCenter(), 0xff4d6d, 2, 14, .4); },
+  near:function(h,d){ if(A.spk > 0 && d < bRad()+5 && h.state==='fly' && !h.flags.hit){ popHz(h, 'POPPED!'); } },
+  update:function(dt){ A.spk = Math.max(0, A.spk - dt); const c = bCenter(); A.sp.position.copy(c);
+    const out = A.spk > 0 ? Math.min(1, (3-A.spk)*8) * Math.min(1, A.spk*4) : 0;
+    A.sp.children.forEach(function(k){ const L = .3 + 3.2*out; k.scale.set(.55, L, .55); k.position.copy(k.userData.dir).multiplyScalar(bRad()*.72 + L/2); k.visible = out > .02; }); },
+};
+
+DEF.Popcorn = {
+  cycle:6,
+  init:function(){ A.size = 0; },
+  loop:function(){ A.size = 0; },
+  update:function(dt){
+    A.size += dt*7; const v = Math.floor(A.size); setMeter('SIZE', (A.size%25)/25, v);
+    if(A.size >= 25 && !A.popped){ A.popped = true; kernel(); }
+    if(A.size < 1) A.popped = false;
+  },
+};
+function kernel(){
+  SFX.kernel(); const c = bCenter(); toast('KERNEL POP!', 'linear-gradient(#ffffff,#fff3a0 45%,#ffc530)');
+  const k = new T.Group(); [[0,0,0,.9,0xfffbe6],[.7,.3,0,.6,0xffffff],[-.6,.4,.2,.6,0xfff3c4],[.1,.8,0,.55,0xffffff],[0,-.4,0,.45,0xffd23a]].forEach(function(b){
+    const m = new T.Mesh(geo.sph, mat(b[4],{r:.6})); m.scale.setScalar(b[3]); m.position.set(b[0],b[1],b[2]); k.add(m); });
+  k.position.set(c.x, c.y+bRad(), c.z); S.add(k);
+  burst('cube', k.position, 10, {c:[0xffffff,0xfff3c4], sp:8, s:.4});
+  const v = new T.Vector3(rnd(4,7), 12, 0); let t = 0;
+  const step = function(dt){ t += dt; v.y -= 22*dt; k.position.addScaledVector(v, dt); k.rotation.z += dt*5;
+    if((k.userData.c=(k.userData.c||0)+dt) > .12){ k.userData.c = 0; burst('coin', k.position, 1, {sp:2, g:20, life:1.4}); if(Math.random()<.5) SFX.coin(); }
+    return t < 2.6; };
+  tickers.push(function(dt){ const go = step(dt); if(!go) S.remove(k); return go; });
+  setTimeout(function(){ ftext('COINS FOR PLAYERS BELOW', c.clone().add(new T.Vector3(6,-6,0)), '#ffd36a', 15); }, 500);
+}
+const tickers = [];
+
+DEF.Jelly = {
+  cycle:7,
+  init:function(){
+    A.ten = []; for(let i=0;i<14;i++){ const m = new T.Mesh(geo.spark, mat(i%2?0xff9ae0:0xffffff,{em:.9, emc:0xff6fc8})); m.userData.ph = rnd(0,TAU); S.add(m); A.objs.push(m); A.ten.push(m); }
+    A.zone = new T.Mesh(new T.ConeGeometry(9,12,24,1,true), new T.MeshBasicMaterial({color:0xff9ae0, transparent:true, opacity:.12, depthWrite:false, side:T.DoubleSide}));
+    A.zone.rotation.x = PI; S.add(A.zone); A.objs.push(A.zone);
+  },
+  loop:function(){ at(.4, function(){ const c = bCenter(); spawn('plane', [-16, c.y-40, -1], [8, c.y+30, -1], 15); });
+    at(3.6, function(){ const c = bCenter(); spawn('sparrow', [18, c.y-40, 1], [-8, c.y+30, 1], 17); }); },
+  near:function(h,d){ const c = bCenter(); const p = h.g.position;
+    if(!h.flags.sl && p.y < rig.position.y-9 && Math.abs(p.x-c.x) < 10 && p.y > rig.position.y-24){ h.flags.sl = true; h.mul = .3; h.slowed = true; SFX.zap();
+      burst('spark', p, 14, {c:[0xff9ae0,0xffffff], sp:7, g:0, life:.6}); ftext('SLOWED!', p.clone().add(new T.Vector3(0,2.5,0)), '#ffc8f0', 20);
+      h.vel.x += (p.x < c.x ? -1 : 1)*9; }
+    if(h.flags.sl && p.y > c.y+bRad()+2){ h.mul = 1; h.slowed = false; } },
+  update:function(){ const c = bCenter(); const top = rig.position.y - 10;
+    A.ten.forEach(function(m, i){ const f = ((now*.35 + i/14) % 1); m.position.set(c.x + Math.sin(i*2.1+now)*f*8, top - f*12, c.z + Math.cos(i*1.7)*2); m.scale.setScalar(.3*(1-f)+.05); m.rotation.y = now*3+i; });
+    A.zone.position.set(c.x, top-6, c.z); A.zone.material.opacity = .13 + Math.sin(now*3)*.04; },
+};
+
+DEF.Buzz = {
+  cycle:7,
+  init:function(){ A.bees = []; for(let i=0;i<3;i++){ const b = makeBee(); A.bees.push({g:b, mode:'orbit', i:i}); } },
+  loop:function(){ at(.8, function(){ birdIn(-1, 3, 12); }); at(4, function(){ birdIn(1, 0, 12); }); },
+  near:function(h,d){ if(d < bRad()+12 && !h.flags.bz && h.state==='fly'){ const bee = A.bees.find(function(b){ return b.mode==='orbit'; }); if(!bee) return;
+      h.flags.bz = true; bee.mode = 'chase'; bee.tgt = h; bee.t = 0; SFX.buzz(); } },
+  update:function(dt){ const c = bCenter();
+    A.bees.forEach(function(b){ const g = b.g; const ud = g.userData;
+      ud.w1.rotation.x = Math.sin(now*60)*.8; ud.w2.rotation.x = -Math.sin(now*60)*.8;
+      if(b.mode==='orbit'){ const a = now*2.2 + b.i*TAU/3; const tp = new T.Vector3(c.x+Math.cos(a)*(bRad()+3), c.y+Math.sin(a*2)*2+1, c.z+Math.sin(a)*(bRad()+3)*.6);
+        g.position.lerp(tp, Math.min(1, dt*8)); g.rotation.y = -a; }
+      else if(b.mode==='chase'){ b.t += dt; const h = b.tgt; const tp = h.g.position; const dv = tp.clone().sub(g.position);
+        g.position.addScaledVector(dv.normalize(), dt*38); g.lookAt(tp);
+        if(g.position.distanceTo(tp) < 1.8 || b.t > 1.4){ b.mode = 'back'; b.t = 0;
+          if(hz.indexOf(h)>=0 && h.state==='fly'){ h.state = 'flee'; h.spin = 1.5; h.vel.set(Math.sign(h.g.position.x||1)*20, 12, 0); SFX.zap();
+            ftext('STING!', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#fff36a', 22); toast('BEE GUARD!', 'linear-gradient(#ffffff,#fff36a 45%,#ffb300)');
+            burst('spark', h.g.position, 12, {c:[0xfff36a,0x1a0e22], sp:8, g:0, life:.6}); } } }
+      else { b.t += dt; if(b.t > .9) b.mode = 'orbit'; const a = now*2.2 + b.i*TAU/3; g.position.lerp(new T.Vector3(c.x+Math.cos(a)*(bRad()+3), c.y, c.z), Math.min(1,dt*4)); } }); },
+};
+function makeBee(){
+  const g = new T.Group();
+  function bx(x,y,z,w,h,d,c,o){ const m = new T.Mesh(geo.box, mat(c,o)); m.scale.set(w,h,d); m.position.set(x,y,z); g.add(m); return m; }
+  bx(0,0,0, .9,.8,1.3, 0xffd21f); bx(0,0,-.15, .94,.84,.25, 0x1a0e22); bx(0,0,.3, .94,.84,.25, 0x1a0e22); bx(0,.05,-.85, .7,.7,.45, 0x1a0e22);
+  const w1 = new T.Group(), w2 = new T.Group(); w1.position.set(-.3,.45,0); w2.position.set(.3,.45,0);
+  const a = new T.Mesh(geo.box, mat(0xffffff,{op:.7})); a.scale.set(.9,.08,.6); a.position.x = -.45; w1.add(a);
+  const b = new T.Mesh(geo.box, mat(0xffffff,{op:.7})); b.scale.set(.9,.08,.6); b.position.x = .45; w2.add(b);
+  g.add(w1); g.add(w2); g.userData = {w1:w1, w2:w2}; g.scale.setScalar(1.25);
+  S.add(g); A.objs.push(g); return g;
+}
+
+DEF.Frost = {
+  cycle:9,
+  init:function(){ A.frost = new T.Group(); S.add(A.frost); A.objs.push(A.frost);
+    for(let i=0;i<10;i++){ const m = new T.Mesh(geo.spark, mat(0xdff8ff,{em:.7, emc:0x7fdcff})); m.scale.set(.25,.6,.25); A.frost.add(m); } },
+  loop:function(){ at(.4, function(){ birdIn(-1, 4, 10); }); at(.7, function(){ planeIn(1, 6, 1, 11); }); at(1.0, function(){ birdIn(1, -3, 10); });
+    keyMoment(2.4, FX.freeze, 'first-hit'); },
+  update:function(){ const c = bCenter(); A.frost.children.forEach(function(m,i){ const a = now*.8 + i*TAU/10; m.position.set(c.x+Math.cos(a)*(bRad()+1), c.y+Math.sin(a*3+i)*2, c.z+Math.sin(a)*(bRad()+1)*.5); m.rotation.y = now*2+i; }); },
+};
+
+DEF.Volt = {
+  cycle:7,
+  init:function(){ A.ch = 0; A.arcs = new T.Group(); S.add(A.arcs); A.objs.push(A.arcs); A.at = 0; },
+  loop:function(){ A.ch = 0; A.full = false; },
+  update:function(dt){ A.ch = Math.min(1, A.ch + dt/5); setMeter('STATIC', A.ch, Math.round(A.ch*100)+'%');
+    A.at += dt; if(A.at > .09){ A.at = 0; boltArcs(A.arcs, bCenter(), bRad(), A.ch); if(Math.random() < .3+A.ch*.5) SFX.zap(); }
+    if(A.ch >= 1 && !A.full){ A.full = true; toast('STATIC FULL!', 'linear-gradient(#ffffff,#fff9a0 45%,#3dc8ff)'); SFX.win(); ring(bCenter(), 0x9ff0ff, 2, 18, .6);
+      setTimeout(function(){ ftext('LAND FOR +25% COINS', bCenter().add(new T.Vector3(0, -bRad()-2, 0)), '#fff9a0', 18); }, 400); } },
+};
+function boltArcs(g, c, r, k){
+  while(g.children.length) g.remove(g.children[0]);
+  const n = 1 + Math.floor(k*4);
+  for(let j=0;j<n;j++){
+    const a0 = rnd(0,TAU), p = new T.Vector3(c.x+Math.cos(a0)*r*.8, c.y+Math.sin(a0)*r*.8, c.z-1);
+    for(let s=0;s<5;s++){
+      const q = p.clone().add(new T.Vector3(Math.cos(a0)*rnd(.6,1.4)+rnd(-.8,.8), Math.sin(a0)*rnd(.6,1.4)+rnd(-.8,.8), rnd(-.4,.4)));
+      const m = new T.Mesh(geo.box, mat(j%2?0x9ff0ff:0xfff36a,{em:1.2})); const L = p.distanceTo(q);
+      m.scale.set(.26,.26,L); m.position.copy(p).add(q).multiplyScalar(.5); m.lookAt(q); g.add(m); p.copy(q);
+    }
+  }
+}
+
+DEF.Thorn = {
+  cycle:6.5,
+  loop:function(){ at(.6, function(){ birdIn(-1, 2, 16); }); at(3.4, function(){ birdIn(1, -1, 16); }); },
+  hit:function(h){ defaultHit(h); toast('HALF DAMAGE!', 'linear-gradient(#ffffff,#d6ff9a 45%,#3a9a2a)');
+    burst('cube', bCenter(), 14, {c:[0x3a9a2a,0x7ee05a], sp:9, s:.5}); ring(bCenter(), 0x7ee05a, 2, 12, .4); },
+};
+
+DEF.Clock = {
+  cycle:9,
+  loop:function(){ at(.3, function(){ birdIn(-1, 9, 11, {ty:9}); }); at(.5, function(){ planeIn(1, 16, 16, 12); }); at(.9, function(){ birdIn(1, 12, 11, {ty:12}); });
+    keyMoment(1.6, FX.slow, 'timer'); },
+  update:function(dt){ if(clockFx && clockFx.visible){ clockFx.userData.t += dt; clockFx.position.x = bCenter().x; clockFx.position.y = bCenter().y;
+    clockFx.userData.hp.rotation.z = -clockFx.userData.t*1.3; const f = Math.min(1, clockFx.userData.t*4); clockFx.scale.setScalar(f); } },
+};
+
+DEF.Flame = {
+  cycle:7,
+  loop:function(){ at(.2, function(){ planeIn(-1, 17, 15, 9); }); at(1.0, function(){ FX.lava(5); toast('LAVA RISE!', 'linear-gradient(#ffffff,#ffd36a 45%,#ff3b1f)'); });
+    at(3.6, function(){ planeIn(1, 19, 18, 10); }); at(4.1, function(){ FX.lava(4); }); },
+  update:function(dt){ if((A.em=(A.em||0)+dt) > .1){ A.em = 0; const c = bCenter(); burst('spark', c.clone().add(new T.Vector3(rnd(-3,3), bRad()*.7, rnd(-1,1))), 1, {c:[0xff7a1f,0xffd36a][Math.floor(rnd(0,2))], sp:1, g:-6, life:.9, s:.2}); } },
+};
+
+DEF.Whale = {
+  cycle:10,
+  loop:function(){ at(.3, function(){ birdIn(-1, 3, 10); }); at(.5, function(){ birdIn(1, 5, 10); }); at(.8, function(){ birdIn(1, -3, 10); });
+    keyMoment(1.9, FX.calm, 'near');
+    at(8.3, function(){ hz.forEach(function(h){ if(h.state==='calm'){ h.state='flee'; h.spin = 0; h.vel.set(Math.sign(h.g.position.x||1)*14, 6, 0); } }); }); },
+};
+
+DEF.Iron = {
+  cycle:7.5,
+  loop:function(){ at(.2, function(){ const c = bCenter(); spawn('plane', [-42, c.y-17, -1], [42, c.y-17, -1], 15); });
+    keyMoment(2.0, slam, 'space'); },
+  update:function(dt){ if(A.drop!=null){ A.dt += dt;
+      if(A.dt < .45){ A.drop = -14*easeIn(A.dt/.45); } else if(A.dt < 1.0){ A.drop = -14; } else { A.drop = -14 + 14*easeOut(Math.min(1,(A.dt-1)/1.6)); if(A.dt > 2.6) A.drop = null; }
+      rigY = A.drop||0;
+      if(A.dt > .45 && !A.slammed){ A.slammed = true; SFX.slam(); shake = .6; const c = bCenter(); const p = c.clone().add(new T.Vector3(0,-bRad()-2,0));
+        ring(p, 0xc9ced6, 1, 22, .6, {op:.9}); ring(p, 0xffffff, 1, 14, .4); burst('cube', p, 24, {c:[0x8e96a3,0xc9ced6,0xffffff], sp:14, s:.7});
+        hz.forEach(function(h){ if(h.state==='fly' && h.g.position.y < c.y && Math.abs(h.g.position.x-c.x) < 14){ h.state = 'crushed'; ftext('CRUSHED!', h.g.position.clone().add(new T.Vector3(0,2,0)), '#ffffff', 22);
+          setTimeout(function(){ burst('cube', h.g.position, 20, {c:[0xffffff,0xdfe8f5,0x3d9eff], sp:12, s:.7}); killHz(h); }, 350); } });
+        toast('IRON SLAM!', 'linear-gradient(#ffffff,#e6ebf2 45%,#7c8696)'); } } },
+};
+function slam(){ A.drop = 0; A.dt = 0; A.slammed = false; SFX.whoosh(); }
+const easeIn = function(x){ return x*x; }, easeOut = function(x){ return 1-Math.pow(1-x,3); };
+
+DEF.Void = {
+  cycle:7.5,
+  init:function(){
+    const cv = document.createElement('canvas'); cv.width = cv.height = 512; const x = cv.getContext('2d');
+    const g = x.createRadialGradient(256,256,40,256,256,256); g.addColorStop(0,'rgba(20,0,40,.95)'); g.addColorStop(.35,'rgba(90,30,160,.55)'); g.addColorStop(.7,'rgba(160,90,255,.22)'); g.addColorStop(1,'rgba(160,90,255,0)');
+    x.fillStyle = g; x.fillRect(0,0,512,512);
+    x.lineWidth = 14; x.lineCap = 'round';
+    for(let k=0;k<5;k++){ x.strokeStyle = k%2 ? 'rgba(220,180,255,.7)' : 'rgba(150,80,255,.8)'; x.beginPath();
+      for(let s=0;s<60;s++){ const t = s/60, a = k*TAU/5 + t*4.2, r = 60 + t*190; const px = 256+Math.cos(a)*r, py = 256+Math.sin(a)*r; s ? x.lineTo(px,py) : x.moveTo(px,py); } x.stroke(); }
+    A.sw = new T.Mesh(new T.CircleGeometry(1,64), new T.MeshBasicMaterial({map:new T.CanvasTexture(cv), transparent:true, depthWrite:false}));
+    S.add(A.sw); A.objs.push(A.sw);
+  },
+  loop:function(){ at(.4, function(){ birdIn(-1, 2, 11); }); at(2.8, function(){ birdIn(1, -2, 12); }); at(4.6, function(){ planeIn(-1, 0, 0, 12); }); },
+  near:function(h,d){ if(d < bRad()+7 && h.state==='fly'){ FX.eat(h); if(A.def.id==='Void') toast('DEVOUR!', 'linear-gradient(#ffffff,#e2c2ff 45%,#8a3dff)'); } },
+  update:function(){ const c = bCenter(); A.sw.position.set(c.x, c.y, c.z-3); A.sw.scale.setScalar(bRad()+8 + Math.sin(now*2)*.6); A.sw.rotation.z = -now*1.6; },
+};
+
+DEF.Sun = {
+  cycle:7,
+  init:function(){
+    A.rays = new T.Group(); S.add(A.rays); A.objs.push(A.rays);
+    for(let i=0;i<14;i++){ const a = i/14*TAU; const m = new T.Mesh(geo.box, mat(i%2?0xffd23a:0xffa21f,{em:.9, emc:i%2?0xffc530:0xff8a1f})); m.scale.set(.7, i%2?2.2:3.4, .3);
+      m.userData.a = a; A.rays.add(m); }
+    A.halo = new T.Mesh(geo.sph, new T.MeshBasicMaterial({color:0xffd36a, transparent:true, opacity:.18, depthWrite:false})); S.add(A.halo); A.objs.push(A.halo);
+    A.light = new T.PointLight(0xffc04a, 1.6, 34); S.add(A.light); A.objs.push(A.light);
+  },
+  loop:function(){ at(.5, function(){ birdIn(-1, 2, 14); }); at(3.6, function(){ birdIn(1, -2, 14); }); },
+  near:function(h,d){ if(d < bRad()+6 && h.state==='fly'){ h.state = 'flee'; h.spin = 1; h.vel.set(Math.sign(h.g.position.x - bCenter().x || 1)*18, 8, 0); h.smoke = true;
+      h.g.traverse(function(o){ if(o.isMesh) o.material = mat(0x5a3a2a,{r:.9}); }); SFX.burn(); ring(bCenter(), 0xffd36a, 2, 16, .5);
+      burst('spark', h.g.position, 18, {c:[0xffd36a,0xff8a1f], sp:9, life:.7}); ftext('TOO HOT!', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#ffd36a', 22);
+      toast('SUN HEAT!', 'linear-gradient(#ffffff,#fff7b0 45%,#ffb020)'); } },
+  update:function(dt){ const c = bCenter(); A.rays.position.set(c.x, c.y, c.z-1.5); A.rays.rotation.z = now*.5;
+    A.rays.children.forEach(function(m,i){ const L = bRad()+2.2 + Math.sin(now*4+i)*.5; m.position.set(Math.cos(m.userData.a)*L, Math.sin(m.userData.a)*L, 0); m.rotation.z = m.userData.a - PI/2; });
+    A.halo.position.copy(c); A.halo.scale.setScalar(bRad()*1.5 + Math.sin(now*3)*.4); A.light.position.copy(c);
+    hz.forEach(function(h){ if(h.smoke && h.state==='flee' && (h.sm=(h.sm||0)+dt) > .06){ h.sm=0; burst('smoke', h.g.position, 1, {c:0x6b6b78, g:-3, sp:1, life:.9, s:.6, grow:1.2}); } }); },
+};
+
+DEF.Crown = {
+  cycle:7,
+  init:function(){
+    A.sh = new T.Mesh(new T.RingGeometry(.88,1,6,1), new T.MeshBasicMaterial({color:0xffd23a, transparent:true, opacity:0, side:T.DoubleSide, depthWrite:false}));
+    A.sh2 = new T.Mesh(new T.CircleGeometry(1,6), new T.MeshBasicMaterial({color:0xfff3a0, transparent:true, opacity:0, depthWrite:false}));
+    S.add(A.sh); S.add(A.sh2); A.objs.push(A.sh, A.sh2); A.shT = 9;
+    A.tw = []; for(let i=0;i<6;i++){ const m = new T.Mesh(geo.spark, mat(0xfff3a0,{em:1})); S.add(m); A.objs.push(m); A.tw.push(m); }
+  },
+  loop:function(){ at(.6, function(){ birdIn(-1, 1, 17); }); at(3.8, function(){ birdIn(1, 2, 17); }); },
+  near:function(h,d){ if(d < bRad()+3.5 && h.state==='fly' && !h.flags.cr){ h.flags.cr = true; A.shT = 0; SFX.shield();
+      h.state = 'flee'; h.spin = 2; h.vel.set(Math.sign(h.g.position.x - bCenter().x || 1)*30, 6, 0);
+      burst('spark', h.g.position, 18, {c:[0xffd23a,0xffffff], sp:12, g:0, life:.6}); ftext('BOUNCED!', h.g.position.clone().add(new T.Vector3(0,2.5,0)), '#ffe27a', 22);
+      toast('ROYAL GUARD!', 'linear-gradient(#ffffff,#fff3a0 45%,#ffb300)'); } },
+  update:function(dt){ const c = bCenter(); A.shT += dt; const f = A.shT < .7 ? 1-A.shT/.7 : 0;
+    [A.sh, A.sh2].forEach(function(m){ m.position.set(c.x, c.y, c.z-.5); m.scale.setScalar(bRad()+2.5 + (1-f)*1.5); m.rotation.z = PI/6; });
+    A.sh.material.opacity = f*.95; A.sh2.material.opacity = f*.3;
+    A.tw.forEach(function(m,i){ const a = now*1.2 + i*TAU/6; m.position.set(c.x+Math.cos(a)*(bRad()+2), c.y+Math.sin(a)*(bRad()+2), c.z); const s = Math.max(0,Math.sin(now*3+i)); m.scale.setScalar(.35*s); }); },
+};
+
+DEF.Cluck = {
+  cycle:9,
+  loop:function(){ at(.3, function(){ birdIn(-1, 4, 10); }); at(.5, function(){ planeIn(1, 14, 12, 9); }); at(.8, function(){ birdIn(1, -2, 10); });
+    at(2.0, function(){ SFX.bawk(); toast('BAWK!', 'linear-gradient(#ffffff,#fff3c4 45%,#ffc94a)'); burst('cube', bCenter(), 18, {c:[0xffffff,0xfff3c4,0xffc94a], sp:10, s:.6, g:6, life:1.2}); pressAnim(); startCd(7); });
+    const pick = ['FREEZE','SLOW TIME','LAVA','SONG','DEVOUR'];
+    let k = 0; for(let s=0;s<9;s++) at(2.4+s*.11, function(){ ftext(pick[k++%5], bCenter().add(new T.Vector3(0,bRad()+2,0)), '#fff', 15); });
+    at(3.5, function(){ const w = pick[Math.floor(Math.random()*5)]; ftext(w+'!', bCenter().add(new T.Vector3(0,bRad()+2.5,0)), '#ffe27a', 24);
+      if(w==='FREEZE') FX.freeze(); else if(w==='SLOW TIME') FX.slow(); else if(w==='LAVA') FX.lava(6); else if(w==='SONG') FX.calm();
+      else { hz.slice().forEach(function(h){ if(h.state==='fly') FX.eat(h); }); toast('DEVOUR!', 'linear-gradient(#ffffff,#e2c2ff 45%,#8a3dff)'); } });
+    at(8.3, function(){ hz.forEach(function(h){ if(h.state==='calm'){ h.state='flee'; h.spin = 0; h.vel.set(Math.sign(h.g.position.x||1)*14, 6, 0); } }); }); },
+  update:function(dt){ if(clockFx && clockFx.visible){ clockFx.userData.t += dt; clockFx.position.x = bCenter().x; clockFx.position.y = bCenter().y;
+    clockFx.userData.hp.rotation.z = -clockFx.userData.t*1.3; clockFx.scale.setScalar(Math.min(1, clockFx.userData.t*4)); } },
+};
+
+/* ---------------- key / auto moments ---------------- */
+let mode = 'key';
+let waitKey = null;
+function keyMoment(t, fn, autoKind){
+  at(t, function(){
+    const d = A.def;
+    const isKey = d.key==='space' || (d.key==='q' && mode==='key');
+    if(!isKey){ fire(fn); return; }
+    waitKey = fn; abBtn.classList.add('ready'); hint.textContent = d.key==='space' ? 'Let out air!' : 'Press Q!'; hint.classList.add('on');
+    A.waitT = 0;
+  });
+}
+function fire(fn){ waitKey = null; abBtn.classList.remove('ready'); hint.classList.remove('on'); pressAnim(); startCd(A.def.cycle-1); fn(); }
+function tryKey(){ if(waitKey){ fire(waitKey); } }
+window.addEventListener('keydown', function(e){
+  if(e.repeat) return;
+  if((e.key==='q' || e.key==='Q') && A && A.def.key==='q'){ unlockAudio(); tryKey(); }
+  if(e.code==='Space' && A && A.def.key==='space' && waitKey){ e.preventDefault(); unlockAudio(); tryKey(); }
+});
+abBtn.addEventListener('click', function(){ unlockAudio(); tryKey(); });
+
+/* ---------------- scheduler ---------------- */
+let sched = [], cyc = 0;
+function at(t, fn){ sched.push({t:t, fn:fn}); }
+function clearAll(){
+  hz.slice().forEach(killHz); blobs.splice(0).forEach(function(b){ S.remove(b.m); });
+  parts.splice(0).forEach(function(p){ S.remove(p.m); }); rings.splice(0).forEach(function(r){ S.remove(r.m); });
+  noteList.splice(0).forEach(function(n){ S.remove(n.s); }); ghosts.splice(0).forEach(function(g){ S.remove(g.m); });
+  tickers.length = 0; if(clockFx) clockFx.visible = false;
+  document.querySelectorAll('.ft').forEach(function(e){ e.remove(); });
+}
+
+/* ---------------- choose a balloon ---------------- */
+const byId = {}; AB.forEach(function(d){ byId[d.id] = d; });
+function select(id){
+  if(A){ A.objs.forEach(function(o){ S.remove(o); }); }
+  clearAll(); waitKey = null; abBtn.classList.remove('ready'); hint.classList.remove('on');
+  if(balloon) bwrap.remove(balloon);
+  balloon = buildBalloon(id); bwrap.add(balloon); rig.updateMatrixWorld(true); resize();
+  const d = byId[id];
+  A = {def:d, objs:[]}; rigY = 0;
+  meter.style.display = 'none';
+  if(DEF[id].init) DEF[id].init();
+  sched = []; cyc = 0; if(DEF[id].loop) DEF[id].loop();
+  abBtn.style.setProperty('--cd','360deg'); cdD = 0;
+  // HUD + card
+  document.getElementById('hudName').textContent = id.toUpperCase();
+  abFace.innerHTML = icon(id); abFace.style.setProperty('--abg', d.bg);
+  refreshKeyLabel();
+  const st = STATS[id];
+  document.getElementById('cT1').textContent = id.toUpperCase(); document.getElementById('cT2').textContent = id.toUpperCase();
+  const tierEl = document.getElementById('cTier'); tierEl.textContent = st[0].toUpperCase();
+  document.getElementById('card').style.setProperty('--tier', TIERS[st[0]]);
+  tierEl.style.background = TIERS[st[0]]; document.getElementById('cTile').style.background = TIERS[st[0]];
+  document.getElementById('cStats').innerHTML = 'Earn <b>x'+st[1]+'</b> &nbsp;·&nbsp; Toughness <b>'+st[2]+'</b>';
+  document.getElementById('cImg').src = thumbs[id] || ''; document.getElementById('cImg').alt = id+' balloon';
+  const b = document.getElementById('cBadge'); b.innerHTML = icon(id); b.style.setProperty('--abg', d.bg);
+  document.getElementById('cAb').textContent = d.ab;
+  document.getElementById('cDesc').textContent = d.desc + (mode==='auto' && d.autoDesc ? ' ' + d.autoDesc : '');
+  document.getElementById('cCd').textContent = d.cd;
+  const lt = document.getElementById('cLater'); if(d.later){ lt.style.display = 'block'; lt.innerHTML = '<b>For now:</b> '+d.later; } else lt.style.display = 'none';
+  document.querySelectorAll('.chipb').forEach(function(c){ c.setAttribute('aria-pressed', c.dataset.id===id ? 'true' : 'false'); });
+}
+function refreshKeyLabel(){
+  const d = A.def; const k = d.key==='space' ? 'SPACE' : (d.key==='q' && mode==='key') ? 'Q' : 'AUTO';
+  abKey.textContent = k; document.getElementById('cType').textContent = k==='Q' ? 'KEY: Q' : k==='SPACE' ? 'KEY: SPACE' : 'AUTOMATIC';
+  document.querySelectorAll('.chipb').forEach(function(c){ const dd = byId[c.dataset.id]; c.querySelector('.ty').textContent = dd.key==='space' ? 'SPACE' : (dd.key==='q' && mode==='key') ? 'Q' : 'AUTO'; });
+}
+
+/* ---------------- thumbnails (same models, rendered once) ---------------- */
+const thumbs = {};
+(function(){
+  const tr = new T.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true}); tr.setSize(176,176);
+  const ts = new T.Scene(); ts.add(new T.HemisphereLight(0xffffff, 0x8aa0c8, .6)); const dl = new T.DirectionalLight(0xffffff,.8); dl.position.set(-10,16,-20); ts.add(dl);
+  const tc = new T.PerspectiveCamera(30, 1, .5, 200); 
+  AB.forEach(function(d){
+    const b = buildBalloon(d.id); ts.add(b); const c = b.userData.center, r = b.userData.radius;
+    tc.position.set(c.x - r*1.0, c.y + r*.7, c.z - r*3.9); tc.lookAt(c);
+    tr.render(ts, tc); thumbs[d.id] = tr.domElement.toDataURL('image/png'); ts.remove(b);
+  });
+  tr.dispose(); if(tr.forceContextLoss) tr.forceContextLoss();
+})();
+
+/* ---------------- picker ---------------- */
+const picker = document.getElementById('picker');
+AB.forEach(function(d){
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'chipb'; b.dataset.id = d.id; b.setAttribute('aria-pressed','false');
+  b.style.setProperty('--tier', TIERS[STATS[d.id][0]]);
+  b.innerHTML = '<span class="tb"></span><span class="ty">AUTO</span><img alt="" src="'+thumbs[d.id]+'"><span class="nm">'+d.id+'</span><span class="an">'+d.ab+'</span>';
+  b.addEventListener('click', function(){ unlockAudio(); select(d.id); if(window.innerWidth < 900) stage.scrollIntoView({behavior:'smooth', block:'start'}); });
+  picker.appendChild(b);
+});
+document.getElementById('again').addEventListener('click', function(){ unlockAudio(); select(A.def.id); });
+const mKey = document.getElementById('mKey'), mAuto = document.getElementById('mAuto');
+function setMode(m){ mode = m; mKey.setAttribute('aria-pressed', m==='key'); mAuto.setAttribute('aria-pressed', m==='auto'); select(A.def.id); }
+mKey.addEventListener('click', function(){ setMode('key'); }); mAuto.addEventListener('click', function(){ setMode('auto'); });
+const sndBtn = document.getElementById('snd');
+sndBtn.addEventListener('click', function(){ soundOn = !soundOn; sndBtn.textContent = 'Sound: '+(soundOn?'on':'off'); sndBtn.setAttribute('aria-pressed', soundOn); unlockAudio(); });
+function unlockAudio(){ const a = ac(); if(a && a.state==='suspended') a.resume(); }
+window.addEventListener('pointerdown', unlockAudio, {once:true});
+
+/* ---------------- main loop ---------------- */
+let now = 0, last = performance.now(), flash = 0, shake = 0, rigY = 0, rigYs = 0;
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight; if(!w || !h) return;
+  R.setSize(w, h, false); cam.aspect = w/h;
+  // keep about 46 studs of width and 34 of height in view
+  const top = balloon ? balloon.userData.top : 10; cam.userData.ty = (top - 9.5)/2;
+  const vh = Math.max(top + 9.5 + 6, (cam.aspect < 1 ? 28 : 38)/cam.aspect); cam.userData.dist = (vh/2)/Math.tan(cam.fov*PI/360);
+  cam.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+function frame(t){
+  const dt = Math.min(.05, (t-last)/1000); last = t; now += dt;
+  if(!A){ requestAnimationFrame(frame); return; }
+  // cycle
+  cyc += dt;
+  if(waitKey){ A.waitT += dt; if(A.waitT > 1.8){ const f = waitKey; fire(f); } }
+  for(let i=sched.length-1;i>=0;i--){ if(cyc >= sched[i].t && !sched[i].done){ sched[i].done = true; sched[i].fn(); } }
+  if(cyc >= A.def.cycle && !waitKey){ cyc = 0; sched = []; DEF[A.def.id].loop(); }
+  // rig motion
+  rigYs += (rigY - rigYs)*Math.min(1, dt*20);
+  rig.position.set(Math.sin(now*.6)*.8, Math.sin(now*1.3)*.5 + rigYs, 0);
+  bwrap.rotation.z = Math.sin(now*.9)*.06; bwrap.rotation.x = Math.sin(now*.7)*.04;
+  swell = Math.max(0, swell - dt*.25); bwrap.scale.setScalar(1 + swell);
+  if(flash > 0){ flash -= dt; bwrap.scale.multiplyScalar(1 + Math.sin(flash*60)*.03); }
+  avatar.userData.legs[0].rotation.x = Math.sin(now*3)*.25; avatar.userData.legs[1].rotation.x = -Math.sin(now*3)*.25;
+  rig.updateMatrixWorld(true);
+  // clouds rising past
+  clouds.forEach(function(c){ c.position.y -= dt*6; if(c.position.y < -45) c.position.y = 45; });
+  // abilities
+  const D = DEF[A.def.id];
+  if(D.update) D.update(dt);
+  const bc = bCenter(), br = bRad();
+  hz.slice().forEach(function(h){
+    if(hz.indexOf(h)<0) return;
+    const d = h.g.position.distanceTo(bc);
+    if(D.near) D.near(h, d);
+    if(hz.indexOf(h)>=0 && h.state==='fly' && d < br+1.2){ if(D.hit) D.hit(h); else defaultHit(h); }
+  });
+  for(let i=tickers.length-1;i>=0;i--){ if(!tickers[i](dt)) tickers.splice(i,1); }
+  updHz(dt); updParts(dt); updRings(dt); updBlobs(dt); updNotes(dt); updCd(dt);
+  // camera
+  shake = Math.max(0, shake - dt);
+  const cy = (cam.userData.ty||1.5) + rigYs*.6;
+  cam.position.set(Math.sin(now*.25)*3 + (Math.random()-.5)*shake*1.4, cy + 1.5 + (Math.random()-.5)*shake*1.4, cam.userData.dist||44);
+  cam.lookAt(0, cy, 0);
+  R.render(S, cam);
+  requestAnimationFrame(frame);
+}
+resize();
+select('Bubble');
+R.render(S, cam);
+requestAnimationFrame(frame);
+})();
+</script>
