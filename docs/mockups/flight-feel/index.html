@@ -77,6 +77,36 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
 .ft{position:absolute;left:0;top:0;font-family:var(--font-d);font-weight:700;font-size:20px;color:#fff;white-space:nowrap;will-change:transform,opacity}
 .ft.g{color:#c8ff7a}.ft.r{color:#ff6b78;font-size:19px}.ft.c{color:#7af0ff;font-size:24px}.ft.y{color:#ffd84a;font-size:24px}.ft.w{font-size:16px}
 
+/* bird warnings: red bubble with "!" above the bird, or an arrow at the screen edge when it is off screen */
+.warn{position:absolute;left:0;top:0;width:52px;height:52px;margin:-26px 0 0 -26px;pointer-events:none;z-index:3;display:none}
+.warn .ar{position:absolute;inset:0;transform:rotate(var(--a,0rad))}
+.warn .ar::before{content:"";position:absolute;right:-17px;top:50%;margin-top:-14px;border-left:20px solid #1a0e22;border-top:14px solid transparent;border-bottom:14px solid transparent}
+.warn .ar::after{content:"";position:absolute;right:-9px;top:50%;margin-top:-8px;border-left:12px solid var(--wc,#ff3f4f);border-top:8px solid transparent;border-bottom:8px solid transparent}
+.warn .bub{position:absolute;inset:3px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#fff3f4 0 10%,var(--wc,#ff3f4f) 46%,var(--wd,#a30f1c) 100%);border:4px solid #1a0e22;
+  box-shadow:0 4px 0 rgba(10,4,20,.35);display:grid;place-items:center;font-family:var(--font-d);font-weight:700;font-size:25px;color:#fff;line-height:1;animation:wp var(--wp,.6s) ease-in-out infinite}
+.warn .bub::before{content:"";position:absolute;inset:3px;border-radius:50%;background:radial-gradient(circle at 50% 50%,transparent 0 3px,rgba(255,255,255,.18) 3.5px 4.5px,transparent 5px) 0 0/9px 9px;pointer-events:none}
+@keyframes wp{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+/* dodge streak + height pills */
+.pill.streak{background:linear-gradient(#ffe08a,#ff9a1f 52%,#e0560c);font-size:14px;display:none}
+.pill.streak b{font-size:19px}
+.pill.streak.on{display:flex}
+.pill.streak.bump{animation:bump .4s ease-out}
+.pill.alt{background:linear-gradient(#e7c6ff,#a45cff 55%,#6b2fd6);font-size:14px}
+.pill.alt b{font-size:18px}
+/* height milestone banner (slides in on the right) */
+.altpop{position:absolute;right:22px;top:34%;pointer-events:none;z-index:5;font-family:var(--font-d);font-weight:700;font-size:clamp(26px,4.4vw,44px);--sw:9px;opacity:0;white-space:nowrap}
+.altpop.go{animation:altp 1.5s cubic-bezier(.2,.9,.3,1.2) forwards}
+.altpop small{display:block;font-size:.42em;letter-spacing:1.5px;text-align:right}
+@keyframes altp{0%{opacity:0;transform:translateX(60px) scale(.6)}14%{opacity:1;transform:translateX(-6px) scale(1.12)}24%{transform:translateX(0) scale(1)}78%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(30px)}}
+/* LAND! chip that floats over the pad when you can land */
+.landchip{position:absolute;left:0;top:0;pointer-events:none;z-index:3;display:none;font-family:var(--font-d);font-weight:700;font-size:20px;color:#fff;
+  background:linear-gradient(#fff3a0,#ffc530 52%,#e8960c);border:4px solid #1a0e22;border-bottom-width:7px;border-radius:14px;padding:2px 10px 1px;gap:8px;align-items:center;white-space:nowrap}
+.landchip.on{display:flex;animation:chipin .35s cubic-bezier(.2,.9,.3,1.4)}
+.landchip kbd{font-family:var(--font-d);font-size:15px;background:#fff;color:#1a0e22;border:3px solid #1a0e22;border-bottom-width:4px;border-radius:7px;padding:0 6px;text-shadow:none}
+@keyframes chipin{0%{opacity:0;scale:.4}100%{opacity:1;scale:1}}
+.dash.small{filter:grayscale(1) brightness(.92);cursor:not-allowed}
+.dash.small .n{font-size:12.5px;line-height:1.05;text-align:center;padding:0 8px;letter-spacing:.3px}
+
 /* controls */
 .bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:center}
 .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -114,15 +144,15 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
 .tbl h3{font-family:var(--font-d);font-weight:600;font-size:16px;margin:0 0 4px}
 .tbl dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13.5px}
 .tbl dt{color:var(--muted)} .tbl dd{margin:0;font-family:var(--font-d);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
-@media (max-width:620px){.keyhint{display:none}.stage{aspect-ratio:4/5}.tag{font-size:13px}.pill{font-size:13px}.pill b{font-size:17px}.pill.coin .cn{width:24px;height:24px}
+@media (max-width:620px){.altpop{right:12px;top:30%}.landchip{font-size:16px}.keyhint{display:none}.stage{aspect-ratio:4/5}.tag{font-size:13px}.pill{font-size:13px}.pill b{font-size:17px}.pill.coin .cn{width:24px;height:24px}
   .dash{width:74px;height:74px;right:14px;bottom:22px}.dash svg{width:42px;height:42px}.hud{top:auto;bottom:20px;transform:none}}
-@media (prefers-reduced-motion: reduce){.pop.go{animation-duration:.01s}.pill.coin.bump,.dash.ready{animation:none}}
+@media (prefers-reduced-motion: reduce){.pop.go{animation-duration:.01s}.pill.coin.bump,.dash.ready,.warn .bub{animation:none}}
 </style>
 
 <div class="wrap">
   <header>
     <h1><span class="st"><span class="s" aria-hidden="true">Fly, Dash, Land, Pop!</span><span class="f">Fly, Dash, Land, Pop!</span></span></h1>
-    <p class="sub">A preview of the new flying feel with Air Dash. Watch the demos, switch between NEW and OLD to compare, or click the sky and fly yourself.</p>
+    <p class="sub">The new flying feel with Air Dash, bird warnings, dodge streaks, height pops and a studded landing. Watch the demos, switch between NEW and OLD to compare, or click the sky and fly yourself.</p>
   </header>
 
   <div class="stage" id="stage" tabindex="0" aria-label="3D flying preview. Click to fly with the keyboard.">
@@ -132,6 +162,8 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
       <div class="pill coin ol" id="hCoins"><span class="cn">$</span><b id="vCoins">1,250</b></div>
       <div class="pill risk ol" id="hRisk">AT RISK <b id="vRisk">0</b></div>
       <div class="pill size ol" id="hSize">SIZE <b id="vSize">40</b></div>
+      <div class="pill alt ol" id="hAlt">HEIGHT <b id="vAlt">180 m</b></div>
+      <div class="pill streak ol" id="hStreak">DODGE <b id="vStreak">x1</b></div>
     </div>
     <button class="dash" id="dashBtn" type="button" aria-label="Air Dash">
       <svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round">
@@ -140,12 +172,15 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
       <span class="c ol">-6%</span><span class="k">SHIFT</span>
     </button>
     <div class="fts" id="fts"></div>
+    <div class="landchip ol" id="landChip">LAND! <kbd>E</kbd></div>
+    <div class="altpop st" id="altPop"><span class="s" aria-hidden="true"></span><span class="f"></span></div>
     <div class="pop st" id="pop"><span class="s" aria-hidden="true"></span><span class="f"></span></div>
   </div>
 
   <div class="bar">
     <div class="grp"><span class="lbl">DEMO</span>
       <button class="btn big on" data-demo="all" type="button">Watch all</button>
+      <button class="btn big" data-demo="climb" type="button">Climb</button>
       <button class="btn big" data-demo="fly" type="button">Fly fast</button>
       <button class="btn big" data-demo="dash" type="button">Dash past birds</button>
       <button class="btn big" data-demo="land" type="button">Land</button>
@@ -162,7 +197,8 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
     <div class="grp"><span class="lbl">SPEED</span>
       <button class="btn sm on" data-speed="1" type="button">1x</button>
       <button class="btn sm" data-speed="0.4" type="button">Slow-mo</button>
-      <button class="btn sm" id="bSound" type="button">Sound: off</button></div>
+      <button class="btn sm" id="bSound" type="button">Sound: off</button>
+      <button class="btn sm on" id="bShake" type="button">Shake: on</button></div>
   </div>
 
   <div class="cards">
@@ -174,15 +210,16 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
           <li><b>1</b><span>Squeeze: the balloon squashes, rubber squeak</span></li>
           <li><b>2</b><span>Puff: an air cloud shoots out the back, a ring of air, whoosh</span></li>
           <li><b>3</b><span>You lean hard into the dash with your knees tucked, wind lines fly past</span></li>
-          <li><b>4</b><span>The balloon trails behind, then wobbles back. "-3 SIZE" pops up</span></li>
-          <li><b>5</b><span>A bird that just misses you: NICE DODGE!</span></li>
+          <li><b>4</b><span>3 clean ghost copies of you and your balloon stay behind and fade</span></li>
+          <li><b>5</b><span>The balloon trails behind, then wobbles back. "-3 SIZE" pops up</span></li>
+          <li><b>6</b><span>Too small to dash? The button turns grey and says TOO SMALL</span></li>
         </ul>
       </div></div>
     <div class="card"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Flying</span><span class="f">Flying</span></span><span class="who">NEW · ALWAYS ON</span></div>
       <div class="bd">
         <p>All four effects work together. Steering is a bit quicker and turning around is snappy, but you still drift.</p>
         <ul class="steps">
-          <li><b>a</b><span>The balloon stretches when it moves, wobbles when you turn, and bumps on every +1</span></li>
+          <li><b>a</b><span>The balloon stretches when it moves, wobbles when you turn, and gives a soft bump on every +1 (no text, so it stays clean)</span></li>
           <li><b>b</b><span>Your body banks into turns and leans forward with speed. Legs trail behind and swing</span></li>
           <li><b>c</b><span>Wind lines and a wind sound when you go fast. The camera widens a little</span></li>
           <li><b>d</b><span>The rope bends and swings behind you instead of a straight line</span></li>
@@ -190,10 +227,11 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
       </div></div>
     <div class="card"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Landing</span><span class="f">Landing</span></span><span class="who">BIGGER</span></div>
       <div class="bd">
-        <p>Your hero landing, but harder. You dive in, the game freezes for a split second as you hit, then plays slow-motion while the ground explodes.</p>
+        <p>Your hero landing, but harder. When you are low enough over an island, the pad tells you: it glows, the gold studs on its rim hop in a wave, a studded arrow points down and a LAND! [E] sign pops up.</p>
         <ul class="steps">
+          <li><b>0</b><span>Small bank: a quick, light landing so it never gets tiring. Big bank (200+ coins) or a new island: the full show below</span></li>
           <li><b>1</b><span>Short hop up, then a fast dive onto the pad</span></li>
-          <li><b>2</b><span>Freeze for 0.1 s, then 0.3 s of slow-motion</span></li>
+          <li><b>2</b><span>Freeze for 0.1 s, then 0.3 s of slow-motion (only on your own screen)</span></li>
           <li><b>3</b><span>Shock ring, dust, grass and dirt studs that bounce, camera shake</span></li>
           <li><b>4</b><span>A coin fountain flies into your coin counter, which counts up and bumps</span></li>
         </ul>
@@ -202,22 +240,44 @@ h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5.4vw,52px);ma
       <div class="bd">
         <p>A pop should hurt (in a funny way). The balloon blows apart in its own colours and you flail all the way down.</p>
         <ul class="steps">
-          <li><b>1</b><span>Freeze for 0.1 s at the hit, then a bang and a big POP!</span></li>
+          <li><b>1</b><span>The balloon flashes white and swells for 0.1 s, then freezes, bangs and a big POP!</span></li>
           <li><b>2</b><span>Rubber pieces in the balloon's colours fly off and spin</span></li>
           <li><b>3</b><span>The rope goes loose and flutters from your hand</span></li>
-          <li><b>4</b><span>You wave your arms and kick your legs while you fall. Lost coins show in red</span></li>
+          <li><b>4</b><span>You wave your arms and kick your legs while you fall. Lost coins and a lost streak show in red</span></li>
+        </ul>
+      </div></div>
+    <div class="card"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Birds &amp; Streak</span><span class="f">Birds &amp; Streak</span></span><span class="who">NEW · SKILL</span></div>
+      <div class="bd">
+        <p>You always see danger coming, so a pop feels fair and a dodge feels like your skill.</p>
+        <ul class="steps">
+          <li><b>1</b><span>A red "!" bubble sits over every bird that hunts you, with a warning beep when it starts</span></li>
+          <li><b>2</b><span>Off screen? An arrow at the edge points to it. Yellow when far, orange, then red and pulsing fast when close</span></li>
+          <li><b>3</b><span>Every dodge or close call adds to your DODGE streak: +10, +20, +30 coins... at risk, so you still have to land to keep them</span></li>
+          <li><b>4</b><span>The streak pill bumps and the sound climbs higher with each dodge. Landing or popping ends the streak</span></li>
+        </ul>
+      </div></div>
+    <div class="card"><div class="hd"><span class="st"><span class="s" aria-hidden="true">Height</span><span class="f">Height</span></span><span class="who">NEW · CLIMB</span></div>
+      <div class="bd">
+        <p>Rising is the heart of the game, so climbing gets its own reward moments.</p>
+        <ul class="steps">
+          <li><b>1</b><span>A purple HEIGHT pill under your size shows how high you are</span></li>
+          <li><b>2</b><span>Every 50 m a big "200 m!" banner slides in on the right with a rising chime</span></li>
+          <li><b>3</b><span>A purple ring and sparkles burst around you. The chime goes up a note each time</span></li>
+          <li><b>4</b><span>Fast climbing shows wind lines streaming down past you</span></li>
         </ul>
       </div></div>
   </div>
 
   <section class="nums" aria-labelledby="nh">
     <h2 id="nh">Numbers for the game</h2>
-    <p>These are the settings the preview uses. They go into FlightConfig so they are easy to change later.</p>
+    <p>These are the settings the preview uses. They go into FlightConfig so they are easy to change later. "Shake: off" will live in the new stud-style settings menu.</p>
     <div class="tbl">
       <div><h3>Air Dash</h3><dl><dt>Key</dt><dd>Shift / phone button</dd><dt>Cost</dt><dd>6% size (min 2)</dd><dt>Distance</dt><dd>~24 studs</dd><dt>Burst time</dt><dd>0.35 s</dd><dt>Wait</dt><dd>2 s</dd><dt>Sink after</dt><dd>0.9 s</dd><dt>Min size</dt><dd>6</dd></dl></div>
       <div><h3>Steering</h3><dl><dt>Speed up</dt><dd>30 → 42</dd><dt>Slow down (drag)</dt><dd>0.7 → 1.1</dd><dt>Top speed</dt><dd>22 → 24</dd><dt>Turn-around boost</dt><dd>x1.8</dd><dt>Bank in turns</dt><dd>up to 26°</dd><dt>Lean with speed</dt><dd>up to 17°</dd></dl></div>
-      <div><h3>Landing</h3><dl><dt>Dive time</dt><dd>0.75 s</dd><dt>Freeze</dt><dd>0.1 s</dd><dt>Slow-motion</dt><dd>0.3 s at 30%</dd><dt>Camera shake</dt><dd>small</dd><dt>Dirt studs</dt><dd>24</dd></dl></div>
-      <div><h3>Pop</h3><dl><dt>Freeze</dt><dd>0.1 s</dd><dt>Rubber pieces</dt><dd>28</dd><dt>Flail</dt><dd>until you land</dd><dt>Camera shake</dt><dd>small</dd></dl></div>
+      <div><h3>Landing</h3><dl><dt>Big landing from</dt><dd>200 coins or new island</dd><dt>Dive time</dt><dd>0.75 s</dd><dt>Freeze</dt><dd>0.1 s</dd><dt>Slow-motion</dt><dd>0.3 s at 30%</dd><dt>Camera shake</dt><dd>small</dd><dt>Dirt studs</dt><dd>24</dd></dl></div>
+      <div><h3>Birds &amp; streak</h3><dl><dt>Warning range</dt><dd>80 studs</dd><dt>Colours</dt><dd>yellow → orange → red</dd><dt>Streak bonus</dt><dd>+10 × streak</dd><dt>Streak ends</dt><dd>land or pop</dd></dl></div>
+      <div><h3>Height</h3><dl><dt>Banner every</dt><dd>50 m</dd><dt>Pill</dt><dd>always on</dd></dl></div>
+      <div><h3>Pop</h3><dl><dt>White flash + swell</dt><dd>0.1 s, +16%</dd><dt>Freeze</dt><dd>0.1 s</dd><dt>Rubber pieces</dt><dd>28</dd><dt>Flail</dt><dd>until you land</dd><dt>Camera shake</dt><dd>small</dd></dl></div>
     </div>
   </section>
 </div>
@@ -304,6 +364,7 @@ function studTop(w, d, base, light, dark, side){
 }
 
 /* ---------------- the island (top at y = 0, gold pad in the middle) ---------------- */
+const PADFX = {k:0, studs:[], arrow:null};
 const ISLAND = {r:23, padR:7};
 const world = new T.Group(); S.add(world);
 (function(){
@@ -325,7 +386,18 @@ const world = new T.Group(); S.add(world);
   [[-9,-8.6,6],[8,-8.2,-7],[3,-12.4,9],[-6,-15.8,-4]].forEach(function(c){ bx(world, c[0], c[1], c[2], .6, 2.6, .6, 0x2f8f2a); }); // hanging vines
   // gold landing pad (studded) with a darker rim
   const pad = new T.Mesh(geo.box, studTop(14, 14, '#ffd23f', '#fff09a', '#d99a10', 0xe6a812)); pad.scale.set(14,.4,14); pad.position.set(0,.2,0); world.add(pad);
+  PADFX.top = pad.material[2]; PADFX.top.emissive = new T.Color(0xffa800); PADFX.top.emissiveIntensity = 0;
   [[0,-7.5,16,1],[0,7.5,16,1],[-7.5,0,1,14],[7.5,0,1,14]].forEach(r => bx(world, r[0], .15, r[1], r[2], .3, r[3], 0xb87a0a));
+  // 24 gold studs sitting on the rim: they hop in a wave and glow when you can land
+  const rimM = new T.MeshStandardMaterial({color:0xffd23f, roughness:.35, emissive:0xffa800, emissiveIntensity:0});
+  for(let i=0;i<24;i++){ const a = i/24*PI*2, q = Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+    const x = Math.cos(a)/q*7.5, z = Math.sin(a)/q*7.5; const n = new T.Mesh(geo.nub, rimM); n.scale.set(.62,.36,.62); n.position.set(x, .48, z); world.add(n); PADFX.studs.push(n); }
+  PADFX.rimM = rimM;
+  // chunky studded arrow pointing down at the pad
+  const ar = new T.Group(), am = new T.MeshStandardMaterial({color:0xffd23f, roughness:.35, emissive:0xffa800, emissiveIntensity:.35}), ad = mat(0x1a0e22);
+  [[0,3.2,1.6,2.4],[0,1.6,4.4,1.2],[0,.6,3,1],[0,-.3,1.6,.9]].forEach(function(r){ bx(ar, 0, r[1], 0, r[2], r[3], 1.6, am); bx(ar, 0, r[1], 0, r[2]+.32, r[3]+.32, 1.1, ad); });
+  [[-.4,4.45],[.4,4.45]].forEach(p => { const n = new T.Mesh(geo.nub, am); n.scale.set(.6,.3,.6); n.position.set(p[0], p[1], 0); ar.add(n); });
+  ar.position.set(0, 13, 0); ar.scale.setScalar(.001); world.add(ar); PADFX.arrow = ar;
   // lanterns at the pad corners
   [[-9.5,-9.5],[9.5,-9.5],[-9.5,9.5],[9.5,9.5]].forEach(function(p){
     bx(world, p[0], 1.6, p[1], .5, 3.2, .5, 0x3a2a22); bx(world, p[0], 3.35, p[1], 1.3, .3, 1.3, 0x3a2a22);
@@ -439,7 +511,7 @@ function buildBalloon(name){
 const balCache = {};
 let BAL = null;
 function useBalloon(name){
-  if(BAL) S.remove(BAL.g);
+  if(BAL){ whiteFlash(false); S.remove(BAL.g); }
   BAL = balCache[name] || (balCache[name] = buildBalloon(name)); S.add(BAL.g);
 }
 // game's FlightConfig.VisualScale
@@ -495,7 +567,7 @@ function spawnBird(side, dy, speed, o){
   const aim = c.clone().addScaledVector(P.vel, o.lead||0).add(new V(0, o.ty||0, 0));
   const g = buildSparrow(); g.position.copy(from); S.add(g);
   const b = {g:g, vel:aim.sub(from).normalize().multiplyScalar(speed), speed:speed, age:0, closest:1e9, done:false, dodged:false, home:o.home!==false};
-  birds.push(b); SFX.chirp(); return b;
+  birds.push(b); SFX.chirp(); SFX.warn(); return b;
 }
 function killBird(i){ S.remove(birds[i].g); birds.splice(i,1); }
 
@@ -555,7 +627,7 @@ function noise(dur, f0, f1, vol, q, delay){ if(!soundOn||!AC) return; const t = 
   const g = AC.createGain(); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+dur*.18); g.gain.exponentialRampToValueAtTime(.001,t+dur);
   s.connect(bp).connect(g).connect(AC.destination); s.start(t); }
 const SFX = {
-  grow(){ tone('sine', 1040, 1180, .05, .018); },
+  grow(){ tone('sine', 1040, 1120, .04, .009); },
   squeeze(){ tone('square', 420, 980, .08, .035); tone('sine', 700, 1500, .09, .05); },
   whoosh(){ noise(.42, 2600, 420, .55, .9); tone('triangle', 260, 120, .22, .07); tone('sine', 1400, 600, .12, .03, .02); },
   ready(){ tone('triangle', 1319, 1321, .08, .045); tone('triangle', 1760, 1762, .12, .04, .07); },
@@ -570,8 +642,14 @@ const SFX = {
   flail(){ noise(.25, 900, 1600, .12, 1.6); },
   coin(i){ tone('triangle', 1568+(i%6)*70, 1760+(i%6)*70, .06, .035); },
   close(){ tone('triangle', 880, 1320, .12, .05); },
-  dodge(){ [660, 880, 1175, 1568].forEach((f,i) => tone('triangle', f, f*1.02, .1, .055, i*.05)); },
+  dodge(n){ const k = Math.pow(2, Math.min(n||1, 8)/12); [660, 880, 1175, 1568].forEach((f,i) => tone('triangle', f*k, f*k*1.02, .1, .055, i*.05)); },
   chirp(){ tone('sine', 2400, 3100, .06, .02); tone('sine', 2600, 3300, .05, .018, .08); },
+  warn(){ tone('square', 880, 880, .07, .03); tone('square', 660, 660, .09, .03, .1); },
+  landReady(){ [1047, 1319].forEach((f,i) => tone('triangle', f, f*1.005, .12, .05, i*.08)); },
+  alt(n){ const b = 523*Math.pow(2, (n%6)/12); [1, 1.26, 1.5, 2].forEach((m,i) => tone('triangle', b*m, b*m*1.01, .16, .055, i*.07)); tone('sine', b*4, b*4.2, .3, .02, .3); },
+  streak(n){ const b = 660*Math.pow(2, Math.min(n,8)/12); [1, 1.26, 1.5].forEach((m,i) => tone('triangle', b*m, b*m*1.02, .1, .05, i*.05)); },
+  flash(){ tone('sine', 1800, 3600, .08, .05); },
+  touchSmall(){ tone('sine', 150, 60, .25, .4); noise(.3, 1200, 300, .3, .8); [1319,1568].forEach((f,i) => tone('triangle', f, f*1.01, .12, .05, .1+i*.06)); },
   lift(){ noise(.5, 500, 2400, .3, .8); tone('triangle', 330, 660, .3, .07); },
 };
 
@@ -606,6 +684,7 @@ const P = {pos:new V(), vel:new V(), yaw:0, mode:'fly', size:40, risk:0, coins:1
   bank:0, bankV:0, pitch:0, pitchV:0, flail:0, fallT:0, groundT:0, bump:0, wob:0, wobV:0, sq:0};
 const bal = {pos:new V(), vel:new V(), q:new T.Quaternion(), shown:true};
 const LAND = {t:-1};
+let SHAKE = !REDUCED;
 let NEW = true, demo = null, speedMul = 1, clockT = 0, hs = 0, slow = 0, shake = 0, fovKick = 0, camLag = 0;
 let tracks = [];
 function play(name, fade, t0){ tracks.forEach(tr => tr.target = 0); tracks.push({A:ANIM[name], t:t0||0, w:tracks.length?0:1, target:1, fade:fade||.2}); }
@@ -620,7 +699,9 @@ function camRight(){ const f = camFwd(); return new V(-f.z, 0, f.x); }
 
 function spawnAt(pos, vel){
   if(P.bankLeft > 0){ P.coins += P.bankLeft; P.bankLeft = 0; }
+  if(BAL) whiteFlash(false);
   P.pos.copy(pos); P.vel.copy(vel||new V()); P.mode = 'fly'; P.size = 40; P.risk = 0; P.grow = 0; P.sinkT = 0; P.air = false;
+  P.streak = 0; P.altBest = Math.floor(altitude()/50); P.ghosts = 0; P.inWin = false; setStreak();
   P.dash.t = -1; P.dash.cd = 0; P.flail = 0; P.fallT = 0; P.bank = P.pitch = P.bankV = P.pitchV = 0; P.wob = P.wobV = 0; P.sq = 0;
   if(P.vel.lengthSq() > .1) P.yaw = Math.atan2(-P.vel.x, -P.vel.z);
   LAND.t = -1; rope.free = false; bal.shown = true; tracks = []; play('float', .01);
@@ -644,7 +725,7 @@ function tryDash(dirOverride){
   if(dir.lengthSq() < .01){ const h = new V(P.vel.x, 0, P.vel.z); dir = h.lengthSq() > 4 ? h : camFwd(); }
   dir.y = 0; dir.normalize();
   const cost = Math.max(DASH.min, Math.round(P.size*DASH.cost)); P.size -= cost;
-  P.dash = {t:0, cd:DASH.cd, dir:dir, fired:false}; P.lastDash = clockT; P.sinkT = DASH.sink;
+  P.dash = {t:0, cd:DASH.cd, dir:dir, fired:false}; P.lastDash = clockT; P.sinkT = DASH.sink; P.ghosts = 0;
   P.yaw = P.yaw; P.sq = 1;   // squeeze
   ftext('-'+cost+' SIZE', () => balloonCenter().add(new V(-balloonRadius()*.5, balloonRadius()*.7, 0)), 'r w');
   const sz = document.getElementById('hSize'); sz.classList.remove('hit'); void sz.offsetWidth; sz.classList.add('hit');
@@ -667,11 +748,23 @@ function tryLand(){
   const to = new V(clamp(P.pos.x, -5, 5), HIP+.4, clamp(P.pos.z, -5, 5));
   LAND.t = 0; LAND.from = P.pos.clone(); LAND.to = to; LAND.dur = NEW ? .75 : 1.0; LAND.started = false; P.mode = 'landing'; P.dash.t = -1;
 }
+const BIG_LAND = 200;   // bank at least this many coins (or land on a new island) for the full slow-motion landing
 function touchdown(){
   P.mode = 'ground'; P.groundT = 0; P.pos.copy(LAND.to); P.vel.set(0,0,0);
-  const at = new V(P.pos.x, .12, P.pos.z), banked = Math.round(P.risk);
+  const at = new V(P.pos.x, .12, P.pos.z), banked = Math.round(P.risk), big = banked >= BIG_LAND || LAND.newIsland;
+  P.streak = 0; setStreak();
+  if(NEW && !big){
+    shake = SHAKE ? .16 : 0;
+    ringFx(at, 20, 0xfff3c4, 17, .45, .45); burst(at, UPV, 8, [0xe8d3a8, 0xffffff], 5, .7, .55, 2, {drag:3, grow:1.2, fade:.85});
+    burst(at.clone().add(new V(0,.4,0)), UPV, 10, [0x5cc93a, 0x4fb52f, 0x9a6334, 0xffd23f], 9, .45, 1.2, 7, {g:42, drag:.4, grow:0, bounce:true, spin:3, spread:1.2, fade:1});
+    for(let i=0;i<10;i++){ const c = new T.Mesh(geo.box, mat(0xffc530,{r:.3, e:0x7a5200, ei:.35})); c.scale.set(.7,.7,.2);
+      c.position.copy(at).add(new V((Math.random()-.5)*1.2, 1.3, (Math.random()-.5)*1.2)); S.add(c);
+      fx.push({m:c, v:new V((Math.random()-.5)*8, 11+Math.random()*5, (Math.random()-.5)*8), life:3, age:0, coin:true, up:.4+Math.random()*.2, spin:6+Math.random()*8}); }
+    ftext('+'+fmt(banked), () => P.pos.clone().add(new V(0, 3.5, 0)), 'y', {life:1.2, rise:50}); SFX.touchSmall();
+    P.bankLeft = banked; P.bankEach = banked/10; P.risk = 0; return;
+  }
   if(NEW){
-    hs = .1; slow = .3; shake = REDUCED ? 0 : .42;
+    hs = .1; slow = .3; shake = SHAKE ? .42 : 0;
     ringFx(at, 26, 0xfff3c4, 26, .55, .55); ringFx(at.clone().add(new V(0,.2,0)), 18, 0xc9a26b, 15, .6, .6);
     burst(at, UPV, 14, [0xe8d3a8, 0xc9a26b, 0xffffff], 7, .9, .7, 3, {drag:3, grow:1.4, fade:.85});
     burst(at.clone().add(new V(0,.4,0)), UPV, 24, [0x5cc93a, 0x4fb52f, 0x9a6334, 0x86e35e, 0xffd23f], 13, .55, 1.6, 9, {g:42, drag:.4, grow:0, bounce:true, spin:3, spread:1.4, fade:1});
@@ -680,19 +773,26 @@ function touchdown(){
       fx.push({m:c, v:new V((Math.random()-.5)*11, 13+Math.random()*7, (Math.random()-.5)*11), life:3, age:0, coin:true, up:.45+Math.random()*.25, spin:6+Math.random()*8}); }
     popText('LANDED! +'+fmt(banked), 'linear-gradient(#ffffff 0%,#fff3a0 55%,#ffc530 100%)'); SFX.touchBig();
   } else {
-    shake = REDUCED ? 0 : .3; ringFx(at, 22, 0xc9a26b, 7, .45, .55); ringFx(at, 14, 0xe8d3a8, 7, .45, .55);
+    shake = SHAKE ? .3 : 0; ringFx(at, 22, 0xc9a26b, 7, .45, .55); ringFx(at, 14, 0xe8d3a8, 7, .45, .55);
     for(let i=0;i<14;i++){ const c = new T.Mesh(geo.box, mat(0xffc530,{r:.3})); c.scale.set(.7,.7,.18); c.position.copy(at).add(new V(0,1,0)); S.add(c);
       fx.push({m:c, v:new V((Math.random()-.5)*6, 10+Math.random()*5, (Math.random()-.5)*6), life:3, age:0, coin:true, up:.45, spin:6}); }
     popText('LANDED!'); SFX.touchOld();
   }
   P.bankLeft = banked; P.bankEach = banked/(NEW ? 22 : 14); P.risk = 0;
 }
+const whiteM = new T.MeshBasicMaterial({color:0xffffff});
+function whiteFlash(on){ BAL.g.traverse(o => { if(!o.isMesh) return; if(on){ if(!o.userData.m0) o.userData.m0 = o.material; o.material = whiteM; } else if(o.userData.m0){ o.material = o.userData.m0; o.userData.m0 = null; } }); }
 function pop(){
   if(P.mode !== 'fly') return;
+  if(NEW){ P.mode = 'prepop'; P.preT = 0; P.dash.t = -1; whiteFlash(true); SFX.flash(); return; }
+  burstPop();
+}
+function burstPop(){
+  if(NEW) whiteFlash(false);
   const c = balloonCenter(), r = balloonRadius(), lost = Math.round(P.risk);
   P.mode = 'fall'; P.fallT = 0; P.dash.t = -1; bal.shown = false; rope.free = true;
   if(NEW){
-    hs = .1; shake = REDUCED ? 0 : .5; P.vel.y = 6; P.flail = 1;
+    hs = .1; shake = SHAKE ? .5 : 0; P.vel.y = 6; P.flail = 1;
     // rubber pieces in the balloon's own colours
     for(let i=0;i<28;i++){ const d = new V(Math.random()-.5, Math.random()-.35, Math.random()-.5).normalize();
       const m = fxMesh(BAL.cols[i%BAL.cols.length]); m.position.copy(c).addScaledVector(d, r*.7); m.scale.set(.5+Math.random()*1.1, .5+Math.random()*1.1, .18);
@@ -703,12 +803,86 @@ function pop(){
     burst(c, UPV, 10, 0xffffff, 6, .6, .5, 0); popText('POP!', 'linear-gradient(#ffffff 0%,#ffb3b9 50%,#ff3f4f 100%)'); SFX.popOld();
   }
   if(lost > 0) ftext('-'+fmt(lost)+' coins', P.pos.clone().add(new V(0, 4, 0)), 'r', {life:1.6, rise:70});
-  P.risk = 0;
+  if(P.streak > 1) ftext('STREAK LOST', P.pos.clone().add(new V(0, 6, 0)), 'r w', {life:1.4, rise:60});
+  P.risk = 0; P.streak = 0; setStreak();
 }
+
+/* ---------------- dash ghosts: 3 clean afterimages of you and your balloon ---------------- */
+const ghosts = []; let ghostLater = false;
+function spawnGhost(){
+  const gm = new T.MeshBasicMaterial({color:0xc6f1ff, transparent:true, opacity:.55, depthWrite:true});
+  const g = new T.Group(), b = BAL.g.clone(), lights = [];
+  b.traverse(o => { if(o.isLight) lights.push(o); else if(o.isMesh) o.material = gm; }); lights.forEach(l => l.parent.remove(l));
+  b.matrix.copy(BAL.g.matrix); g.add(b);
+  const c = chr.clone(); c.traverse(o => { if(o.isMesh) o.material = gm; }); g.add(c);
+  S.add(g); ghosts.push({g:g, gm:gm, age:0, life:.38});
+}
+function stepGhosts(dt){
+  for(let i=ghosts.length-1;i>=0;i--){ const gh = ghosts[i]; gh.age += dt; const k = gh.age/gh.life;
+    if(k >= 1){ S.remove(gh.g); gh.gm.dispose(); ghosts.splice(i,1); continue; }
+    gh.gm.opacity = .55*Math.pow(1-k, 1.3); }
+}
+
+/* ---------------- bird warnings ---------------- */
+const warnEls = [];
+function warnEl(i){ if(!warnEls[i]){ const e = document.createElement('div'); e.className = 'warn'; e.innerHTML = '<div class="ar"></div><div class="bub ol">!</div>'; stage.appendChild(e); warnEls[i] = e; } return warnEls[i]; }
+function stepWarn(){
+  const w = stage.clientWidth, h = stage.clientHeight; let k = 0;
+  if(NEW && P.mode === 'fly'){ const bc = balloonCenter();
+    birds.forEach(function(b){ if(b.done || b.reported) return; const rel = bc.clone().sub(b.g.position), d = rel.length(); if(d > 80 || rel.dot(b.vel) <= 0) return;
+      const e = warnEl(k++), danger = clamp(1 - (d-10)/60, 0, 1); e.style.display = 'block';
+      e.style.setProperty('--wc', danger > .62 ? '#ff3f4f' : danger > .3 ? '#ff8a1f' : '#ffc530');
+      e.style.setProperty('--wd', danger > .62 ? '#a30f1c' : danger > .3 ? '#b8480a' : '#b07800');
+      e.style.setProperty('--wp', (.75 - danger*.5).toFixed(2)+'s');
+      const p = b.g.position.clone().project(cam); let x = (p.x*.5+.5)*w, y = (-p.y*.5+.5)*h; const behind = p.z > 1, m = 40;
+      const on = !behind && x > m && x < w-m && y > m+20 && y < h-m, ar = e.firstChild;
+      if(on){ y -= 30; ar.style.display = 'none'; }
+      else { if(behind){ x = w - x; y = h - y; } const cx = w/2, cy = h/2, dx = x-cx, dy = y-cy;
+        const sc = Math.min((cx-m)/Math.max(1e-3, Math.abs(dx)), (cy-m)/Math.max(1e-3, Math.abs(dy))); x = cx + dx*sc; y = cy + dy*sc;
+        ar.style.display = 'block'; ar.style.setProperty('--a', Math.atan2(dy, dx).toFixed(3)+'rad'); }
+      e.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${(.78 + danger*.38).toFixed(2)})`; }); }
+  for(let i=k;i<warnEls.length;i++) warnEls[i].style.display = 'none';
+}
+
+/* ---------------- landing window: the pad glows, rim studs hop, arrow + LAND! chip ---------------- */
+const landChip = document.getElementById('landChip');
+function inLandWindow(){ const foot = P.pos.y - HIP; return P.mode === 'fly' && onIsland(P.pos.x, P.pos.z, 4) && foot <= 45 && foot > -2; }
+function stepPad(dt, rdt){
+  const win = NEW && inLandWindow();
+  if(win && !P.inWin) SFX.landReady(); P.inWin = win;
+  PADFX.k = lerp(PADFX.k, win ? 1 : 0, Math.min(1, rdt*7)); const k = PADFX.k, t = clockT;
+  PADFX.top.emissiveIntensity = k*(.32 + .22*Math.sin(t*6)); PADFX.rimM.emissiveIntensity = k*.85;
+  PADFX.studs.forEach((n,i) => { n.position.y = .48 + k*Math.max(0, Math.sin(t*9 - i*.52))*.55; });
+  const ar = PADFX.arrow; const sc = k < .01 ? .001 : k*(1 + Math.max(0, Math.sin(t*4))*.05);
+  ar.scale.setScalar(sc); ar.position.y = 12 + Math.sin(t*3.2)*.8; ar.rotation.y = Math.atan2(cam.position.x, cam.position.z);
+  if(k > .5){ const p = new V(0, ar.position.y + 6.4, 0).project(cam); const x = (p.x*.5+.5)*stage.clientWidth, y = (-p.y*.5+.5)*stage.clientHeight;
+    if(!landChip.classList.contains('on')) landChip.classList.add('on');
+    landChip.style.transform = `translate(${x.toFixed(1)}px,${clamp(y, 70, stage.clientHeight-70).toFixed(1)}px) translate(-50%,-50%)`; }
+  else landChip.classList.remove('on');
+}
+
+/* ---------------- height pops every 50 m ---------------- */
+const ALT_BASE = 150;   // the preview island sits at 150 m, like Meadow Rest
+function altitude(){ return ALT_BASE + Math.max(0, P.pos.y - HIP); }
+const altEl = document.getElementById('altPop');
+function stepAlt(){
+  if(P.mode !== 'fly') return;
+  const n = Math.floor(altitude()/50); if(n <= P.altBest) return; P.altBest = n;
+  if(!NEW) return;
+  const txt = (n*50)+' m!'; altEl.querySelector('.s').textContent = txt; altEl.querySelector('.f').textContent = txt;
+  altEl.style.setProperty('--g', 'linear-gradient(#ffffff 0%,#e9d4ff 50%,#a45cff 100%)');
+  altEl.classList.remove('go'); void altEl.offsetWidth; altEl.classList.add('go'); SFX.alt(n);
+  ringFx(P.pos.clone().add(new V(0, 1, 0)), 20, 0xd9b8ff, 14, .4, .5, UPV, {e:0xb57bff, ei:.8});
+  burst(P.pos.clone().add(new V(0, 2, 0)), UPV, 10, [0xffffff, 0xe9d4ff, 0xffe28a], 7, .35, .7, 4, {drag:2.5, grow:.2, fade:1, mo:{e:0xffffff, ei:.6}});
+}
+function setStreak(bump){ const el = document.getElementById('hStreak'); el.classList.toggle('on', NEW && P.streak > 0);
+  document.getElementById('vStreak').textContent = 'x'+P.streak; if(bump){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } }
 
 /* ---------------- demos ---------------- */
 const keys = {};
 const DEMOS = {
+  climb: {len:8.4, start(){ spawnAt(new V(-14, HIP+8, 14), new V(3,0,-2)); demo.cruise = HIP + 128; P.risk = 40; },
+    tick(t){ demo.input = new V(Math.sin(t*.9), 0, Math.cos(t*.9)).multiplyScalar(.35); } },
   fly: {len:7.2, start(){ spawnAt(new V(-28, CRUISE+HIP, 0), new V(0,0,-12)); },
     tick(t){ // circle the island, then a snappy turn-around, then a zig-zag
       if(t < 3.2){ const r = new V(P.pos.x, 0, P.pos.z), L = r.length()||1; const tan = new V(r.z, 0, -r.x).divideScalar(L);
@@ -716,18 +890,20 @@ const DEMOS = {
       else if(t < 4.6){ if(!demo.flipped) demo.flipped = new V(P.vel.x,0,P.vel.z).normalize().multiplyScalar(-1); demo.input = demo.flipped.clone(); }
       else { const f = demo.flipped || new V(1,0,0), side = new V(-f.z, 0, f.x); demo.input = f.clone().addScaledVector(side, Math.sin((t-4.6)*3.2)*1.2).normalize(); }
       demo.air = t > 5.8 && t < 6.5; } },
-  dash: {len:7.6, start(){ spawnAt(new V(-6, CRUISE+HIP-4, 18), new V(2,0,0)); P.risk = 120; demo.autoDash = NEW;
+  dash: {len:7.6, start(){ spawnAt(new V(-6, CRUISE+HIP-4, 46), new V(2,0,0)); P.risk = 120; demo.autoDash = NEW;
       demo.at = [[.4, () => spawnBird(-1, 2, 26, {front:true})], [3.5, () => spawnBird(1, 0, 26, {front:true})]]; },
     tick(t){ demo.input = new V(.06, 0, 0); } },
-  land: {len:5.4, start(){ spawnAt(new V(22, 32+HIP, 20), new V(-8,0,-8)); P.risk = 236; P.size = 52; demo.at = [[1.0, () => tryLand()]]; },
-    tick(t){ demo.input = P.pos.clone().multiplyScalar(-1).setY(0).normalize().multiplyScalar(.8); } },
-  pop: {len:4.6, start(){ spawnAt(new V(0, CRUISE+HIP, 22), new V(2,0,0)); P.risk = 180; demo.autoDash = false; demo.at = [[.35, () => spawnBird(-1, 2, 26, {lead:.35})]]; },
+  land: {len:9.6, start(){ spawnAt(new V(22, 32+HIP, 20), new V(-8,0,-8)); P.risk = 64; P.size = 46;
+      demo.at = [[1.3, () => tryLand()], [3.6, () => { spawnAt(P.pos.clone().add(new V(0, 2, 0))); P.vel.y = 14; P.size = 58; P.risk = 340; SFX.lift();
+        ftext('Now with lots of coins...', () => P.pos.clone().add(new V(0, 4, 0)), 'w', {life:1.8, rise:40}); }], [6.0, () => tryLand()]]; },
+    tick(t){ demo.input = t > 3.6 ? new V(0,0,0) : P.pos.clone().multiplyScalar(-1).setY(0).normalize().multiplyScalar(.8); if(t > 3.6) demo.cruise = HIP + 26; } },
+  pop: {len:4.6, start(){ spawnAt(new V(0, CRUISE+HIP, 46), new V(2,0,0)); P.risk = 180; demo.autoDash = false; demo.at = [[.35, () => spawnBird(-1, 2, 26, {lead:.35})]]; },
     tick(t){ demo.input = new V(.06, 0, 0); } },
   free: {len:1e9, start(){ if(P.mode !== 'fly') spawnAt(new V(0, CRUISE+HIP, 24)); demo.free = true; demo.next = 3.5; },
     tick(t){ demo.input = null; if(t > demo.next && P.mode === 'fly'){ demo.next = t + 4.5 + Math.random()*2.5;
         spawnBird(Math.random()<.5?-1:1, (Math.random()-.4)*6, 18+Math.random()*5, {lead:.3}); } } },
 };
-const ORDER = ['fly','dash','land','pop'];
+const ORDER = ['climb','fly','dash','land','pop'];
 function startDemo(name, keepAll){
   demo = {name:name, t:0, at:[], input:null, all:keepAll ? demo.all : name==='all', idx:keepAll ? demo.idx : 0};
   if(name === 'all'){ demo.all = true; demo.idx = 0; name = ORDER[0]; demo.name = name; }
@@ -736,8 +912,8 @@ function startDemo(name, keepAll){
   setTag();
 }
 function setTag(){
-  const names = {fly:'FLY FAST', dash:'DASH PAST BIRDS', land:'LAND', pop:'POP', free:'YOUR TURN'};
-  const st = {fly:'flying', landing:'landing', ground:'on the island', fall:'popped!'}[P.mode];
+  const names = {climb:'CLIMB', fly:'FLY FAST', dash:'DASH PAST BIRDS', land:'LAND', pop:'POP', free:'YOUR TURN'};
+  const st = {fly:'flying', prepop:'hit!', landing:'landing', ground:'on the island', fall:'popped!'}[P.mode];
   tag.innerHTML = `<b>${NEW?'NEW FEEL':'OLD FEEL'}</b> · ${demo ? names[demo.name] : ''} · ${st}`;
 }
 
@@ -769,11 +945,12 @@ function step(dt, rdt){
   if(P.mode === 'fly'){
     // grow +1 every second, coins while flying
     P.grow += dt; while(P.grow >= 1){ P.grow -= 1; P.size = Math.min(150, P.size+1); P.risk += 4 + P.size*.6;
-      if(NEW){ P.bump = 1; P.wobV += 2.2; ftext('+1', () => balloonCenter().add(new V(balloonRadius()*.9, balloonRadius()*.4, 0)), 'g', {life:.8, rise:30}); SFX.grow(); } }
+      if(NEW){ P.bump = 1; P.wobV += 1.6; SFX.grow(); } }
     // steering
     if(P.dash.t >= 0){ const d = P.dash; d.t += dt;
       if(d.t < DASH.squeeze){ h.multiplyScalar(Math.exp(-6*dt)); }
       else { if(!d.fired){ d.fired = true; fireDash(); } const u = (d.t - DASH.squeeze)/DASH.burst;
+        if(P.ghosts < 3 && d.t - DASH.squeeze >= .02 + P.ghosts*.065){ P.ghosts++; ghostLater = true; }
         if(u >= 1){ d.t = -1; h.copy(d.dir).multiplyScalar(C.max); }
         else { const sp = Math.max(DASH.peak*Math.pow(1-u, 2), C.max*.9); h.copy(d.dir).multiplyScalar(sp);
           if(Math.random() < dt*60) spawnStreak(P.pos.clone().add(new V((Math.random()-.5)*5, (Math.random()-.3)*6, (Math.random()-.5)*5)).addScaledVector(d.dir, 6+Math.random()*8), d.dir, 3+Math.random()*3); } } }
@@ -787,11 +964,13 @@ function step(dt, rdt){
     // vertical: hold Space drops at once; after a dash you sink a little; otherwise float to cruise height
     if(air){ P.vel.y = -30; P.size = Math.max(5, P.size - P.size*.05*dt); }
     else if(P.sinkT > 0){ P.sinkT -= dt; P.vel.y = lerp(P.vel.y, -6, Math.min(1, dt*8)); }
-    else { const want = clamp((CRUISE+HIP - P.pos.y)*1.2, -4, 6); P.vel.y = lerp(P.vel.y, want, Math.min(1, dt*3)); }
+    else { const cr = demo && demo.cruise || CRUISE+HIP, want = clamp((cr - P.pos.y)*1.2, -4, demo && demo.cruise ? 16 : 6); P.vel.y = lerp(P.vel.y, want, Math.min(1, dt*3)); }
     P.vel.x = h.x; P.vel.z = h.z;
     P.pos.addScaledVector(P.vel, dt);
     const floor = onIsland(P.pos.x, P.pos.z, 2) ? HIP + 3 : -40; if(P.pos.y < floor){ P.pos.y = floor; P.vel.y = Math.max(0, P.vel.y); }
     const fl = Math.hypot(P.pos.x, P.pos.z); if(fl > 70){ P.pos.x *= 70/fl; P.pos.z *= 70/fl; }
+  } else if(P.mode === 'prepop'){
+    P.preT += rdt; if(P.preT >= .1) burstPop();
   } else if(P.mode === 'landing'){
     LAND.t += dt; const k = clamp(LAND.t/LAND.dur, 0, 1);
     const hk = 1 - Math.pow(1-k, 2), vk = NEW ? k*k*k : k*k;
@@ -868,17 +1047,19 @@ function step(dt, rdt){
       P.sq = Math.max(0, P.sq - dt*(P.dash.t >= 0 && P.dash.t < DASH.squeeze ? 0 : 5));
       const sqK = P.dash.t >= 0 && P.dash.t < DASH.squeeze ? P.dash.t/DASH.squeeze : P.sq;
       P.bump = Math.max(0, P.bump - dt*5);
-      const bumpK = Math.sin((1-P.bump)*PI)*P.bump*.09;
+      const bumpK = Math.sin((1-P.bump)*PI)*P.bump*.06;
       sy = 1 + P.wob*.06 - sqK*.28 + bumpK; sx = 1 - P.wob*.03 + sqK*.18 + bumpK;
       const rv = bal.vel.clone().sub(P.vel).add(new V(P.vel.x, 0, P.vel.z).multiplyScalar(.6)); st = clamp(rv.length()*.007, 0, .3); if(st > .01) stDir = rv.normalize();
     }
     const M = new T.Matrix4().makeTranslation(bal.pos.x, bal.pos.y, bal.pos.z);
     if(st > .01){ const ru = new T.Matrix4().makeRotationFromQuaternion(new T.Quaternion().setFromUnitVectors(UPV, stDir));
       const a = 1/Math.sqrt(1+st); M.multiply(ru).multiply(new T.Matrix4().makeScale(a, 1+st, a)).multiply(ru.clone().transpose()); }
-    M.multiply(new T.Matrix4().makeRotationFromQuaternion(bal.q)).multiply(new T.Matrix4().makeScale(s*sx, s*sy, s*sx));
+    const sw = P.mode === 'prepop' ? 1 + .16*Math.min(1, P.preT/.1) : 1;
+    M.multiply(new T.Matrix4().makeRotationFromQuaternion(bal.q)).multiply(new T.Matrix4().makeScale(s*sx*sw, s*sy*sw, s*sx*sw));
     BAL.g.matrix.copy(M); BAL.g.matrixWorldNeedsUpdate = true;
   }
   BAL.g.visible = bal.shown;
+  if(ghostLater){ ghostLater = false; spawnGhost(); }
   ropeVisible(bal.shown || rope.free && P.mode === 'fall');
   ropeStep(dt, grip, bal.pos, !NEW);
 
@@ -893,7 +1074,11 @@ function step(dt, rdt){
       if(d < br + 1.1){ b.done = true; pop(); }
       else { if(d < b.closest) b.closest = d; else if(!b.reported && d > b.closest + .5 && (b.closest < br + 7 || (NEW && clockT - P.lastDash < 1.6 && b.closest < 30))){ b.reported = true;
         const dodge = NEW && clockT - P.lastDash < 1.6;
-        ftext(dodge ? 'NICE DODGE!' : 'CLOSE!', () => P.pos.clone().add(new V(0, 2.5, 0)), dodge ? 'y' : 'c', {life:1.1, rise:40}); dodge ? SFX.dodge() : SFX.close(); } } }
+        if(NEW){ P.streak++; const bonus = 10*P.streak; P.risk += bonus; setStreak(true);
+          ftext((dodge ? 'NICE DODGE!' : 'CLOSE!') + (P.streak > 1 ? ' x'+P.streak : '') + '  +'+bonus, () => P.pos.clone().add(new V(0, 2.5, 0)), dodge ? 'y' : 'c', {life:1.3, rise:44});
+          dodge ? SFX.dodge(P.streak) : SFX.close(); if(P.streak > 1) SFX.streak(P.streak); }
+        else { ftext('CLOSE!', () => P.pos.clone().add(new V(0, 2.5, 0)), 'c', {life:1.1, rise:40}); SFX.close(); } } } }
+    
     if(b.age > 8 || d > 120) killBird(i); }
 
   // wind lines from speed (NEW)
@@ -903,7 +1088,7 @@ function step(dt, rdt){
         const o = new V((Math.random()-.5)*16, (Math.random()-.5)*12, (Math.random()-.5)*16); spawnStreak(P.pos.clone().add(o).addScaledVector(dir, 8 + Math.random()*10), dir, 2.5 + spd*.06); } n -= 1; } }
   if(wind){ const spd = P.mode === 'fly' || P.mode === 'fall' ? P.vel.length() : 0; const gw = NEW ? clamp((spd-6)/40, 0, 1)*.11 + (P.dash.t >= 0 ? .05 : 0) : .012;
     wind.g.gain.setTargetAtTime(soundOn ? gw : 0, AC.currentTime, .08); wind.f.frequency.setTargetAtTime(500 + spd*18, AC.currentTime, .1); }
-  stepFx(dt); stepStreaks(dt);
+  stepFx(dt); stepStreaks(dt); stepGhosts(rdt); stepWarn(); stepPad(dt, rdt); stepAlt();
   clouds.forEach((g,i) => { g.position.x += Math.sin(i)*dt*.8; g.visible = g.position.distanceTo(cam.position) > 16*g.scale.x; });
 
   // respawn after a pop
@@ -913,7 +1098,9 @@ function step(dt, rdt){
   coinShow = lerp(coinShow, P.coins, Math.min(1, rdt*8)); document.getElementById('vCoins').textContent = fmt(coinShow);
   document.getElementById('vRisk').textContent = fmt(P.risk); document.getElementById('vSize').textContent = Math.round(P.size);
   dashBtn.classList.toggle('hide', !NEW);
-  const cdk = P.dash.cd > 0 ? P.dash.cd/DASH.cd : 0; dashCd.style.setProperty('--p', (cdk*100).toFixed(1)+'%'); dashN.textContent = P.dash.cd > 0 ? Math.ceil(P.dash.cd) : '';
+  const cdk = P.dash.cd > 0 ? P.dash.cd/DASH.cd : 0; dashCd.style.setProperty('--p', (cdk*100).toFixed(1)+'%'); const small = NEW && P.size < DASH.minSize && P.mode === 'fly'; dashBtn.classList.toggle('small', small);
+  dashN.textContent = small ? 'TOO SMALL' : P.dash.cd > 0 ? Math.ceil(P.dash.cd) : '';
+  document.getElementById('vAlt').textContent = fmt(altitude())+' m';
   stepFts(rdt);
 }
 
@@ -926,7 +1113,7 @@ function stepCam(rdt){
   const rate = camLag > 0 ? 2.5 : (NEW ? 6 : 9);
   camT.lerp(target, 1 - Math.exp(-rate*rdt));
   fovKick = Math.max(0, fovKick - rdt*2.2);
-  const fovT = (window.innerWidth < 620 ? 50 : 40) + (NEW && !REDUCED ? clamp(spd/C.max, 0, 1.4)*5 + Math.sin(Math.min(1, fovKick)*PI/2)*7 : 0);
+  const fovT = (window.innerWidth < 620 ? 50 : 40) + (NEW && SHAKE ? clamp(spd/C.max, 0, 1.4)*5 + Math.sin(Math.min(1, fovKick)*PI/2)*7 : 0);
   cam.fov = lerp(cam.fov, fovT, Math.min(1, rdt*6)); cam.updateProjectionMatrix();
   const dd = dist + Math.sqrt(P.size)*.6;
   cam.position.set(camT.x + Math.sin(yaw)*Math.cos(pitch)*dd, camT.y + Math.sin(pitch)*dd, camT.z + Math.cos(yaw)*Math.cos(pitch)*dd);
@@ -974,9 +1161,10 @@ document.querySelectorAll('[data-bal]').forEach(b => b.addEventListener('click',
   document.querySelectorAll('[data-bal]').forEach(x => x.classList.toggle('on', x===b)); }));
 document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { speedMul = +b.dataset.speed;
   document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x===b)); }));
+document.getElementById('bShake').addEventListener('click', function(){ SHAKE = !SHAKE; this.textContent = 'Shake: '+(SHAKE?'on':'off'); this.classList.toggle('on', SHAKE); });
 document.getElementById('bSound').addEventListener('click', function(){ if(!AC){ unlockAudio(); return; } soundOn = !soundOn; this.textContent = 'Sound: '+(soundOn?'on':'off'); });
 
 window.__debug = {advance(sec){ frozen = true; const n = Math.round(sec*60); for(let i=0;i<n;i++) tick(1/60); R.render(S, cam); },
-  startDemo, setFeel(n){ NEW = n; }, P, birds, setView(y,p,d){ yaw = y; pitch = p; if(d) dist = d; }, useBalloon};
+  startDemo, setFeel(n){ NEW = n; }, P, setSize(n){ P.size = n; }, birds, setView(y,p,d){ yaw = y; pitch = p; if(d) dist = d; }, useBalloon};
 useBalloon('Spike'); resize(); startDemo('all'); requestAnimationFrame(frame);
 </script>
