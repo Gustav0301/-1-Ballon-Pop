@@ -19,4 +19,9 @@ Stand-ins for powers whose systems don't exist yet:
 | Sun | Scorches birds that come too close | Melts hail and meteors |
 | Crown | A gold shield bounces a hit back | Pins |
 
-Gustav still has to say which version he likes. Wait for his word before changing the abilities in Studio.
+**Decided by Gustav (2026-10-09): the Q key version.** Build it in Studio:
+- Frost, Clock and Whale on **Q**, Iron on **Space**, all others automatic (as in the preview, toggle off). Show the Q key with its cooldown on the HUD while flying, and on phones a round Q button.
+- The four stand-ins above.
+- Each balloon's ability icon and one line on the shop cards and the Index cards.
+- Each ability with its own effects and sounds, like the preview.
+- Don't press Play. Gustav tests.
