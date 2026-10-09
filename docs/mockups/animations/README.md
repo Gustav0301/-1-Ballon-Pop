@@ -12,6 +12,14 @@ Preview page: `index.html` here (open it in a browser). Gustav approved the plan
 
 Gustav's float animation is `BalloonGentleGlideandLookAround.lua` (his own Rig Director export). Each `.lua` file is a command-bar script in the same format as Rig Director. It creates a KeyframeSequence in ServerStorage. Gustav publishes each one (right-click > Save to Roblox) and gives the animation ids. Put the ids in a config (for example `FlightConfig.Anim = { Idle = ..., TakeOff = ..., Float = ... }`) so they can be swapped without code changes.
 
+## Published ids (from Gustav, 2026-10-09)
+
+| Animation | Id |
+|---|---|
+| `BalloonIdle` | `rbxassetid://130255973398557` |
+| `BalloonTakeOff` | `rbxassetid://74498154196893` |
+| `BalloonGentleGlideandLookAround` (float) | not given yet: use the KeyframeSequence in Studio until it comes |
+
 ## Testing in Studio before the ids exist
 
 Until Gustav publishes the three animations, run the three `.lua` files to make the KeyframeSequences and play them with `KeyframeSequenceProvider:RegisterKeyframeSequence(seq)` (this only works in Studio). Keep the KeyframeSequences in ServerStorage.Animations and have the code use the published ids from the config when they are set, and fall back to the registered sequences in Studio when they aren't.
